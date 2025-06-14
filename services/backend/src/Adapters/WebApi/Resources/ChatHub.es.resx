@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <data name="UserNotRecognized" xml:space="preserve">
+    <value>Usuario no reconocido.</value>
+  </data>
+    <data name="SubscriptionNotFound" xml:space="preserve">
+    <value>Suscripción no encontrada.</value>
+  </data>
+    <data name="InsufficientCredits" xml:space="preserve">
+    <value>Créditos insuficientes.</value>
+  </data>
+    <data name="FileUploaded" xml:space="preserve">
+    <value>El archivo fue almacenado y se encuentra listo para hacer cosas con el.</value>
+  </data>
+    <data name="AiTimeout" xml:space="preserve">
+    <value>La petición de AI ha tardado demasiado y se canceló.</value>
+  </data>
+  <data name="AiError" xml:space="preserve">
+    <value>Error en la solicitud de AI: {0}</value>
+  </data>
+  <data name="ExcelSystemPrompt" xml:space="preserve">
+    <value>Cuando el usuario te haga preguntas pertinentes al excel, utiliza siempre siempre tu herramienta `create_plan` ya que permite evaluar el contenido del excel y el de tus otras herramientas para determinar la mejor manera de accionar. es vital que lo hagas siempre que sea necesario.</value>
+  </data>
+  <data name="Welcome" xml:space="preserve">
+    <value>Welcome</value>
+    <comment>Welcome</comment>
+  </data>
+  <data name="InvalidSession" xml:space="preserve">
+    <value>InvalidSession</value>
+    <comment>InvalidSession</comment>
+  </data>
+  <data name="EmptyMessage" xml:space="preserve">
+    <value>EmptyMessage</value>
+    <comment>EmptyMessage</comment>
+  </data>
+  <data name="SessionNotFound" xml:space="preserve">
+    <value>SessionNotFound</value>
+    <comment>SessionNotFound</comment>
+  </data>
+  <data name="NoAgentSelected" xml:space="preserve">
+    <value>NoAgentSelected</value>
+    <comment>NoAgentSelected</comment>
+  </data>
+  <data name="AgentAccessDenied" xml:space="preserve">
+    <value>AgentAccessDenied</value>
+    <comment>AgentAccessDenied</comment>
+  </data>
+  <data name="MissingPlugins" xml:space="preserve">
+    <value>MissingPlugins</value>
+    <comment>MissingPlugins</comment>
+  </data>
+</root>

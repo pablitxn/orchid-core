@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <data name="UserNotRecognized" xml:space="preserve">
+    <value>Пользователь не распознан.</value>
+  </data>
+    <data name="SubscriptionNotFound" xml:space="preserve">
+    <value>Подписка не найдена.</value>
+  </data>
+    <data name="InsufficientCredits" xml:space="preserve">
+    <value>Недостаточно кредитов.</value>
+  </data>
+    <data name="FileUploaded" xml:space="preserve">
+    <value>Файл сохранён и готов к обработке.</value>
+  </data>
+    <data name="AiTimeout" xml:space="preserve">
+    <value>Запрос к ИИ превысил время ожидания.</value>
+  </data>
+  <data name="AiError" xml:space="preserve">
+    <value>Ошибка запроса к ИИ: {0}</value>
+  </data>
+  <data name="ExcelSystemPrompt" xml:space="preserve">
+    <value>Когда пользователь задает вопросы по Excel, всегда используйте инструмент `create_plan`, чтобы оценить содержимое таблицы и выбрать наилучший способ действия.</value>
+  </data>
+  <data name="Welcome" xml:space="preserve">
+    <value>Welcome</value>
+    <comment>Welcome</comment>
+  </data>
+  <data name="InvalidSession" xml:space="preserve">
+    <value>InvalidSession</value>
+    <comment>InvalidSession</comment>
+  </data>
+  <data name="EmptyMessage" xml:space="preserve">
+    <value>EmptyMessage</value>
+    <comment>EmptyMessage</comment>
+  </data>
+  <data name="SessionNotFound" xml:space="preserve">
+    <value>SessionNotFound</value>
+    <comment>SessionNotFound</comment>
+  </data>
+  <data name="NoAgentSelected" xml:space="preserve">
+    <value>NoAgentSelected</value>
+    <comment>NoAgentSelected</comment>
+  </data>
+  <data name="AgentAccessDenied" xml:space="preserve">
+    <value>AgentAccessDenied</value>
+    <comment>AgentAccessDenied</comment>
+  </data>
+  <data name="MissingPlugins" xml:space="preserve">
+    <value>MissingPlugins</value>
+    <comment>MissingPlugins</comment>
+  </data>
+</root>

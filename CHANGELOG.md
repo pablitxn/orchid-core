@@ -1,0 +1,92 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [Unreleased]
+- Fix AutoRenewToggle tests to rely on shared i18n mock and await async effects.
+- Add extensive unit tests for backend use cases to increase coverage.
+- Fix logout flow to use POST request and show toast notification on failure.
+- Add cursor pointer style to sidebar logout button.
+- Introduce generic toast provider for frontend.
+- Implement optimistic concurrency for subscriptions and add unit tests.
+- Expand DeleteAccountSection tests to cover dialog interactions.
+- Display purchasable workflows in the Marketplace with a new WorkflowCard component.
+- Fix UsageStats and VoiceSettings tests to use i18n mock and ResizeObserver polyfill.
+
+- Add SpreadsheetCLI (ssllm) tool for command-line spreadsheet processing with compression and Q&A.
+- Implement SyntheticSpreadsheetBuilder for generating test data with configurable parameters.
+- Implement MetricsEvaluator for model evaluation with ML metrics (Precision, Recall, F1, IoU, BLEU).
+- Add comprehensive e2e tests for CLI with xUnit test suite.
+- Update documentation for spreadsheet processing tools and evaluation utilities.
+- Expand main README with architecture overview and usage instructions.
+- Improve QueryRowsHandler test coverage with additional scenarios.
+- Add plugin marketplace page for buying and installing plugins.
+- Add plugin details page with gallery and pricing components.
+- Add purchasable workflows linked to subscription credits with API endpoints and frontend page.
+- Enable new agent creation page at `/agents/new` with router updates and tests.
+- Improve FormulaQueryHandler tests and ensure sample caching behavior.
+- Scaffold tests and typings for UI components including token-packages and others.
+- Fix login cookie auth by running AuthorizationMiddleware in Development.
+
+- Add knowledge-base upload route `/knowledge-base` and store embeddings in `Documents.Embedding`.
+- Add role-based layouts for guest, user, maintainer and admin in the web app.
+- Refactor SpreadsheetPlugin into use-case handlers and add ICacheStore port.
+- Introduce RedisCacheService and typed cache extensions.
+- Fix chat history caching with typed ICacheStore to prevent message mixups.
+- Introduce Agents entity with basic CRUD endpoints.
+- Extend Teams with agent roles, interaction policy and drag-and-drop ordering.
+- Add scaffolding and tests for Segment, SegmentList, StatusMessage and ThemeToggle components.
+- Refactor chat page components and switch Chat hook to SendMessage API.
+- Implement role-based auth with `/api/auth/register` and `/api/auth/login`.
+- Add ChatSessions with archive flag and CRUD API, plus side panel in chat UI.
+- Add HuddleHub for WebRTC signaling and FileHuddleRecordingService.
+- Scaffold subscription module with credit-based commands and REST controller.
+- Add pricing tables `SubscriptionPlans` and `ActionCosts` with repositories and queries.
+- Introduce `KnowledgeBaseFiles` table with typed file storage directories.
+- Add generic email/password authentication mode and login form.
+- Make file storage pluggable with Local, Memory and GCP providers.
+- Introduce Playwright for web end-to-end tests.
+- Add unit tests for several frontend components.
+- Introduce Team entity with CRUD endpoints and multiagent documentation.
+- Extend FilesController to create knowledge-base entries and media-center assets on upload.
+- Add progress bar to knowledge base upload page and /asset command for chat.
+- Extend ChatSessions with agent/team filters and interaction type.
+- Expand integration tests to cover credit consumption via REST.
+- Add domain unit tests for ProjectEntity and SubscriptionEntity.
+- Expand coverage with additional frontend test cases.
+- Add purchase plan endpoint and token package components with mock payment modal.
+- Introduce `ITelemetryClient` port and Langfuse adapter for provider-agnostic tracing.
+- Start migrating frontend components to a standardized folder structure.
+- Update web UI translations and replace placeholder brand with "ASDF".
+- Add French, Russian and Japanese localization resources.
+- Add password-based auth flow with `/api/auth/forgot-password` and `/api/auth/reset-password` plus frontend service
+  tests.
+- Implement ThemeProvider with light/dark toggle in the web frontend.
+- Refactor VectorStorePlugin into application use cases for easier testing.
+- Add credit top-up endpoint `/api/subscription/add` and Credits page in frontend.
+- Deduct one credit on each chat message via SignalR `ChatHub`.
+- Add optional token-based billing (1 credit per 100 tokens) with UI toggle.
+- Merge activities into chat history and filter them from AI completions.
+- Add streaming chat responses via `StreamMessage` hub method.
+- Localize frontend service error messages using i18next.
+- Rename chat message component files to kebab case and extract FileMessage subcomponent.
+- Add unit tests for ActivityGroup, ActivityMessage and FileMessage.
+- Introduce Agents and Workflows sections in the web UI with placeholder pages.
+- Implement basic Agents dashboard, creation form and mock Workflows list.
+- Introduce Media Center module with `MediaCenterAssets` table and GET `/api/media-center/assets` endpoint.
+- Simplify navbar to Agents, Workflows, Teams and Chat. Add dashboard and teams pages with auth-aware home.
+- Introduce Umami analytics with route tracking and performance metrics.
+- Replace top navigation with collapsible sidebar and avatar-only header.
+- Add theme and language toggles to guest layout with browser language detection.
+- Seed database with default roles, users, subscription plans and action costs.
+- Add CI script `scripts/ci.sh` and GitHub Actions workflow for automated tests.
+- Extend CI to lint, build and test the web frontend.
+- Secure password storage with PBKDF2 and new /api/auth/logout endpoint.
+- Complete localization resources for chat flow and navigation keys.
+- Translate remaining UI strings across all locales and fix French JSON syntax.
+- Add Plugin Marketplace with CRUD API and plugin assignment when creating agents.
+- Add scaffolding and tests for LocaleSwitcher, MaintainerExtras, Markdown, Navigation and NotificationsSection components.
+- Add frontend development guidelines document.
+- Improve streaming API to handle file uploads and defer credit consumption.
+- Introduce Excel workbook loader with header detection heuristics.
+- Enhance authentication pages with autofill attributes and a remember-me option.

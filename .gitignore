@@ -1,0 +1,10 @@
+**/.idea
+**/.vscode
+**/.vs
+**/.DS_Store
+**/.~lock.*.xlsx#
+apps/web/.yarnrc.yml
+**/.turbo
+**/node_modules
+**/test-results
+**/data

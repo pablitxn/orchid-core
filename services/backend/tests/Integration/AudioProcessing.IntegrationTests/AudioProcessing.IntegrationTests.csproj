@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <IsPackable>false</IsPackable>
+        <LangVersion>latest</LangVersion>
+        <RootNamespace>Workers.IntegrationTests</RootNamespace>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0"/>
+        <PackageReference Include="xunit" Version="2.4.2"/>
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5"/>
+        <PackageReference Include="MassTransit" Version="8.4.1-develop.2253"/>
+        <PackageReference Include="MassTransit.RabbitMQ" Version="8.4.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\..\src\Adapters\Infrastructure\Infrastructure.csproj" />
+        <ProjectReference Include="..\..\..\src\Adapters\WebApi\WebApi.csproj" />
+        <ProjectReference Include="..\..\..\src\Adapters\Workers\AudioProcessing\AudioProcessing.csproj" />
+        <ProjectReference Include="..\..\..\src\Core\Application\Application.csproj" />
+        <ProjectReference Include="..\..\..\src\Core\Domain\Domain.csproj" />
+    </ItemGroup>
+
+</Project>

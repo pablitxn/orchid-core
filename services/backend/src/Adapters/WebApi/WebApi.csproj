@@ -1,0 +1,58 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <PreserveCompilationContext>true</PreserveCompilationContext>
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+        <GenerateTestHost>true</GenerateTestHost>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UserSecretsId>056078c3-3ae0-4ab5-bf87-5402e063f08c</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0"/>
+        <PackageReference Include="AspNetCore.HealthChecks.RabbitMQ" Version="9.0.0"/>
+        <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0"/>
+        <PackageReference Include="AspNetCore.HealthChecks.System" Version="9.0.0"/>
+        <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0"/>
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="9.0.2"/>
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.2"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.4">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <!-- Align Semantic Kernel package versions across the solution -->
+        <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.54.0"/>
+        <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="7.3.1"/>
+        <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="7.3.1"/>
+        <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="7.3.1">
+            <TreatAsUsed>true</TreatAsUsed>
+        </PackageReference>
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.10.0"/>
+        <!-- Add RabbitMQ transport for MassTransit -->
+        <PackageReference Include="MassTransit.RabbitMQ" Version="8.4.0"/>
+        <!-- Redis distributed cache support -->
+        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="7.0.5"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\Adapters\Infrastructure\Infrastructure.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="appsettings.Testing.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="data\"/>
+    </ItemGroup>
+
+    <PropertyGroup>
+        <UserSecretsId>e7a3a9b3-4d4e-4c2d-8b1e-2d1a6a3e5f67</UserSecretsId>
+        <UserSecretsId>RITpCyWNDagTOtLwxtOQnOTBjyZCxqRQlgBjDFUR</UserSecretsId>
+    </PropertyGroup>
+
+</Project>
