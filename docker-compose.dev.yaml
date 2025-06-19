@@ -1,9 +1,9 @@
 services:
-  redis_playground:
+  redis_orchid_core:
     image: "bitnami/redis:latest"
-    container_name: playground-dotnet-dev-redis
+    container_name: orchid-core-dev-redis
     networks:
-      - playground-dotnet
+      - orchid-core
     environment:
       - REDIS_MASTER_PASSWORD=1234
       - REDIS_PASSWORD=1234
@@ -12,13 +12,13 @@ services:
   
   redis-commander:
     image: rediscommander/redis-commander:latest
-    container_name: playground-dotnet-dev-redis-commander
+    container_name: orchid-core-dev-redis-commander
     networks:
-      - playground-dotnet
+      - orchid-core
     environment:
-      REDIS_HOSTS: redis_playground
-      REDIS_HOST: redis_playground
-      REDIS_PORT: redis_playground:6379
+      REDIS_HOSTS: redis_orchid_core
+      REDIS_HOST: redis_orchid_core
+      REDIS_PORT: redis_orchid_core:6379
       REDIS_PASSWORD: 1234
       HTTP_USER: root
       HTTP_PASSWORD: root
@@ -26,7 +26,7 @@ services:
     ports:
       - "8081:8081"
     depends_on:
-      - redis_playground
+      - redis_orchid_core
   
   database:
     # todo
@@ -35,19 +35,19 @@ services:
     # - apply migrations
     # - seed data
     image: pgvector/pgvector:pg17
-    container_name: playground_dotnet_pg_db
+    container_name: orchid_core_pg_db
     restart: always
     ports:
       - "5433:5432"
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
-      POSTGRES_DB: playground_dotnet
+      POSTGRES_DB: orchid_core
     volumes:
-      - playground_dotnet_pg_data:/var/lib/postgresql/data
+      - orchid_core_pg_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     networks:
-      - playground-dotnet
+      - orchid-core
 
   pgadmin:
     image: dpage/pgadmin4
@@ -226,7 +226,7 @@ services:
 
 volumes:
   rabbitmq-data:
-  playground_dotnet_pg_data:
+  orchid_core_pg_data:
   pgadmin-data:
   langfuse_postgres_data:
     driver: local
@@ -238,7 +238,7 @@ volumes:
     driver: local
 
 networks:
-  playground-dotnet:
+  orchid-core:
     driver: bridge
   shared_network:
     external: true

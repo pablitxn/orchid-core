@@ -1,4 +1,4 @@
-# Playground Dotnet – LLM Agent Context Guide
+# Orchid Labs Core – LLM Agent Context Guide
 
 *Version 1.0 – 2025-05-03*
 
@@ -66,7 +66,7 @@ Any new code **must** fit one of these slots. If none apply, open an ADR first.
 |----------------------------------|-----------------------------------------------|
 | *Is it pure business logic?*     | Add Entity/Value & Use-Case in **Core**       |
 | *Needs external tech?*           | Define a **Port** → implement new **Adapter** |
-| *Requires a new UI/API surface?* | Extend **WebApi** or **Worker** adapter  |
+| *Requires a new UI/API surface?* | Extend **WebApi** or **Worker** adapter       |
 
 ### 4.2 Step-by-Step Checklist
 
@@ -234,14 +234,14 @@ public class RedisCacheServiceTests : IAsyncLifetime
 
 ## 13  Glossary (Agent Quick-Look)
 
-| Term                    | Meaning                                     |
-|-------------------------|---------------------------------------------|
-| **Port**                | Interface in Application layer              |
-| **Adapter**             | Tech-specific impl of a Port                |
+| Term                    | Meaning                                         |
+|-------------------------|-------------------------------------------------|
+| **Port**                | Interface in Application layer                  |
+| **Adapter**             | Tech-specific impl of a Port                    |
 | **Inbound**             | WebApi and Worker projects under `src/Adapters` |
-| **Domain Event**        | Internal business fact                      |
-| **Integration Message** | Brokered event via RabbitMQ                 |
-| **ADR**                 | Architectural Decision Record               |
+| **Domain Event**        | Internal business fact                          |
+| **Integration Message** | Brokered event via RabbitMQ                     |
+| **ADR**                 | Architectural Decision Record                   |
 
 ---
 

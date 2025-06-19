@@ -1,6 +1,6 @@
-# Playground Dotnet
+# Orchid Labs Core
 
-**Playground Dotnet** is a full‑stack sandbox demonstrating Hexagonal architecture with .NET, RabbitMQ and a React
+**Orchid Labs Core** is a full‑stack sandbox demonstrating Hexagonal architecture with .NET, RabbitMQ and a React
 frontend. The project bundles a suite of experimental modules—AI chat, agent management and real‑time video calls—into
 a single repository.
 

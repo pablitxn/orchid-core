@@ -1,4 +1,4 @@
-# Playground Dotnet – LLM Agent Context Guide
+# Orchid Labs Core – LLM Agent Context Guide
 
 *Version 1.0 – 2025-05-03*
 
