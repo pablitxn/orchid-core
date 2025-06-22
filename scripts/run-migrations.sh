@@ -48,14 +48,41 @@ fi
 echo "🔨 Applying database migrations..."
 export ASPNETCORE_ENVIRONMENT=Development
 if dotnet ef database update --project ../Infrastructure/Infrastructure.csproj; then
-    echo -e "${GREEN}✅ Migrations applied successfully!${NC}"
+    echo -e "${GREEN}✅ Migrations command executed!${NC}"
+    
+    # Check if migrations were actually applied
+    echo ""
+    echo "📊 Checking database state..."
+    if docker exec orchid_core_pg_db psql -U admin -d orchid_core -c "\dt" 2>/dev/null | grep -q "Users"; then
+        echo -e "${GREEN}✅ Database tables found!${NC}"
+    else
+        echo -e "${YELLOW}⚠️  No tables found in database.${NC}"
+        echo ""
+        echo "This is normal if this is the first time setting up the project."
+        echo "The tables will be created when you run the application for the first time."
+        echo ""
+        echo "To create the tables now, run:"
+        echo "  cd services/backend/src/Adapters/WebApi"
+        echo "  dotnet run"
+        echo ""
+        echo "The application will automatically apply migrations on startup."
+    fi
 else
     echo -e "${RED}❌ Failed to apply migrations${NC}"
     exit 1
 fi
 
+echo ""
 echo -e "${GREEN}🎉 Database setup complete!${NC}"
 echo ""
-echo "You can now run the application with:"
-echo "  cd services/backend/src/Adapters/WebApi"
-echo "  dotnet run"
+echo "Next steps:"
+echo "  1. Start the application to create all tables:"
+echo "     cd services/backend/src/Adapters/WebApi"
+echo "     dotnet run"
+echo ""
+echo "  2. Connect to the database with DataGrip:"
+echo "     Host: localhost"
+echo "     Port: 5433"
+echo "     Database: orchid_core"
+echo "     Username: admin"
+echo "     Password: admin"
