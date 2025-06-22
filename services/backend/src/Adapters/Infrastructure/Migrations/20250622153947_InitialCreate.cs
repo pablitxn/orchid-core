@@ -259,6 +259,9 @@ namespace Infrastructure.Migrations
                     Prerequisites = table.Column<string>(type: "text", nullable: true),
                     InputRequirements = table.Column<string>(type: "text", nullable: true),
                     OutputFormat = table.Column<string>(type: "text", nullable: true),
+                    IsPublic = table.Column<bool>(type: "boolean", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    PublishedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -463,7 +466,7 @@ namespace Infrastructure.Migrations
                     ExpiresAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     AutoRenew = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
                     SubscriptionPlanId = table.Column<Guid>(type: "uuid", nullable: true),
-                    Version = table.Column<int>(type: "integer", nullable: false)
+                    Version = table.Column<int>(type: "integer", nullable: false, defaultValue: 0)
                 },
                 constraints: table =>
                 {
@@ -513,15 +516,16 @@ namespace Infrastructure.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     UserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    LimitType = table.Column<string>(type: "text", nullable: false),
+                    LimitType = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     MaxCredits = table.Column<int>(type: "integer", nullable: false),
                     ConsumedCredits = table.Column<int>(type: "integer", nullable: false),
                     PeriodStartDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     PeriodEndDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    ResourceType = table.Column<string>(type: "text", nullable: true),
+                    ResourceType = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Version = table.Column<int>(type: "integer", nullable: false, defaultValue: 0)
                 },
                 constraints: table =>
                 {
@@ -877,9 +881,14 @@ namespace Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_UserCreditLimits_UserId",
+                name: "IX_UserCreditLimits_PeriodEndDate",
                 table: "UserCreditLimits",
-                column: "UserId");
+                column: "PeriodEndDate");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserCreditLimits_UserId_LimitType_ResourceType_IsActive",
+                table: "UserCreditLimits",
+                columns: new[] { "UserId", "LimitType", "ResourceType", "IsActive" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserPlugins_PluginId",

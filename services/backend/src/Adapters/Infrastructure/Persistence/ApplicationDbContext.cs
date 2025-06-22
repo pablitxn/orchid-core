@@ -59,6 +59,7 @@ public class ApplicationDbContext(
     public DbSet<CostConfigurationEntity> CostConfigurations { get; set; }
     public DbSet<UserCreditLimitEntity> UserCreditLimits { get; set; }
     public DbSet<NotificationEntity> Notifications { get; set; }
+    public DbSet<AuditLogEntity> AuditLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

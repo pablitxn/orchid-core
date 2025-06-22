@@ -19,7 +19,7 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
         // Try standard connection string or fallback to DB_CONN env var
         var cs = configuration.GetConnectionString("DefaultConnection")
                  ?? configuration["DB_CONN"]
-                 ?? "Host=localhost;Database=playground_dotnet;Username=admin;Password=admin;Port=5433";
+                 ?? "Host=localhost;Database=orchid_core;Username=admin;Password=admin;Port=5433";
 
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
         optionsBuilder.UseNpgsql(
