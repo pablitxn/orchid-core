@@ -1,0 +1,69 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE and editors
+.vs
+.vscode
+.idea
+*.swp
+*.swo
+
+# Build outputs
+**/bin/
+**/obj/
+**/out/
+
+# Test projects
+**/tests/
+**/*.Tests/
+**/*.IntegrationTests/
+**/TestResults/
+
+# Documentation
+**/*.md
+!readme.md
+
+# Local development
+.env
+.env.*
+*.local
+appsettings.Development.json
+appsettings.Local.json
+
+# Docker
+**/Dockerfile*
+**/.dockerignore
+docker-compose*.yaml
+docker-compose*.yml
+
+# Infrastructure (not needed for build)
+infrastructure/
+
+# Scripts
+scripts/
+
+# Logs
+**/*.log
+**/logs/
+
+# User secrets and certificates
+**/*.pfx
+**/*.pem
+**/secrets/
+
+# NuGet
+**/packages/
+**/.nuget/
+
+# Claude
+.claude/
+CLAUDE.md
+AGENTS.md
+
+# Misc
+**/.DS_Store
+**/Thumbs.db
+*.tmp
+*.temp
