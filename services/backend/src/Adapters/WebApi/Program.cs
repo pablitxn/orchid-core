@@ -26,6 +26,9 @@ using WebApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ─── Load optional local settings (not committed to git) ─────────────────────
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 #region Logging Configuration
 
 // ─── Logging ──────────────────────────────────────────────────────────────────

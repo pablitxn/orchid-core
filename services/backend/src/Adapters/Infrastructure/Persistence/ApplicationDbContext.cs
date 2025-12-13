@@ -300,10 +300,10 @@ public class ApplicationDbContext(
         {
             b.ToTable("AgentPlugins");
             b.HasKey(ap => new { ap.AgentId, ap.PluginId });
-            b.HasOne<AgentEntity>()
+            b.HasOne(ap => ap.Agent)
                 .WithMany()
                 .HasForeignKey(ap => ap.AgentId);
-            b.HasOne<PluginEntity>()
+            b.HasOne(ap => ap.Plugin)
                 .WithMany()
                 .HasForeignKey(ap => ap.PluginId);
         });

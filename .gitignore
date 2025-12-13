@@ -8,3 +8,8 @@ apps/web/.yarnrc.yml
 **/node_modules
 **/test-results
 **/data
+
+.claude/
+.env
+**/appsettings.Local.json
+**/appsettings.local.json

@@ -16,7 +16,8 @@ public static class SemanticKernelServiceCollectionExtensions
         IConfiguration configuration)
     {
         // ─── 1. Validation ───────────────────────────────────────────────
-        var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
+                     ?? configuration["OpenAI:ApiKey"];
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new InvalidOperationException(
                 "OpenAI API key missing. Set OpenAI:ApiKey or the OPENAI_API_KEY env-var.");
