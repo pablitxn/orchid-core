@@ -5,7 +5,8 @@ kind: Kustomization
 # Base configuration and sensitive configs are in the private infrastructure repo
 
 images:
-  - name: ghcr.io/pablitxn/orchid-core
-    newTag: prod
-    # CI/CD will update this with digest, e.g.:
-    # digest: sha256:abc123...
+- name: ghcr.io/pablitxn/orchid-core
+  newTag: prod
+- digest: sha256:3b325830feb5617e7a816a197f6ab02946a59434746ee54076df34c5d215ab6b
+  name: ghcr.io/pablitxn/orchid-core:prod
+  newName: ghcr.io/pablitxn/orchid-core
