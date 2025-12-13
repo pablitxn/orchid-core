@@ -221,19 +221,9 @@ namespace Infrastructure.Migrations
                     b.Property<Guid>("PluginId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("AgentId1")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("PluginId1")
-                        .HasColumnType("uuid");
-
                     b.HasKey("AgentId", "PluginId");
 
-                    b.HasIndex("AgentId1");
-
                     b.HasIndex("PluginId");
-
-                    b.HasIndex("PluginId1");
 
                     b.ToTable("AgentPlugins", (string)null);
                 });
@@ -1253,27 +1243,15 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Domain.Entities.AgentPluginEntity", b =>
                 {
-                    b.HasOne("Domain.Entities.AgentEntity", null)
+                    b.HasOne("Domain.Entities.AgentEntity", "Agent")
                         .WithMany()
                         .HasForeignKey("AgentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Domain.Entities.AgentEntity", "Agent")
-                        .WithMany()
-                        .HasForeignKey("AgentId1")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Domain.Entities.PluginEntity", null)
-                        .WithMany()
-                        .HasForeignKey("PluginId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("Domain.Entities.PluginEntity", "Plugin")
                         .WithMany()
-                        .HasForeignKey("PluginId1")
+                        .HasForeignKey("PluginId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
