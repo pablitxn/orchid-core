@@ -154,7 +154,7 @@ public static class InfrastructureServiceCollectionExtensions
                         configuration["FileStorage:Path"] ?? Path.Combine(env.ContentRootPath, "data"))
             };
 
-            var root = configuration["FileStorage:Root"] ?? "knowledge_base";
+            var root = configuration["FileStorage:Root"] ?? "";
             return new TypedFileStorageService(inner, root);
         });
 

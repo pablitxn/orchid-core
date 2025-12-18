@@ -7,7 +7,7 @@ namespace Infrastructure.Persistence.Seeders;
 public class KnowledgeBaseSeeder(
     ApplicationDbContext context,
     IFileStorageService fileStorage,
-    string defaultDocumentsPath = "data/knowledge_base/default_documents")
+    string defaultDocumentsPath = "")
 {
     private async Task SeedForUserAsync(Guid userId)
     {

@@ -14,7 +14,7 @@ public class UserCreatedEventHandler(
     ILogger<UserCreatedEventHandler> logger)
     : INotificationHandler<UserCreatedEvent>
 {
-    private readonly string _defaultDocumentsPath = "data/knowledge_base/default_documents";
+    private readonly string _defaultDocumentsPath = "";
     private const int WELCOME_CREDITS = 1000;
 
     public async Task Handle(UserCreatedEvent notification, CancellationToken cancellationToken)
