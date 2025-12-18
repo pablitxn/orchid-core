@@ -1,11 +1,10 @@
 using System.ComponentModel.DataAnnotations;
-using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
-using System.Security.Claims;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using System.Web;
+using Application.Interfaces;
 using Application.UseCases.Auth.ForgotPassword;
 using Application.UseCases.Auth.Login;
 using Application.UseCases.Auth.Register;
@@ -15,16 +14,25 @@ using Application.UseCases.User.GetUser;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 
 namespace WebApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController(IMediator mediator, IConfiguration config) : ControllerBase
+public class AuthController(
+    IMediator mediator,
+    IConfiguration config,
+    ITokenService tokenService,
+    IWebHostEnvironment env,
+    ILogger<AuthController> logger,
+    IRateLimitService rateLimitService) : ControllerBase
 {
     private readonly IConfiguration _config = config;
     private readonly IMediator _mediator = mediator;
+    private readonly ITokenService _tokenService = tokenService;
+    private readonly IWebHostEnvironment _env = env;
+    private readonly ILogger<AuthController> _logger = logger;
+    private readonly IRateLimitService _rateLimitService = rateLimitService;
 
     [HttpGet("mode")]
     [AllowAnonymous]
@@ -38,15 +46,53 @@ public class AuthController(IMediator mediator, IConfiguration config) : Control
     [AllowAnonymous]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        // Simplified registration - accept any email without validation for testing
-        // Default role is User
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        // Rate limiting: 3 registrations per hour per IP
+        var rateLimitKey = $"register:{ipAddress}";
+        var rateCheck = await _rateLimitService.CheckAsync(
+            rateLimitKey,
+            limit: 3,
+            window: TimeSpan.FromHours(1),
+            HttpContext.RequestAborted);
+
+        if (!rateCheck.IsAllowed)
+        {
+            Response.Headers.Append("Retry-After", ((int)rateCheck.RetryAfter.TotalSeconds).ToString());
+            return StatusCode(429, new
+            {
+                error = "Too many registration attempts. Please try again later.",
+                retryAfter = (int)rateCheck.RetryAfter.TotalSeconds
+            });
+        }
+
+        // Validate email format
+        if (string.IsNullOrWhiteSpace(request.Email) ||
+            !new EmailAddressAttribute().IsValid(request.Email))
+        {
+            return BadRequest(new { error = "Valid email address is required" });
+        }
+
+        // Validate password
+        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
+        {
+            return BadRequest(new { error = "Password must be at least 8 characters" });
+        }
+
+        // Password complexity: at least one uppercase, lowercase, digit, and special char
+        var passwordRegex = new Regex(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#\-_])[A-Za-z\d@$!%*?&#\-_]{8,}$");
+        if (!passwordRegex.IsMatch(request.Password))
+        {
+            return BadRequest(new { error = "Password must contain uppercase, lowercase, digit, and special character" });
+        }
+
         var roles = request.Roles?.Any() == true ? request.Roles : new[] { "User" };
 
         var user = await _mediator.Send(new RegisterCommand(
-            request.Email ?? $"test_{Guid.NewGuid():N}@playground.com", 
-            request.Password ?? "defaultPassword123!", 
+            request.Email,
+            request.Password,
             roles));
-        
+
         return Ok(new { user.Id, user.Email, message = "Welcome! You've been granted 1000 free credits!" });
     }
 
@@ -54,10 +100,46 @@ public class AuthController(IMediator mediator, IConfiguration config) : Control
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var result = await _mediator.Send(new LoginCommand(request.Email, request.Password));
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        // Rate limiting: 5 attempts per 15 minutes per IP
+        var rateLimitKey = $"login:{ipAddress}";
+        var rateCheck = await _rateLimitService.CheckAsync(
+            rateLimitKey,
+            limit: 5,
+            window: TimeSpan.FromMinutes(15),
+            HttpContext.RequestAborted);
+
+        if (!rateCheck.IsAllowed)
+        {
+            Response.Headers.Append("Retry-After", ((int)rateCheck.RetryAfter.TotalSeconds).ToString());
+            return StatusCode(429, new
+            {
+                error = "Too many login attempts. Please try again later.",
+                retryAfter = (int)rateCheck.RetryAfter.TotalSeconds
+            });
+        }
+
+        var userAgent = Request.Headers.UserAgent.FirstOrDefault();
+
+        var result = await _mediator.Send(new LoginCommand(
+            request.Email,
+            request.Password,
+            ipAddress,
+            userAgent));
+
         if (!result.IsSuccess)
-            return Unauthorized(result.ErrorMessage);
-        Response.Cookies.Append("token", result.Token, new CookieOptions { HttpOnly = true });
+            return Unauthorized(new { error = result.ErrorMessage });
+
+        var expireHours = double.TryParse(_config["Jwt:ExpireHours"], out var hours) ? hours : 24;
+        Response.Cookies.Append("token", result.Token, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = !_env.IsDevelopment(),
+            SameSite = SameSiteMode.Strict,
+            Expires = DateTimeOffset.UtcNow.AddHours(expireHours)
+        });
+
         return Ok(new { token = result.Token });
     }
 
@@ -72,11 +154,38 @@ public class AuthController(IMediator mediator, IConfiguration config) : Control
     [AllowAnonymous]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
     {
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        // Rate limiting: 3 password reset requests per hour per IP
+        var rateLimitKey = $"forgot-password:{ipAddress}";
+        var rateCheck = await _rateLimitService.CheckAsync(
+            rateLimitKey,
+            limit: 3,
+            window: TimeSpan.FromHours(1),
+            HttpContext.RequestAborted);
+
+        if (!rateCheck.IsAllowed)
+        {
+            Response.Headers.Append("Retry-After", ((int)rateCheck.RetryAfter.TotalSeconds).ToString());
+            return StatusCode(429, new
+            {
+                error = "Too many password reset requests. Please try again later.",
+                retryAfter = (int)rateCheck.RetryAfter.TotalSeconds
+            });
+        }
+
+        // Always process the request, but don't reveal if email exists
         var token = await _mediator.Send(new ForgotPasswordCommand(request.Email));
-        if (token == null)
-            return NotFound();
-        // For demo purposes we return the token in the response
-        return Ok(new { token });
+
+        // In production, send token via email using IEmailService
+        // For now, log it only in development
+        if (token != null && _env.IsDevelopment())
+        {
+            _logger.LogWarning("DEV ONLY - Password reset token for {Email}: {Token}", request.Email, token);
+        }
+
+        // Always return success to prevent email enumeration
+        return Ok(new { message = "If the email exists, a reset link has been sent." });
     }
 
     [HttpPost("reset-password")]
@@ -95,10 +204,11 @@ public class AuthController(IMediator mediator, IConfiguration config) : Control
     [AllowAnonymous]
     public IActionResult ManualGoogleLogin()
     {
-        // These values should be securely stored in configuration
-        // get from secrets
         var clientId = _config["Authentication:Google:ClientId"]!;
-        var redirectUri = HttpUtility.UrlEncode("http://localhost:5210/api/auth/callback/google");
+        var configRedirectUri = _config["Authentication:Google:RedirectUri"]
+                                ?? $"{Request.Scheme}://{Request.Host}/api/auth/callback/google";
+        var redirectUri = HttpUtility.UrlEncode(configRedirectUri);
+
         var oauthUrl = "https://accounts.google.com/o/oauth2/v2/auth" +
                        "?access_type=online" +
                        $"&client_id={clientId}" +
@@ -120,7 +230,8 @@ public class AuthController(IMediator mediator, IConfiguration config) : Control
 
         // Exchange the authorization code for an access token
         const string tokenEndpoint = "https://oauth2.googleapis.com/token";
-        const string redirectUri = "http://localhost:5210/api/auth/callback/google";
+        var redirectUri = _config["Authentication:Google:RedirectUri"]
+                          ?? $"{Request.Scheme}://{Request.Host}/api/auth/callback/google";
         var clientId = _config["Authentication:Google:ClientId"]!;
         var clientSecret = _config["Authentication:Google:ClientSecret"]!;
 
@@ -152,7 +263,6 @@ public class AuthController(IMediator mediator, IConfiguration config) : Control
         string userJson;
         using (var client = new HttpClient())
         {
-            // Set the Authorization header with the access token
             client.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", tokenResponse.AccessToken);
             var userResponse = await client.GetAsync(userInfoEndpoint);
@@ -163,50 +273,43 @@ public class AuthController(IMediator mediator, IConfiguration config) : Control
         var userInfoResponse = JsonSerializer.Deserialize<GoogleUserInfoResponse>(userJson)!;
         if (!userInfoResponse.IsSuccess)
             return BadRequest("Failed to retrieve user email from Google.");
+
+        // Reject if no email provided - don't allow anonymous fallback
         if (string.IsNullOrEmpty(userInfoResponse.Email))
-            userInfoResponse.Email = "anonymous";
-        // return BadRequest("Email address not returned by Google.");
+            return BadRequest("Email address not returned by Google. Please ensure your Google account has a verified email.");
 
-        // Create JWT token using the user's email claim
-        var claims = new List<Claim>
+        // Get or create user
+        var userFromDb = await _mediator.Send(new GetUserCommand(userInfoResponse.Email));
+
+        if (userFromDb == null!)
         {
-            new(ClaimTypes.Email, userInfoResponse.Email!)
-            // Include additional claims as needed
-        };
-
-
-        // Configure JWT token (replace with your configuration)
-        const string jwtSecret = "your_super_secure_long_secret_key_123!";
-        var jwtKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
-        var jwtCred = new SigningCredentials(jwtKey, SecurityAlgorithms.HmacSha256);
-
-        var jwtToken = new JwtSecurityToken(
-            "tuIssuer",
-            "tuAudience",
-            claims,
-            expires: DateTime.UtcNow.AddHours(72),
-            signingCredentials: jwtCred
-        );
-
-        var jwtTokenString = new JwtSecurityTokenHandler().WriteToken(jwtToken);
-
-        // check if the user exists
-        var userInfoFromDb = await _mediator.Send(new GetUserCommand(userInfoResponse.Email!));
-
-        if (userInfoFromDb == null!)
             await _mediator.Send(new CreateUserCommand(
-                userInfoResponse.Email!,
-                ["User"] // Default role for new users
+                userInfoResponse.Email,
+                ["User"]
             ));
+            userFromDb = await _mediator.Send(new GetUserCommand(userInfoResponse.Email));
+        }
 
-        // Set the token as an HTTP-only cookie
-        Response.Cookies.Append("token", jwtTokenString, new CookieOptions { HttpOnly = true });
+        // Generate JWT using the centralized token service (not hardcoded secret)
+        var roles = userFromDb?.UserRoles?.Select(ur => ur.Role.Name) ?? ["User"];
+        var jwtTokenString = _tokenService.GenerateToken(userFromDb!, roles);
 
-        // Log user email and token (development only)
-        Console.WriteLine("User (manual): " + userInfoResponse.Email);
-        Console.WriteLine("JWT Token (manual): " + jwtTokenString);
+        // Set secure cookie
+        var expireHours = double.TryParse(_config["Jwt:ExpireHours"], out var hours) ? hours : 24;
+        Response.Cookies.Append("token", jwtTokenString, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = !_env.IsDevelopment(),
+            SameSite = SameSiteMode.Strict,
+            Expires = DateTimeOffset.UtcNow.AddHours(expireHours)
+        });
 
-        // Redirect to frontend with email as a query parameter
+        // Only log in development, and never log the token
+        if (_env.IsDevelopment())
+        {
+            _logger.LogDebug("User authenticated via Google OAuth: {Email}", userInfoResponse.Email);
+        }
+
         return Redirect(_config["FrontendUrl"]!);
     }
 }

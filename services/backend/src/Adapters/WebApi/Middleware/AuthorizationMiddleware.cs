@@ -1,6 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.IdentityModel.Tokens;
 
 namespace WebApi.Middleware;
 
@@ -72,37 +74,57 @@ public class AuthorizationMiddleware(RequestDelegate next)
             return;
         }
 
+        var configuration = context.RequestServices.GetRequiredService<IConfiguration>();
         var handler = new JwtSecurityTokenHandler();
-        JwtSecurityToken jwtToken;
+
         try
         {
-            // Decode the token (this doesn't validate the signature)
-            jwtToken = handler.ReadJwtToken(token);
+            var jwtKey = configuration["Jwt:Key"];
+            if (string.IsNullOrEmpty(jwtKey))
+            {
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                await context.Response.WriteAsync("JWT configuration error");
+                return;
+            }
+
+            var validationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = configuration["Jwt:Issuer"],
+                ValidateAudience = true,
+                ValidAudience = configuration["Jwt:Audience"],
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+            };
+
+            var principal = handler.ValidateToken(token, validationParameters, out _);
+
+            // Verify email claim exists
+            var emailClaim = principal.FindFirst(ClaimTypes.Email);
+            if (emailClaim == null)
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await context.Response.WriteAsync("Email claim not found in token");
+                return;
+            }
+
+            context.User = principal;
         }
-        catch (Exception)
+        catch (SecurityTokenExpiredException)
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsync("Token has expired");
+            return;
+        }
+        catch (SecurityTokenException)
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             await context.Response.WriteAsync("Invalid token");
             return;
         }
 
-        // Optional: Validate the token's signature, expiration, issuer, etc.
-        // This part typically involves using TokenValidationParameters and handler.ValidateToken(...)
-
-        // Extract the email claim
-        var emailClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email);
-        if (emailClaim == null)
-        {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            await context.Response.WriteAsync("Email claim not found in token");
-            return;
-        }
-
-        // Optionally, set the user principal in the context so that controllers can use it
-        var claimsIdentity = new ClaimsIdentity(jwtToken.Claims, "Custom");
-        context.User = new ClaimsPrincipal(claimsIdentity);
-
-        // Continue with the next middleware in the pipeline
         await _next(context);
     }
 }
