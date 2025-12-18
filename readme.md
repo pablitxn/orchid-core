@@ -21,6 +21,38 @@ Frontend code lives under `apps/web` and uses Vite with a Neo‑Brutalism Tailwi
 
 ---
 
+## Security
+
+The authentication system implements industry-standard security practices:
+
+### Authentication & Authorization
+| Feature | Description |
+|---------|-------------|
+| **JWT Validation** | Full signature, issuer, audience, and expiration validation |
+| **PBKDF2 Password Hashing** | 100,000 iterations with SHA-256 and random salt |
+| **Timing-Attack Protection** | Constant-time password comparison via `CryptographicOperations.FixedTimeEquals` |
+
+### Protection Mechanisms
+| Mechanism | Configuration |
+|-----------|---------------|
+| **Rate Limiting** | Login: 5 attempts/15min, Register: 3/hour, Password Reset: 3/hour |
+| **Account Lockout** | Temporary lock after 5 failed attempts within 15 minutes |
+| **Login History** | All authentication attempts logged with IP, User-Agent, and timestamp |
+
+### Cookie Security
+| Flag | Value |
+|------|-------|
+| `HttpOnly` | `true` - prevents XSS token theft |
+| `Secure` | `true` in production - HTTPS only |
+| `SameSite` | `Strict` - prevents CSRF attacks |
+
+### Input Validation
+- Email format validation on registration
+- Password complexity requirements: 8+ characters, uppercase, lowercase, digit, special character
+- Generic error messages to prevent user enumeration
+
+---
+
 ## Directory Layout
 
 ```text
