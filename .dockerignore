@@ -62,6 +62,11 @@ scripts/
 CLAUDE.md
 AGENTS.md
 
+# Local data directories (not for production)
+**/data/
+**/knowledge_base/
+**/LocalAudioFiles/
+
 # Misc
 **/.DS_Store
 **/Thumbs.db

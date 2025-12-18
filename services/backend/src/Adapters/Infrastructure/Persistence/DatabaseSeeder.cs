@@ -172,12 +172,8 @@ public static class DatabaseSeeder
             await workflowSeeder.SeedAsync();
         }
 
-        // Seed default knowledge base files for all users
-        if (fileStorage != null && !await db.KnowledgeBaseFiles.AnyAsync())
-        {
-            var kbSeeder = new KnowledgeBaseSeeder(db, fileStorage);
-            await kbSeeder.SeedAllUsersAsync();
-        }
+        // Note: Knowledge base seeding from local files is disabled for cloud deployment.
+        // Users can upload their own files via the /knowledge-base API endpoint.
         
         // Seed personality templates
         if (!await db.PersonalityTemplates.AnyAsync())

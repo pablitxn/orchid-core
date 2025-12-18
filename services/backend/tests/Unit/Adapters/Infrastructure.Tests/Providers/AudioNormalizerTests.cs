@@ -3,6 +3,8 @@
 using Infrastructure.Providers;
 using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using IBusControl = MassTransit.IBusControl;
 using IPublishEndpoint = MassTransit.IPublishEndpoint;
 // using RabbitMqBusFactoryConfiguratorExtensions = MassTransit.RabbitMqBusFactoryConfiguratorExtensions;
@@ -69,7 +71,7 @@ public class AudioNormalizerIntegrationTests : IAsyncLifetime
     {
         // Arrange: Use the real publish endpoint from the bus.
         var publishEndpoint = _provider.GetRequiredService<IPublishEndpoint>();
-        var audioNormalizer = new AudioNormalizer(publishEndpoint);
+        var audioNormalizer = new AudioNormalizer(publishEndpoint, NullLogger<AudioNormalizer>.Instance);
 
         // Build the path to the sample file in the TestResources folder.
         var sampleFilePath =

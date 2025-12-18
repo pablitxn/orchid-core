@@ -17,7 +17,6 @@ using Infrastructure.Telemetry;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using WebApi.Hubs;
 using WebApi.Middleware;
@@ -187,10 +186,8 @@ builder.Services.AddHealthChecks()
     // .AddUrlGroup(new Uri("https://api.openai.com/v1/models"),      name: "openai")
     // .AddUrlGroup(new Uri(builder.Configuration["Langfuse:BaseUrl"] ?? "https://api.langfuse.com/health"), name: "langfuse")
 
-    // ─── System resources (disk, memory, CPU) ───
+    // ─── System resources (memory) ───
     .AddProcessAllocatedMemoryHealthCheck(512 /* MB */, "memory")
-    .AddDiskStorageHealthCheck(opt =>
-        opt.AddDrive(Path.GetPathRoot(Environment.CurrentDirectory)!, 2048), "disk")
 
     // ─── Self probe ─────────────────────────────
     .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"])
@@ -318,14 +315,8 @@ var localizationOptions = new RequestLocalizationOptions
 app.UseRequestLocalization(localizationOptions);
 
 // ─── Static Files ─────────────────────────────────────────────────────────────
-// Serve uploaded files from 'data' directory at '/files'
-var uploadsDir = Path.Combine(app.Environment.ContentRootPath, "data");
-Directory.CreateDirectory(uploadsDir);
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(uploadsDir),
-    RequestPath = "/files"
-});
+// Note: File serving is handled via IFileStorageService (GCP/Memory in production)
+// Local filesystem serving removed for cloud deployment compatibility
 
 // ─── CORS, Auth & Custom Middleware ───────────────────────────────────────────
 app.UseCors("MyPolicy");

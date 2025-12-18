@@ -135,11 +135,13 @@ public static class InfrastructureServiceCollectionExtensions
         #region Storage Services
 
         // ─── File storage provider selection ─────────────────────────────────────────
+        // Default to "memory" for cloud deployment (no local filesystem access)
+        // Use "local" only for development, "gcp" for production with GCS bucket
         services.AddTransient<IFileStorageService>(provider =>
         {
             var env = provider.GetRequiredService<IHostEnvironment>();
             var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
-            var selected = configuration["FileStorage:Provider"]?.ToLowerInvariant() ?? "local";
+            var selected = configuration["FileStorage:Provider"]?.ToLowerInvariant() ?? "memory";
 
             IFileStorageService inner = selected switch
             {
@@ -148,10 +150,10 @@ public static class InfrastructureServiceCollectionExtensions
                         StorageClient.Create(),
                         configuration["FileStorage:Bucket"] ?? "default-bucket",
                         loggerFactory.CreateLogger<GCPStorageService>()),
-                "memory" => new InMemoryFileStorageService(),
-                _ =>
+                "local" =>
                     new LocalFileStorageService(
-                        configuration["FileStorage:Path"] ?? Path.Combine(env.ContentRootPath, "data"))
+                        configuration["FileStorage:Path"] ?? Path.Combine(env.ContentRootPath, "data")),
+                _ => new InMemoryFileStorageService()
             };
 
             var root = configuration["FileStorage:Root"] ?? "";
