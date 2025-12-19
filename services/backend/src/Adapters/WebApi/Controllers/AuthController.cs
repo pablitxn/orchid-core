@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 using System.Web;
 using Application.Interfaces;
 using Application.UseCases.Auth.ForgotPassword;
@@ -11,6 +11,7 @@ using Application.UseCases.Auth.Register;
 using Application.UseCases.Auth.ResetPassword;
 using Application.UseCases.User.CreateUser;
 using Application.UseCases.User.GetUser;
+using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,7 +26,9 @@ public class AuthController(
     ITokenService tokenService,
     IWebHostEnvironment env,
     ILogger<AuthController> logger,
-    IRateLimitService rateLimitService) : ControllerBase
+    IRateLimitService rateLimitService,
+    IPasswordValidator passwordValidator,
+    IRefreshTokenRepository refreshTokenRepository) : ControllerBase
 {
     private readonly IConfiguration _config = config;
     private readonly IMediator _mediator = mediator;
@@ -33,6 +36,10 @@ public class AuthController(
     private readonly IWebHostEnvironment _env = env;
     private readonly ILogger<AuthController> _logger = logger;
     private readonly IRateLimitService _rateLimitService = rateLimitService;
+    private readonly IPasswordValidator _passwordValidator = passwordValidator;
+    private readonly IRefreshTokenRepository _refreshTokenRepository = refreshTokenRepository;
+
+    private const int RefreshTokenExpirationDays = 7;
 
     [HttpGet("mode")]
     [AllowAnonymous]
@@ -73,27 +80,23 @@ public class AuthController(
             return BadRequest(new { error = "Valid email address is required" });
         }
 
-        // Validate password
-        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
+        // Validate password using centralized validator
+        var passwordValidation = _passwordValidator.Validate(request.Password ?? string.Empty);
+        if (!passwordValidation.IsValid)
         {
-            return BadRequest(new { error = "Password must be at least 8 characters" });
+            return BadRequest(new { error = passwordValidation.ErrorMessage });
         }
 
-        // Password complexity: at least one uppercase, lowercase, digit, and special char
-        var passwordRegex = new Regex(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#\-_])[A-Za-z\d@$!%*?&#\-_]{8,}$");
-        if (!passwordRegex.IsMatch(request.Password))
-        {
-            return BadRequest(new { error = "Password must contain uppercase, lowercase, digit, and special character" });
-        }
-
-        var roles = request.Roles?.Any() == true ? request.Roles : new[] { "User" };
-
-        var user = await _mediator.Send(new RegisterCommand(
+        // Security: Only assign default "User" role - admin roles must be assigned by administrators
+        var result = await _mediator.Send(new RegisterCommand(
             request.Email,
             request.Password,
-            roles));
+            new[] { "User" }));
 
-        return Ok(new { user.Id, user.Email, message = "Welcome! You've been granted 1000 free credits!" });
+        if (!result.IsSuccess)
+            return Conflict(new { error = result.ErrorMessage });
+
+        return Ok(new { result.User!.Id, result.User.Email, message = "Welcome! You've been granted 1000 free credits!" });
     }
 
     [HttpPost("login")]
@@ -101,22 +104,44 @@ public class AuthController(
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var emailNormalized = request.Email?.ToLowerInvariant() ?? "unknown";
 
-        // Rate limiting: 5 attempts per 15 minutes per IP
-        var rateLimitKey = $"login:{ipAddress}";
-        var rateCheck = await _rateLimitService.CheckAsync(
-            rateLimitKey,
+        // Rate limiting: Combined IP + account-based limiting for defense in depth
+        // IP-based: 10 attempts per 15 minutes (allows for shared IPs)
+        var ipRateLimitKey = $"login:ip:{ipAddress}";
+        var ipRateCheck = await _rateLimitService.CheckAsync(
+            ipRateLimitKey,
+            limit: 10,
+            window: TimeSpan.FromMinutes(15),
+            HttpContext.RequestAborted);
+
+        if (!ipRateCheck.IsAllowed)
+        {
+            _logger.LogWarning("IP rate limit exceeded for {IpAddress}", ipAddress);
+            Response.Headers.Append("Retry-After", ((int)ipRateCheck.RetryAfter.TotalSeconds).ToString());
+            return StatusCode(429, new
+            {
+                error = "Too many login attempts. Please try again later.",
+                retryAfter = (int)ipRateCheck.RetryAfter.TotalSeconds
+            });
+        }
+
+        // Account-based: 5 attempts per 15 minutes per email (stricter per-account limit)
+        var accountRateLimitKey = $"login:account:{emailNormalized}";
+        var accountRateCheck = await _rateLimitService.CheckAsync(
+            accountRateLimitKey,
             limit: 5,
             window: TimeSpan.FromMinutes(15),
             HttpContext.RequestAborted);
 
-        if (!rateCheck.IsAllowed)
+        if (!accountRateCheck.IsAllowed)
         {
-            Response.Headers.Append("Retry-After", ((int)rateCheck.RetryAfter.TotalSeconds).ToString());
+            _logger.LogWarning("Account rate limit exceeded for email hash (not logging email for privacy)");
+            Response.Headers.Append("Retry-After", ((int)accountRateCheck.RetryAfter.TotalSeconds).ToString());
             return StatusCode(429, new
             {
-                error = "Too many login attempts. Please try again later.",
-                retryAfter = (int)rateCheck.RetryAfter.TotalSeconds
+                error = "Too many login attempts for this account. Please try again later.",
+                retryAfter = (int)accountRateCheck.RetryAfter.TotalSeconds
             });
         }
 
@@ -131,23 +156,118 @@ public class AuthController(
         if (!result.IsSuccess)
             return Unauthorized(new { error = result.ErrorMessage });
 
-        var expireHours = double.TryParse(_config["Jwt:ExpireHours"], out var hours) ? hours : 24;
-        Response.Cookies.Append("token", result.Token, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = !_env.IsDevelopment(),
-            SameSite = SameSiteMode.Strict,
-            Expires = DateTimeOffset.UtcNow.AddHours(expireHours)
-        });
+        // Generate refresh token
+        var refreshToken = await GenerateRefreshTokenAsync(result.UserId, ipAddress);
 
-        return Ok(new { token = result.Token });
+        var expireHours = double.TryParse(_config["Jwt:ExpireHours"], out var hours) ? hours : 4;
+        SetTokenCookie(result.Token, expireHours);
+        SetRefreshTokenCookie(refreshToken.Token);
+
+        return Ok(new
+        {
+            token = result.Token,
+            refreshToken = refreshToken.Token,
+            expiresAt = DateTime.UtcNow.AddHours(expireHours)
+        });
+    }
+
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest? request)
+    {
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        // Get refresh token from cookie or request body
+        var refreshTokenValue = request?.RefreshToken
+            ?? Request.Cookies["refreshToken"];
+
+        if (string.IsNullOrEmpty(refreshTokenValue))
+            return Unauthorized(new { error = "Refresh token is required" });
+
+        var existingToken = await _refreshTokenRepository.GetByTokenAsync(refreshTokenValue);
+        if (existingToken == null)
+            return Unauthorized(new { error = "Invalid refresh token" });
+
+        if (!existingToken.IsActive)
+        {
+            // Token reuse detected - revoke all tokens for security
+            if (existingToken.IsRevoked)
+            {
+                _logger.LogWarning("Refresh token reuse detected for user {UserId}", existingToken.UserId);
+                await _refreshTokenRepository.RevokeAllUserTokensAsync(
+                    existingToken.UserId,
+                    "Token reuse detected - potential security breach",
+                    ipAddress);
+            }
+            return Unauthorized(new { error = "Refresh token is no longer valid" });
+        }
+
+        // Revoke current token and create new one (rotation)
+        existingToken.RevokedAt = DateTime.UtcNow;
+        existingToken.RevokedByIp = ipAddress;
+        existingToken.RevokeReason = "Replaced by new token";
+
+        var newRefreshToken = await GenerateRefreshTokenAsync(existingToken.UserId, ipAddress);
+        existingToken.ReplacedByToken = newRefreshToken.Token;
+
+        await _refreshTokenRepository.UpdateAsync(existingToken);
+
+        // Generate new access token
+        var user = existingToken.User;
+        var roles = user.UserRoles?.Select(ur => ur.Role.Name) ?? Array.Empty<string>();
+        var newAccessToken = _tokenService.GenerateToken(user, roles);
+
+        var expireHours = double.TryParse(_config["Jwt:ExpireHours"], out var hours) ? hours : 4;
+        SetTokenCookie(newAccessToken, expireHours);
+        SetRefreshTokenCookie(newRefreshToken.Token);
+
+        return Ok(new
+        {
+            token = newAccessToken,
+            refreshToken = newRefreshToken.Token,
+            expiresAt = DateTime.UtcNow.AddHours(expireHours)
+        });
     }
 
     [HttpPost("logout")]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout()
     {
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        // Revoke refresh token if present
+        var refreshTokenValue = Request.Cookies["refreshToken"];
+        if (!string.IsNullOrEmpty(refreshTokenValue))
+        {
+            var token = await _refreshTokenRepository.GetByTokenAsync(refreshTokenValue);
+            if (token != null && token.IsActive)
+            {
+                token.RevokedAt = DateTime.UtcNow;
+                token.RevokedByIp = ipAddress;
+                token.RevokeReason = "User logout";
+                await _refreshTokenRepository.UpdateAsync(token);
+            }
+        }
+
         Response.Cookies.Delete("token");
-        return Ok();
+        Response.Cookies.Delete("refreshToken");
+        return Ok(new { message = "Logged out successfully" });
+    }
+
+    [HttpPost("revoke-all-tokens")]
+    public async Task<IActionResult> RevokeAllTokens()
+    {
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            return Unauthorized();
+
+        await _refreshTokenRepository.RevokeAllUserTokensAsync(userId, "User requested revocation", ipAddress);
+
+        Response.Cookies.Delete("token");
+        Response.Cookies.Delete("refreshToken");
+
+        return Ok(new { message = "All tokens revoked successfully" });
     }
 
     [HttpPost("forgot-password")]
@@ -192,10 +312,10 @@ public class AuthController(
     [AllowAnonymous]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
-        var success = await _mediator.Send(new ResetPasswordCommand(request.Email, request.Token, request.NewPassword));
-        if (!success)
-            return BadRequest();
-        return Ok();
+        var result = await _mediator.Send(new ResetPasswordCommand(request.Email, request.Token, request.NewPassword));
+        if (!result.IsSuccess)
+            return BadRequest(new { error = result.ErrorMessage });
+        return Ok(new { message = "Password reset successfully" });
     }
 
 
@@ -312,15 +432,58 @@ public class AuthController(
 
         return Redirect(_config["FrontendUrl"]!);
     }
+
+    private async Task<RefreshTokenEntity> GenerateRefreshTokenAsync(Guid userId, string? ipAddress)
+    {
+        var tokenBytes = RandomNumberGenerator.GetBytes(64);
+        var tokenString = Convert.ToBase64String(tokenBytes);
+
+        var refreshToken = new RefreshTokenEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Token = tokenString,
+            ExpiresAt = DateTime.UtcNow.AddDays(RefreshTokenExpirationDays),
+            CreatedAt = DateTime.UtcNow,
+            CreatedByIp = ipAddress
+        };
+
+        await _refreshTokenRepository.CreateAsync(refreshToken);
+        return refreshToken;
+    }
+
+    private void SetTokenCookie(string token, double expireHours)
+    {
+        Response.Cookies.Append("token", token, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = !_env.IsDevelopment(),
+            SameSite = SameSiteMode.Strict,
+            Expires = DateTimeOffset.UtcNow.AddHours(expireHours)
+        });
+    }
+
+    private void SetRefreshTokenCookie(string refreshToken)
+    {
+        Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = !_env.IsDevelopment(),
+            SameSite = SameSiteMode.Strict,
+            Expires = DateTimeOffset.UtcNow.AddDays(RefreshTokenExpirationDays)
+        });
+    }
 }
 
-public record RegisterRequest(string? Name, string? Email, string? Password, IEnumerable<string>? Roles);
+public record RegisterRequest(string? Name, string? Email, string? Password);
 
 public record LoginRequest(string Email, string Password);
 
 public record ForgotPasswordRequest(string Email);
 
 public record ResetPasswordRequest(string Email, string Token, string NewPassword);
+
+public record RefreshTokenRequest(string? RefreshToken);
 
 // Helper class for OAuth token response
 public class OAuthTokenResponse

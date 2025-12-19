@@ -2,13 +2,15 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 
 namespace WebApi.Middleware;
 
-public class AuthorizationMiddleware(RequestDelegate next)
+public class AuthorizationMiddleware(RequestDelegate next, ILogger<AuthorizationMiddleware> logger)
 {
     private readonly RequestDelegate _next = next;
+    private readonly ILogger<AuthorizationMiddleware> _logger = logger;
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -46,11 +48,13 @@ public class AuthorizationMiddleware(RequestDelegate next)
 
         // Check for token in cookie, Authorization header, or query string (for SignalR)
         string? token = null;
-        
-        // First try to get token from cookie
+        var tokenSource = "none";
+
+        // First try to get token from cookie (most secure)
         if (context.Request.Cookies.TryGetValue("token", out var cookieToken))
         {
             token = cookieToken;
+            tokenSource = "cookie";
         }
         // If no cookie, check Authorization header for Bearer token
         else if (context.Request.Headers.TryGetValue("Authorization", out var authHeader))
@@ -59,12 +63,29 @@ public class AuthorizationMiddleware(RequestDelegate next)
             if (authHeaderValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             {
                 token = authHeaderValue.Substring("Bearer ".Length).Trim();
+                tokenSource = "header";
             }
         }
-        // For SignalR connections, check the access_token query parameter
+        // For SignalR connections only, check the access_token query parameter
+        // Note: This is less secure as tokens may appear in logs - use only for WebSocket upgrade
         else if (context.Request.Query.TryGetValue("access_token", out var accessToken))
         {
-            token = accessToken.ToString();
+            var isSignalRPath = context.Request.Path.StartsWithSegments("/chatHub") ||
+                               context.Request.Path.StartsWithSegments("/huddleHub");
+
+            if (isSignalRPath)
+            {
+                token = accessToken.ToString();
+                tokenSource = "query";
+
+                // Log security warning in development
+                if (env?.IsDevelopment() == true)
+                {
+                    _logger.LogDebug(
+                        "SignalR connection using query string token for {Path}. Consider using cookie-based auth in production.",
+                        context.Request.Path);
+                }
+            }
         }
         
         if (string.IsNullOrEmpty(token))
@@ -112,14 +133,24 @@ public class AuthorizationMiddleware(RequestDelegate next)
 
             context.User = principal;
         }
-        catch (SecurityTokenExpiredException)
+        catch (SecurityTokenExpiredException ex)
         {
+            var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            _logger.LogWarning(
+                "Expired token used from IP {IpAddress} for path {Path}. Token expired at: {ExpirationTime}",
+                ipAddress, context.Request.Path, ex.Expires);
+
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             await context.Response.WriteAsync("Token has expired");
             return;
         }
-        catch (SecurityTokenException)
+        catch (SecurityTokenException ex)
         {
+            var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            _logger.LogWarning(
+                "Invalid token attempt from IP {IpAddress} for path {Path}. Error: {Error}",
+                ipAddress, context.Request.Path, ex.Message);
+
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             await context.Response.WriteAsync("Invalid token");
             return;

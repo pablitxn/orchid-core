@@ -29,24 +29,26 @@ public class RegisterHandlerTests
         var cmd = new RegisterCommand("foo@bar.com", "pass", new[] { "User" });
         _userRepo.Setup(r => r.GetByEmailAsync(cmd.Email)).ReturnsAsync((UserEntity?)null);
         _userRepo.Setup(r => r.CreateAsync(It.IsAny<UserEntity>())).ReturnsAsync((UserEntity u) => u);
-        _roleRepo.Setup(r => r.GetByNameAsync("User")).ReturnsAsync((RoleEntity?)null);
-        _roleRepo.Setup(r => r.CreateAsync(It.IsAny<RoleEntity>())).ReturnsAsync((RoleEntity r) => r);
+        _roleRepo.Setup(r => r.GetByNameAsync("User"))
+            .ReturnsAsync(new RoleEntity { Id = Guid.NewGuid(), Name = "User" });
 
         var result = await _handler.Handle(cmd, CancellationToken.None);
 
+        Assert.True(result.IsSuccess);
         _userRepo.Verify(r => r.CreateAsync(It.IsAny<UserEntity>()), Times.Once);
-        Assert.Equal(cmd.Email, result.Email);
+        Assert.Equal(cmd.Email, result.User!.Email);
     }
 
     [Fact]
-    public async Task Handle_ReturnsExistingUser_WhenFound()
+    public async Task Handle_ReturnsFailure_WhenUserExists()
     {
         var existing = new UserEntity { Id = Guid.NewGuid(), Email = "foo@bar.com" };
         _userRepo.Setup(r => r.GetByEmailAsync(existing.Email)).ReturnsAsync(existing);
 
         var result = await _handler.Handle(new RegisterCommand(existing.Email, "pass", null), CancellationToken.None);
 
-        Assert.Equal(existing, result);
+        Assert.False(result.IsSuccess);
+        Assert.Equal("An account with this email already exists", result.ErrorMessage);
         _userRepo.Verify(r => r.CreateAsync(It.IsAny<UserEntity>()), Times.Never);
         _eventPublisher.Verify(p => p.PublishAsync(It.IsAny<UserCreatedEvent>()), Times.Never);
     }
@@ -67,19 +69,19 @@ public class RegisterHandlerTests
     }
 
     [Fact]
-    public async Task Handle_CreatesRole_WhenMissing()
+    public async Task Handle_SkipsRole_WhenRoleMissing()
     {
-        var cmd = new RegisterCommand("foo@bar.com", "pass", new[] { "Admin" });
+        // Changed behavior: now skips unknown roles instead of creating them
+        var cmd = new RegisterCommand("foo@bar.com", "pass", new[] { "UnknownRole" });
         _userRepo.Setup(r => r.GetByEmailAsync(cmd.Email)).ReturnsAsync((UserEntity?)null);
         _userRepo.Setup(r => r.CreateAsync(It.IsAny<UserEntity>()))
             .ReturnsAsync(new UserEntity { Id = Guid.NewGuid() });
-        _roleRepo.Setup(r => r.GetByNameAsync("Admin")).ReturnsAsync((RoleEntity?)null);
-        _roleRepo.Setup(r => r.CreateAsync(It.IsAny<RoleEntity>()))
-            .ReturnsAsync(new RoleEntity { Name = "", Id = Guid.NewGuid() });
+        _roleRepo.Setup(r => r.GetByNameAsync("UnknownRole")).ReturnsAsync((RoleEntity?)null);
 
         await _handler.Handle(cmd, CancellationToken.None);
 
-        _roleRepo.Verify(r => r.CreateAsync(It.IsAny<RoleEntity>()), Times.Once);
+        _roleRepo.Verify(r => r.CreateAsync(It.IsAny<RoleEntity>()), Times.Never);
+        _roleRepo.Verify(r => r.AssignRoleToUserAsync(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Never);
     }
 
     [Fact]
@@ -92,7 +94,8 @@ public class RegisterHandlerTests
 
         var result = await _handler.Handle(cmd, CancellationToken.None);
 
-        Assert.Equal("hash", result.PasswordHash);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("hash", result.User!.PasswordHash);
     }
 
     [Fact]
@@ -145,7 +148,8 @@ public class RegisterHandlerTests
 
         var result = await _handler.Handle(cmd, CancellationToken.None);
 
-        Assert.StartsWith("user_", result.Name);
+        Assert.True(result.IsSuccess);
+        Assert.StartsWith("user_", result.User!.Name);
     }
 
     [Fact]

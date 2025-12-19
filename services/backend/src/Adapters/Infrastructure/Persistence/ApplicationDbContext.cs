@@ -60,6 +60,7 @@ public class ApplicationDbContext(
     public DbSet<UserCreditLimitEntity> UserCreditLimits { get; set; }
     public DbSet<NotificationEntity> Notifications { get; set; }
     public DbSet<AuditLogEntity> AuditLogs { get; set; }
+    public DbSet<RefreshTokenEntity> RefreshTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -548,6 +549,28 @@ public class ApplicationDbContext(
             b.HasOne(l => l.User)
                 .WithMany()
                 .HasForeignKey(l => l.UserId);
+        });
+
+        // Map refresh token entity
+        modelBuilder.Entity<RefreshTokenEntity>(b =>
+        {
+            b.ToTable("RefreshTokens");
+            b.HasKey(r => r.Id);
+            b.Property(r => r.UserId).IsRequired();
+            b.Property(r => r.Token).IsRequired().HasMaxLength(88); // Base64 of 64 bytes
+            b.Property(r => r.ExpiresAt).HasColumnType("timestamp with time zone");
+            b.Property(r => r.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(r => r.CreatedByIp).HasMaxLength(45);
+            b.Property(r => r.RevokedAt).HasColumnType("timestamp with time zone");
+            b.Property(r => r.RevokedByIp).HasMaxLength(45);
+            b.Property(r => r.ReplacedByToken).HasMaxLength(88);
+            b.Property(r => r.RevokeReason).HasMaxLength(200);
+            b.HasIndex(r => r.Token).IsUnique();
+            b.HasIndex(r => new { r.UserId, r.ExpiresAt });
+            b.HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

@@ -92,6 +92,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<ILoginHistoryRepository, LoginHistoryRepository>();
         services.AddScoped<IUserWorkflowRepository, UserWorkflowRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         // services.AddScoped<IAudioJobRepository, AudioJobRepository>();
         
         // ─── Credit and Notification Repositories ────────────────────────────────────
@@ -285,8 +286,9 @@ public static class InfrastructureServiceCollectionExtensions
 
         #region Authentication Services
 
-        // ─── Password hasher and JWT token service for authentication ────────────────
+        // ─── Password hasher, validator and JWT token service for authentication ─────
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
+        services.AddSingleton<IPasswordValidator, PasswordValidator>();
         services.AddSingleton<ITokenService, JwtTokenService>();
 
         #endregion

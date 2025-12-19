@@ -3,6 +3,7 @@ using Application.UseCases.Auth.Login;
 using Core.Application.Interfaces;
 using Core.Domain.Entities;
 using Domain.Entities;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace Application.Tests.UseCases.Auth.Login;
@@ -14,6 +15,7 @@ public class LoginHandlerTests
     private readonly Mock<IUserRepository> _userRepo = new();
     private readonly Mock<IPasswordHasher> _passwordHasher = new();
     private readonly Mock<ILoginHistoryRepository> _loginHistoryRepo = new();
+    private readonly Mock<ILogger<LoginHandler>> _logger = new();
 
     public LoginHandlerTests()
     {
@@ -32,7 +34,8 @@ public class LoginHandlerTests
             _userRepo.Object,
             _tokenService.Object,
             _passwordHasher.Object,
-            _loginHistoryRepo.Object);
+            _loginHistoryRepo.Object,
+            _logger.Object);
     }
 
     [Fact]

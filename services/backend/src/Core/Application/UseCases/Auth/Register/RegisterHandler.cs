@@ -10,18 +10,18 @@ public class RegisterHandler(
     IRoleRepository roleRepository,
     IPasswordHasher passwordHasher,
     IEventPublisher eventPublisher)
-    : IRequestHandler<RegisterCommand, UserEntity>
+    : IRequestHandler<RegisterCommand, RegisterResult>
 {
     private readonly IPasswordHasher _passwordHasher = passwordHasher;
     private readonly IRoleRepository _roles = roleRepository;
     private readonly IUserRepository _users = userRepository;
     private readonly IEventPublisher _eventPublisher = eventPublisher;
 
-    public async Task<UserEntity> Handle(RegisterCommand request, CancellationToken cancellationToken)
+    public async Task<RegisterResult> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
         var existing = await _users.GetByEmailAsync(request.Email);
         if (existing != null!)
-            return existing;
+            return RegisterResult.Failure("An account with this email already exists");
 
         var newUser = new UserEntity
         {
@@ -34,14 +34,17 @@ public class RegisterHandler(
         if (request.Roles != null)
             foreach (var roleName in request.Roles)
             {
-                var role = await _roles.GetByNameAsync(roleName) ??
-                           await _roles.CreateAsync(new RoleEntity { Name = roleName });
+                // Only allow predefined roles to be assigned
+                var role = await _roles.GetByNameAsync(roleName);
+                if (role == null)
+                    continue; // Skip unknown roles instead of creating them
+
                 await _roles.AssignRoleToUserAsync(created.Id, role.Id);
             }
 
         // Publish user created event to trigger knowledge base seeding
         await _eventPublisher.PublishAsync(new UserCreatedEvent(created.Id, created.Email));
 
-        return created;
+        return RegisterResult.Success(created);
     }
 }

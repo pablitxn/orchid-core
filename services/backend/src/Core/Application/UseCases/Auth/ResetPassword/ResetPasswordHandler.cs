@@ -3,23 +3,50 @@ using MediatR;
 
 namespace Application.UseCases.Auth.ResetPassword;
 
-public class ResetPasswordHandler(IUserRepository users, IPasswordHasher passwordHasher)
-    : IRequestHandler<ResetPasswordCommand, bool>
+public class ResetPasswordHandler(
+    IUserRepository users,
+    IPasswordHasher passwordHasher,
+    IPasswordValidator passwordValidator,
+    IRefreshTokenRepository refreshTokenRepository)
+    : IRequestHandler<ResetPasswordCommand, ResetPasswordResult>
 {
     private readonly IPasswordHasher _passwordHasher = passwordHasher;
+    private readonly IPasswordValidator _passwordValidator = passwordValidator;
     private readonly IUserRepository _users = users;
+    private readonly IRefreshTokenRepository _refreshTokenRepository = refreshTokenRepository;
 
-    public async Task<bool> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
+    public async Task<ResetPasswordResult> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
     {
+        // Validate password complexity before any database operations
+        var validationResult = _passwordValidator.Validate(request.NewPassword);
+        if (!validationResult.IsValid)
+            return ResetPasswordResult.Failure(validationResult.ErrorMessage!);
+
         var user = await _users.GetByEmailAsync(request.Email);
         if (user == null)
-            return false;
+            return ResetPasswordResult.Failure("Invalid reset request");
+
         if (user.PasswordResetToken != request.Token || user.PasswordResetExpiry < DateTime.UtcNow)
-            return false;
+            return ResetPasswordResult.Failure("Invalid or expired reset token");
+
         user.PasswordHash = _passwordHasher.HashPassword(request.NewPassword);
         user.PasswordResetToken = null;
         user.PasswordResetExpiry = null;
+        user.PasswordChangedAt = DateTime.UtcNow;
         await _users.UpdateAsync(user);
-        return true;
+
+        // Revoke all existing refresh tokens for security
+        await _refreshTokenRepository.RevokeAllUserTokensAsync(
+            user.Id,
+            "Password reset - all sessions invalidated",
+            ct: cancellationToken);
+
+        return ResetPasswordResult.Success();
     }
+}
+
+public record ResetPasswordResult(bool IsSuccess, string? ErrorMessage = null)
+{
+    public static ResetPasswordResult Success() => new(true);
+    public static ResetPasswordResult Failure(string message) => new(false, message);
 }

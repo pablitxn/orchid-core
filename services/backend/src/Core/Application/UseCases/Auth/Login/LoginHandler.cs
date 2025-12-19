@@ -2,6 +2,7 @@ using Application.Interfaces;
 using Core.Application.Interfaces;
 using Core.Domain.Entities;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Application.UseCases.Auth.Login;
 
@@ -9,7 +10,8 @@ public class LoginHandler(
     IUserRepository userRepository,
     ITokenService tokenService,
     IPasswordHasher passwordHasher,
-    ILoginHistoryRepository loginHistoryRepository)
+    ILoginHistoryRepository loginHistoryRepository,
+    ILogger<LoginHandler> logger)
     : IRequestHandler<LoginCommand, LoginResult>
 {
     private const int MaxFailedAttempts = 5;
@@ -19,6 +21,7 @@ public class LoginHandler(
     private readonly ITokenService _tokenService = tokenService;
     private readonly IUserRepository _userRepository = userRepository;
     private readonly ILoginHistoryRepository _loginHistoryRepository = loginHistoryRepository;
+    private readonly ILogger<LoginHandler> _logger = logger;
 
     public async Task<LoginResult> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
@@ -26,7 +29,7 @@ public class LoginHandler(
         if (user == null)
         {
             // Don't reveal that user doesn't exist
-            return new LoginResult(false, string.Empty, [], "Invalid credentials");
+            return new LoginResult(false, string.Empty, [], ErrorMessage: "Invalid credentials");
         }
 
         // Check for account lockout
@@ -37,20 +40,28 @@ public class LoginHandler(
 
         if (failedAttempts >= MaxFailedAttempts)
         {
-            return new LoginResult(false, string.Empty, [], "Account temporarily locked. Please try again later.");
+            // Log lockout event for security monitoring
+            _logger.LogWarning(
+                "Account lockout triggered for UserId {UserId} from IP {IpAddress}. Failed attempts: {FailedAttempts}",
+                user.Id, request.IpAddress, failedAttempts);
+
+            // Record lockout attempt in history
+            await RecordLoginAttemptAsync(user.Id, request, false, $"Account locked - {failedAttempts} failed attempts", cancellationToken);
+
+            return new LoginResult(false, string.Empty, [], ErrorMessage: "Account temporarily locked. Please try again later.");
         }
 
         // Password is always required
         if (string.IsNullOrEmpty(request.Password))
         {
             await RecordLoginAttemptAsync(user.Id, request, false, "Password not provided", cancellationToken);
-            return new LoginResult(false, string.Empty, [], "Password is required");
+            return new LoginResult(false, string.Empty, [], ErrorMessage: "Password is required");
         }
 
         if (!_passwordHasher.VerifyPassword(user.PasswordHash, request.Password))
         {
             await RecordLoginAttemptAsync(user.Id, request, false, "Invalid password", cancellationToken);
-            return new LoginResult(false, string.Empty, [], "Invalid credentials");
+            return new LoginResult(false, string.Empty, [], ErrorMessage: "Invalid credentials");
         }
 
         // Successful login
@@ -59,7 +70,7 @@ public class LoginHandler(
         var roles = user.UserRoles?.Select(ur => ur.Role.Name) ?? [];
         var enumerable = roles as string[] ?? roles.ToArray();
         var token = _tokenService.GenerateToken(user, enumerable);
-        return new LoginResult(true, token, enumerable);
+        return new LoginResult(true, token, enumerable, user.Id);
     }
 
     private async Task RecordLoginAttemptAsync(

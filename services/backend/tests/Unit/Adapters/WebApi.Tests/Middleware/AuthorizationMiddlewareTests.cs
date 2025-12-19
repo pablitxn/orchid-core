@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Moq;
 using WebApi.Middleware;
 
@@ -24,11 +25,13 @@ public class AuthorizationMiddlewareTests
         var envMock = new Mock<IWebHostEnvironment>();
         envMock.Setup(e => e.IsEnvironment("Testing")).Returns(false);
 
+        var loggerMock = new Mock<ILogger<AuthorizationMiddleware>>();
+
         var services = new ServiceCollection();
         services.AddSingleton(envMock.Object);
         context.RequestServices = services.BuildServiceProvider();
 
-        var middleware = new AuthorizationMiddleware(_ => Task.CompletedTask);
+        var middleware = new AuthorizationMiddleware(_ => Task.CompletedTask, loggerMock.Object);
         await middleware.InvokeAsync(context);
 
         Assert.Equal("test@example.com", context.User.FindFirst(ClaimTypes.Email)?.Value);

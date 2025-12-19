@@ -8,4 +8,4 @@ public record LoginCommand(
     string? IpAddress = null,
     string? UserAgent = null) : IRequest<LoginResult>;
 
-public record LoginResult(bool IsSuccess, string Token, IEnumerable<string> Roles, string ErrorMessage = "");
+public record LoginResult(bool IsSuccess, string Token, IEnumerable<string> Roles, Guid UserId = default, string ErrorMessage = "");
