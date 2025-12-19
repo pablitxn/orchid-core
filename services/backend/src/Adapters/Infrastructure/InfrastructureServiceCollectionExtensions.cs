@@ -224,11 +224,19 @@ public static class InfrastructureServiceCollectionExtensions
                 new RedisCacheService(redisConfig, sp.GetRequiredService<ILogger<RedisCacheService>>()));
             services.AddSingleton<ICacheStore>(sp => sp.GetRequiredService<RedisCacheService>());
             services.AddHostedService(sp => sp.GetRequiredService<RedisCacheService>());
+
+            // Register Redis connection multiplexer for rate limiting
+            services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
+                StackExchange.Redis.ConnectionMultiplexer.Connect(redisConfig));
+            services.AddSingleton<IRateLimitService, Services.RedisRateLimitService>();
         }
         else
         {
             services.AddMemoryCache();
             services.AddSingleton<ICacheStore, InMemoryCacheService>();
+
+            // Use in-memory rate limiting when Redis is not available
+            services.AddSingleton<IRateLimitService, Services.InMemoryRateLimitService>();
         }
 
         #endregion
