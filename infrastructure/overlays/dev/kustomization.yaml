@@ -1,8 +1,5 @@
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-
-# This overlay only contains image references for ArgoCD multi-source setup
-# Base configuration and sensitive configs are in the private infrastructure repo
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
 
 images:
   - name: ghcr.io/pablitxn/orchid-core
