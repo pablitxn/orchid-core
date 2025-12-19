@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Application.Interfaces;
 using MediatR;
 
@@ -22,11 +24,22 @@ public class ResetPasswordHandler(
         if (!validationResult.IsValid)
             return ResetPasswordResult.Failure(validationResult.ErrorMessage!);
 
-        var user = await _users.GetByEmailAsync(request.Email);
+        // Security: Normalize email for consistent lookup
+        var normalizedEmail = request.Email?.Trim().ToLowerInvariant() ?? string.Empty;
+
+        var user = await _users.GetByEmailAsync(normalizedEmail);
         if (user == null)
             return ResetPasswordResult.Failure("Invalid reset request");
 
-        if (user.PasswordResetToken != request.Token || user.PasswordResetExpiry < DateTime.UtcNow)
+        // Security: Check expiry first (before comparing token) to prevent timing attacks
+        if (user.PasswordResetExpiry < DateTime.UtcNow)
+            return ResetPasswordResult.Failure("Invalid or expired reset token");
+
+        // Security: Use constant-time comparison to prevent timing attacks
+        if (string.IsNullOrEmpty(user.PasswordResetToken) ||
+            !CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(user.PasswordResetToken),
+                Encoding.UTF8.GetBytes(request.Token)))
             return ResetPasswordResult.Failure("Invalid or expired reset token");
 
         user.PasswordHash = _passwordHasher.HashPassword(request.NewPassword);

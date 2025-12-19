@@ -1,3 +1,6 @@
+# Security: Use .env file for all credentials
+# Copy .env.example to .env and update with secure values before running
+
 services:
   redis_orchid_core:
     image: "bitnami/redis:latest"
@@ -5,11 +8,11 @@ services:
     networks:
       - orchid-core
     environment:
-      - REDIS_MASTER_PASSWORD=1234
-      - REDIS_PASSWORD=1234
+      - REDIS_MASTER_PASSWORD=${REDIS_PASSWORD:-CHANGE_ME_IN_ENV_FILE}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-CHANGE_ME_IN_ENV_FILE}
     ports:
       - "6379:6379"
-  
+
   redis-commander:
     image: rediscommander/redis-commander:latest
     container_name: orchid-core-dev-redis-commander
@@ -19,15 +22,15 @@ services:
       REDIS_HOSTS: redis_orchid_core
       REDIS_HOST: redis_orchid_core
       REDIS_PORT: redis_orchid_core:6379
-      REDIS_PASSWORD: 1234
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-CHANGE_ME_IN_ENV_FILE}
       HTTP_USER: root
-      HTTP_PASSWORD: root
+      HTTP_PASSWORD: ${REDIS_COMMANDER_PASSWORD:-CHANGE_ME_IN_ENV_FILE}
     user: redis
     ports:
       - "8082:8081"
     depends_on:
       - redis_orchid_core
-  
+
   database:
     # todo
     # - create dedicated database for dev and test
@@ -40,9 +43,9 @@ services:
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: orchid_core
+      POSTGRES_USER: ${POSTGRES_USER:-orchid_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME_IN_ENV_FILE}
+      POSTGRES_DB: ${POSTGRES_DB:-orchid_core}
     volumes:
       - orchid_core_pg_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
@@ -56,8 +59,8 @@ services:
     ports:
       - "8888:80"
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@admin.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-CHANGE_ME_IN_ENV_FILE}
     volumes:
       - pgadmin-data:/var/lib/pgadmin
 
@@ -70,8 +73,8 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq/
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-orchid_mq}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-CHANGE_ME_IN_ENV_FILE}
 
   langfuse-worker:
     image: langfuse/langfuse-worker:3

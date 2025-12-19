@@ -25,7 +25,9 @@ public class LoginHandler(
 
     public async Task<LoginResult> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        var user = await _userRepository.GetByEmailAsync(request.Email);
+        // Security: Normalize email for consistent lookup (prevents case-sensitive bypasses)
+        var normalizedEmail = request.Email?.Trim().ToLowerInvariant() ?? string.Empty;
+        var user = await _userRepository.GetByEmailAsync(normalizedEmail);
         if (user == null)
         {
             // Don't reveal that user doesn't exist

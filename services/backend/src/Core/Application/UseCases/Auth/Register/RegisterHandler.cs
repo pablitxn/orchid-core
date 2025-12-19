@@ -19,13 +19,16 @@ public class RegisterHandler(
 
     public async Task<RegisterResult> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
-        var existing = await _users.GetByEmailAsync(request.Email);
+        // Security: Normalize email for consistent storage and lookup
+        var normalizedEmail = request.Email?.Trim().ToLowerInvariant() ?? string.Empty;
+
+        var existing = await _users.GetByEmailAsync(normalizedEmail);
         if (existing != null!)
             return RegisterResult.Failure("An account with this email already exists");
 
         var newUser = new UserEntity
         {
-            Email = request.Email,
+            Email = normalizedEmail,
             PasswordHash = _passwordHasher.HashPassword(request.Password),
             Name = $"user_{Guid.NewGuid()}"
         };

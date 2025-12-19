@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text;
+using System.Xml;
 using System.Xml.Linq;
 using Application.Interfaces;
 using Aspose.Cells;
@@ -37,7 +38,17 @@ public class DocumentTextExtractor : IDocumentTextExtractor
                 if (entry == null)
                     return string.Empty;
                 using var entryStream = entry.Open();
-                var xdoc = XDocument.Load(entryStream);
+
+                // Security: Prevent XXE attacks by disabling DTD processing
+                var settings = new XmlReaderSettings
+                {
+                    DtdProcessing = DtdProcessing.Prohibit,
+                    XmlResolver = null,
+                    MaxCharactersFromEntities = 1024 // Limit entity expansion
+                };
+                using var xmlReader = XmlReader.Create(entryStream, settings);
+                var xdoc = XDocument.Load(xmlReader);
+
                 XNamespace textNs = "urn:oasis:names:tc:opendocument:xmlns:text:1.0";
                 var paragraphsList = xdoc.Descendants(textNs + "p")
                     .Select(p => p.Value.Trim())

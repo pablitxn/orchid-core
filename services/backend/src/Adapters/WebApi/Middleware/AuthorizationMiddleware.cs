@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
@@ -120,7 +121,25 @@ public class AuthorizationMiddleware(RequestDelegate next, ILogger<Authorization
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
             };
 
-            var principal = handler.ValidateToken(token, validationParameters, out _);
+            var principal = handler.ValidateToken(token, validationParameters, out var validatedToken);
+
+            // Security: Check if token has been blacklisted (e.g., after logout)
+            var jti = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+            if (!string.IsNullOrEmpty(jti))
+            {
+                var blacklistService = context.RequestServices.GetService<IJwtBlacklistService>();
+                if (blacklistService != null && await blacklistService.IsBlacklistedAsync(jti))
+                {
+                    var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                    _logger.LogWarning(
+                        "Blacklisted token used from IP {IpAddress} for path {Path}. JTI: {Jti}",
+                        ipAddress, context.Request.Path, jti);
+
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    await context.Response.WriteAsync("Token has been revoked");
+                    return;
+                }
+            }
 
             // Verify email claim exists
             var emailClaim = principal.FindFirst(ClaimTypes.Email);

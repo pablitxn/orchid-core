@@ -32,6 +32,8 @@ public class JwtTokenService : ITokenService
     {
         var claims = new List<Claim>
         {
+            // Security: Add unique token ID (jti) for blacklist support
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Email, user.Email)
         };

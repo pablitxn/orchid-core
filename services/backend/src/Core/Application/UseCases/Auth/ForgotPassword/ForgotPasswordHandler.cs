@@ -10,7 +10,10 @@ public class ForgotPasswordHandler(IUserRepository users) : IRequestHandler<Forg
 
     public async Task<string?> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
     {
-        var user = await _users.GetByEmailAsync(request.Email);
+        // Security: Normalize email for consistent lookup
+        var normalizedEmail = request.Email?.Trim().ToLowerInvariant() ?? string.Empty;
+
+        var user = await _users.GetByEmailAsync(normalizedEmail);
         if (user == null)
             return null;
 
