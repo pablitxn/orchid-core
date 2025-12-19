@@ -75,7 +75,7 @@ public sealed class RedisCacheService : ICacheStore, IHostedService, IDisposable
 
     public void Dispose()
     {
-        _muxer.Dispose();
+        _muxer?.Dispose();
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
