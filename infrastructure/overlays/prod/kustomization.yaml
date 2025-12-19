@@ -7,6 +7,6 @@ kind: Kustomization
 images:
 - name: ghcr.io/pablitxn/orchid-core
   newTag: prod
-- digest: sha256:3a50ae932330a38be020ffea364e2a0ec3f75ca1db5e0b3ad8f8b9dcac73468f
+- digest: sha256:ca56b078aab9c021f3371728c12559047de948c122506827834485320dc77481
   name: ghcr.io/pablitxn/orchid-core:prod
   newName: ghcr.io/pablitxn/orchid-core
