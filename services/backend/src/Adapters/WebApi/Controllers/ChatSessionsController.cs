@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Application.UseCases.ChatSession.ArchiveChatSession;
 using Application.UseCases.ChatSession.CreateChatSession;
 using Application.UseCases.ChatSession.DeleteChatSessions;
@@ -5,19 +6,36 @@ using Application.UseCases.ChatSession.GetChatSessionById;
 using Application.UseCases.ChatSession.ListChatSessions;
 using Domain.Enums;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace WebApi.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/chat-sessions")]
 public class ChatSessionsController(IMediator mediator) : ControllerBase
 {
     private readonly IMediator _mediator = mediator;
 
+    /// <summary>
+    /// Extracts the authenticated user's ID from JWT claims.
+    /// </summary>
+    private Guid GetAuthenticatedUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                          ?? User.FindFirst("sub")?.Value;
+
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            throw new UnauthorizedAccessException("User ID claim not found or invalid in token.");
+        }
+
+        return userId;
+    }
+
     [HttpGet]
     public async Task<IActionResult> List(
-        [FromQuery] Guid userId,
         [FromQuery] bool archived = false,
         [FromQuery] Guid? agentId = null,
         [FromQuery] Guid? teamId = null,
@@ -25,6 +43,8 @@ public class ChatSessionsController(IMediator mediator) : ControllerBase
         [FromQuery] DateTime? endDate = null,
         [FromQuery] InteractionType? type = null)
     {
+        // Security: Use authenticated user ID from JWT instead of query parameter to prevent IDOR
+        var userId = GetAuthenticatedUserId();
         var result = await _mediator.Send(
             new ListChatSessionsQuery(userId, archived, agentId, teamId, startDate, endDate, type));
         return Ok(result);

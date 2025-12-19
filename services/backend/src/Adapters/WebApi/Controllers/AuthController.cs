@@ -28,7 +28,8 @@ public class AuthController(
     ILogger<AuthController> logger,
     IRateLimitService rateLimitService,
     IPasswordValidator passwordValidator,
-    IRefreshTokenRepository refreshTokenRepository) : ControllerBase
+    IRefreshTokenRepository refreshTokenRepository,
+    IJwtBlacklistService jwtBlacklistService) : ControllerBase
 {
     private readonly IConfiguration _config = config;
     private readonly IMediator _mediator = mediator;
@@ -38,6 +39,7 @@ public class AuthController(
     private readonly IRateLimitService _rateLimitService = rateLimitService;
     private readonly IPasswordValidator _passwordValidator = passwordValidator;
     private readonly IRefreshTokenRepository _refreshTokenRepository = refreshTokenRepository;
+    private readonly IJwtBlacklistService _jwtBlacklistService = jwtBlacklistService;
 
     private const int RefreshTokenExpirationDays = 7;
 
@@ -233,6 +235,29 @@ public class AuthController(
     public async Task<IActionResult> Logout()
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        // Security: Blacklist the JWT access token to prevent reuse
+        var jwtTokenValue = Request.Cookies["token"];
+        if (!string.IsNullOrEmpty(jwtTokenValue))
+        {
+            try
+            {
+                var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+                var jwtToken = handler.ReadJwtToken(jwtTokenValue);
+                var jti = jwtToken.Claims.FirstOrDefault(c => c.Type == "jti")?.Value;
+                var exp = jwtToken.ValidTo;
+
+                if (!string.IsNullOrEmpty(jti) && exp > DateTime.UtcNow)
+                {
+                    await _jwtBlacklistService.BlacklistTokenAsync(jti, exp);
+                    _logger.LogInformation("JWT token blacklisted on logout. JTI: {Jti}, IP: {IpAddress}", jti, ipAddress);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse JWT token for blacklisting during logout");
+            }
+        }
 
         // Revoke refresh token if present
         var refreshTokenValue = Request.Cookies["refreshToken"];

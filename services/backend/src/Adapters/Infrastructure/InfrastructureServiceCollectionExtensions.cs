@@ -291,6 +291,9 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IPasswordValidator, PasswordValidator>();
         services.AddSingleton<ITokenService, JwtTokenService>();
 
+        // ─── JWT blacklist service for token invalidation on logout ─────────────────
+        services.AddSingleton<IJwtBlacklistService, Services.RedisJwtBlacklistService>();
+
         #endregion
 
         #region Utility Services

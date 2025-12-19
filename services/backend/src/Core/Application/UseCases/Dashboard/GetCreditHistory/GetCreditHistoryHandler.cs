@@ -21,6 +21,11 @@ public sealed class GetCreditHistoryHandler : IRequestHandler<GetCreditHistoryQu
 
     public async Task<CreditHistoryDto> Handle(GetCreditHistoryQuery request, CancellationToken cancellationToken)
     {
+        // Security: Enforce pagination limits to prevent DoS
+        const int maxPageSize = 100;
+        var pageSize = Math.Min(Math.Max(1, request.PageSize), maxPageSize);
+        var pageNumber = Math.Max(1, request.PageNumber);
+
         var startDate = request.StartDate ?? DateTime.UtcNow.AddMonths(-1);
         var endDate = request.EndDate ?? DateTime.UtcNow;
         
@@ -44,11 +49,11 @@ public sealed class GetCreditHistoryHandler : IRequestHandler<GetCreditHistoryQu
 
         // Paginate
         var totalItems = creditHistory.Count;
-        var totalPages = (int)Math.Ceiling(totalItems / (double)request.PageSize);
-        
+        var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+
         var pagedItems = creditHistory
-            .Skip((request.PageNumber - 1) * request.PageSize)
-            .Take(request.PageSize)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
             .Select(c => new CreditHistoryItemDto
             {
                 Id = c.Id,
@@ -65,7 +70,7 @@ public sealed class GetCreditHistoryHandler : IRequestHandler<GetCreditHistoryQu
         {
             Items = pagedItems,
             TotalPages = totalPages,
-            CurrentPage = request.PageNumber
+            CurrentPage = pageNumber
         };
     }
 }

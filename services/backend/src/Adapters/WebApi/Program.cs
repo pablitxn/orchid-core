@@ -339,6 +339,28 @@ if (app.Environment.IsDevelopment())
 // ─── Global Exception Handler ─────────────────────────────────────────────────
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
+// ─── Security Headers ─────────────────────────────────────────────────────────
+app.Use(async (context, next) =>
+{
+    // Prevent clickjacking attacks
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    // Prevent MIME type sniffing
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    // XSS protection for older browsers
+    context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
+    // Control referrer information
+    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+    // Permissions policy
+    context.Response.Headers.Append("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+    // Content Security Policy (adjust as needed for your frontend)
+    if (!context.Request.Path.StartsWithSegments("/swagger"))
+    {
+        context.Response.Headers.Append("Content-Security-Policy",
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' wss: https:; frame-ancestors 'none';");
+    }
+    await next();
+});
+
 app.UseRouting();
 
 // ─── Localization ─────────────────────────────────────────────────────────────
