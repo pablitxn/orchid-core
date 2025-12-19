@@ -225,10 +225,11 @@ public static class InfrastructureServiceCollectionExtensions
             services.AddSingleton<ICacheStore>(sp => sp.GetRequiredService<RedisCacheService>());
             services.AddHostedService(sp => sp.GetRequiredService<RedisCacheService>());
 
-            // Register Redis connection multiplexer for rate limiting
+            // Register Redis connection multiplexer for rate limiting and distributed locking
             services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
                 StackExchange.Redis.ConnectionMultiplexer.Connect(redisConfig));
             services.AddSingleton<IRateLimitService, Services.RedisRateLimitService>();
+            services.AddSingleton<IDistributedLockService, Services.RedisDistributedLockService>();
         }
         else
         {
@@ -237,6 +238,9 @@ public static class InfrastructureServiceCollectionExtensions
 
             // Use in-memory rate limiting when Redis is not available
             services.AddSingleton<IRateLimitService, Services.InMemoryRateLimitService>();
+
+            // Use in-memory distributed lock for single-instance development
+            services.AddSingleton<IDistributedLockService, Services.InMemoryDistributedLockService>();
         }
 
         #endregion
