@@ -215,6 +215,43 @@ builder.Services.AddStackExchangeRedisCache(options =>
 var env = builder.Environment;
 if (!env.IsEnvironment("Testing"))
 {
+    // Security: Validate JWT key configuration
+    var jwtKey = builder.Configuration["Jwt:Key"];
+    var insecureKeys = new[]
+    {
+        "CHANGE_THIS_IN_PRODUCTION",
+        "dev_only_secret_key",
+        "test_only_secret_key"
+    };
+
+    if (string.IsNullOrEmpty(jwtKey))
+    {
+        throw new InvalidOperationException(
+            "JWT Key is not configured. Set 'Jwt:Key' via environment variable 'Jwt__Key' or configuration.");
+    }
+
+    if (jwtKey.Length < 32)
+    {
+        throw new InvalidOperationException(
+            "JWT Key must be at least 32 characters (256 bits) for secure signing.");
+    }
+
+    if (!env.IsDevelopment() && insecureKeys.Any(k => jwtKey.Contains(k, StringComparison.OrdinalIgnoreCase)))
+    {
+        throw new InvalidOperationException(
+            "Insecure JWT Key detected in non-development environment. " +
+            "Please configure a secure key via environment variable 'Jwt__Key'.");
+    }
+
+    // Security: Validate AllowedHosts in production
+    var allowedHosts = builder.Configuration["AllowedHosts"];
+    if (!env.IsDevelopment() && (string.IsNullOrEmpty(allowedHosts) || allowedHosts == "*"))
+    {
+        throw new InvalidOperationException(
+            "AllowedHosts must be explicitly configured in production. " +
+            "Set 'AllowedHosts' to your domain(s), e.g., 'example.com;api.example.com'.");
+    }
+
     // JWT Bearer authentication for Development and Production
     builder.Services.AddAuthentication(options =>
         {
