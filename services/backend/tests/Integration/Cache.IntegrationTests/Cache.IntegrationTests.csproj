@@ -13,7 +13,7 @@
           <PrivateAssets>all</PrivateAssets>
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="DotNet.Testcontainers" Version="1.7.0-beta.2269" />
+        <PackageReference Include="Testcontainers" Version="4.3.0" />
     </ItemGroup>
     <ItemGroup>
       <ProjectReference Include="..\..\..\src\Adapters\Infrastructure\Infrastructure.csproj" />
