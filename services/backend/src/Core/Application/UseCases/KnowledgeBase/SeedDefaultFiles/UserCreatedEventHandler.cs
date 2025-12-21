@@ -12,7 +12,7 @@ public class UserCreatedEventHandler(
     ILogger<UserCreatedEventHandler> logger)
     : INotificationHandler<UserCreatedEvent>
 {
-    private const int WELCOME_CREDITS = 1000;
+    private const int WELCOME_CREDITS = 10;
 
     public async Task Handle(UserCreatedEvent notification, CancellationToken cancellationToken)
     {

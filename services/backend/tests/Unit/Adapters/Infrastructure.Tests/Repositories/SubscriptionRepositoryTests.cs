@@ -85,4 +85,64 @@ public class SubscriptionRepositoryTests
         await Assert.ThrowsAsync<ConcurrencyException>(() =>
             repo.UpdateWithVersionCheckAsync(sub, expectedVersion));
     }
+
+    [Fact]
+    public async Task UpdateWithVersionCheckAsync_WorksWithAsNoTracking_DetachedEntity()
+    {
+        // This test validates the full flow that happens in ConsumeCreditsHandler:
+        // 1. GetByUserIdAsync (with AsNoTracking) returns a detached entity
+        // 2. Entity is modified
+        // 3. UpdateWithVersionCheckAsync should attach and save the entity
+        var dbName = $"SubRepo_{Guid.NewGuid()}";
+        var userId = Guid.NewGuid();
+
+        // Setup: Create subscription in one context
+        await using (var setupContext = CreateContext(dbName))
+        {
+            var plan = new SubscriptionPlanEntity
+            {
+                Id = Guid.NewGuid(),
+                PlanEnum = SubscriptionPlanEnum.Monthly100,
+                Price = 10,
+                Credits = 100
+            };
+            await setupContext.SubscriptionPlans.AddAsync(plan);
+
+            var subscription = new SubscriptionEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Credits = 50,
+                SubscriptionPlanId = plan.Id,
+                SubscriptionPlan = plan,
+                Version = 0
+            };
+            await setupContext.Subscriptions.AddAsync(subscription);
+            await setupContext.SaveChangesAsync();
+        }
+
+        // Act: Use a new context (simulating the handler flow)
+        await using var context = CreateContext(dbName);
+        var repo = new SubscriptionRepository(context);
+
+        // Get entity with AsNoTracking (detached)
+        var detachedSubscription = await repo.GetByUserIdAsync(userId);
+        Assert.NotNull(detachedSubscription);
+        Assert.NotNull(detachedSubscription.SubscriptionPlan); // Verify Include worked
+
+        var expectedVersion = detachedSubscription.Version; // 0
+        var originalCredits = detachedSubscription.Credits;
+
+        // Modify the detached entity (simulates ConsumeCredits)
+        detachedSubscription.ConsumeCredits(10);
+
+        // This should work even with a detached entity
+        await repo.UpdateWithVersionCheckAsync(detachedSubscription, expectedVersion);
+
+        // Verify: Check that changes were persisted
+        await using var verifyContext = CreateContext(dbName);
+        var updated = await verifyContext.Subscriptions.FirstAsync(s => s.UserId == userId);
+        Assert.Equal(originalCredits - 10, updated.Credits);
+        Assert.Equal(1, updated.Version);
+    }
 }

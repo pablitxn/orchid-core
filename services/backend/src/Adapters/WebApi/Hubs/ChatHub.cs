@@ -19,7 +19,8 @@ public sealed class ChatHub(
     IStringLocalizer<ChatHub> localizer,
     IOptions<CreditSystemConfiguration> creditConfig,
     IDistributedLockService distributedLock,
-    IRateLimitService rateLimitService) : Hub
+    IRateLimitService rateLimitService,
+    ICreditTrackingService creditTrackingService) : Hub
 {
     private readonly ICacheStore _cache =
         cache ?? throw new ArgumentNullException(nameof(cache));
@@ -45,8 +46,11 @@ public sealed class ChatHub(
     private readonly IDistributedLockService _distributedLock = 
         distributedLock ?? throw new ArgumentNullException(nameof(distributedLock));
         
-    private readonly IRateLimitService _rateLimitService = 
+    private readonly IRateLimitService _rateLimitService =
         rateLimitService ?? throw new ArgumentNullException(nameof(rateLimitService));
+
+    private readonly ICreditTrackingService _creditTrackingService =
+        creditTrackingService ?? throw new ArgumentNullException(nameof(creditTrackingService));
 
     /// <summary>
     ///     Broadcasts a backend activity event to connected clients and stores
@@ -126,7 +130,7 @@ public sealed class ChatHub(
 
         try
         {
-            await _mediator.Send(new ConsumeCreditsCommand(userId, credits), Context.ConnectionAborted);
+            await _mediator.Send(new ConsumeCreditsCommand(userId, credits, "message", sessionId), Context.ConnectionAborted);
         }
         catch (SubscriptionNotFoundException)
         {
@@ -138,6 +142,15 @@ public sealed class ChatHub(
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["InsufficientCredits"]);
             return;
         }
+
+        // Track the message cost for detailed consumption history
+        var messageId = Guid.NewGuid();
+        await _creditTrackingService.TrackMessageCostAsync(
+            userId,
+            messageId,
+            $"Chat message in session {sessionId}",
+            credits,
+            Context.ConnectionAborted);
 
         // Acquire distributed lock for this session to prevent race conditions
         var lockKey = $"chat_session:{sessionId}";

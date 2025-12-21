@@ -12,6 +12,7 @@ public class SubscriptionRepository(ApplicationDbContext db) : ISubscriptionRepo
     public async Task<SubscriptionEntity?> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await _db.Subscriptions
+            .Include(s => s.SubscriptionPlan)
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.UserId == userId, cancellationToken);
     }
@@ -34,6 +35,14 @@ public class SubscriptionRepository(ApplicationDbContext db) : ISubscriptionRepo
         CancellationToken cancellationToken = default)
     {
         var entry = _db.Entry(subscription);
+
+        // If entity is detached (e.g., from AsNoTracking query), attach and mark as Modified
+        if (entry.State == EntityState.Detached)
+        {
+            _db.Subscriptions.Attach(subscription);
+            entry.State = EntityState.Modified;
+        }
+
         // Set the expected original value for the Version property
         entry.Property("Version").OriginalValue = expectedVersion;
         // IsConcurrencyToken is configured in OnModelCreating, not here
@@ -41,7 +50,6 @@ public class SubscriptionRepository(ApplicationDbContext db) : ISubscriptionRepo
         try
         {
             await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
         }
         catch (DbUpdateConcurrencyException)
         {

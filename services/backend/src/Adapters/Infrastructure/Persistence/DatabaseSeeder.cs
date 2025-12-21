@@ -68,7 +68,7 @@ public static class DatabaseSeeder
                 {
                     Id = Guid.NewGuid(),
                     UserId = u.Id,
-                    Credits = 100,
+                    Credits = 10,
                     CreatedAt = now,
                     UpdatedAt = now
                 }));
