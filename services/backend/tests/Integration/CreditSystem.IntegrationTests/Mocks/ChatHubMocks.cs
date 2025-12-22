@@ -120,6 +120,35 @@ public class MockChatSessionRepository : IChatSessionRepository
         return Task.CompletedTask;
     }
 
+    public Task<int> CountByAgentIdAsync(Guid agentId, CancellationToken cancellationToken)
+    {
+        var count = _sessions.Values.Count(s => s.AgentId == agentId);
+        return Task.FromResult(count);
+    }
+
+    public Task<DateTime?> GetLastUsedByAgentIdAsync(Guid agentId, CancellationToken cancellationToken)
+    {
+        var lastUsed = _sessions.Values
+            .Where(s => s.AgentId == agentId)
+            .OrderByDescending(s => s.CreatedAt)
+            .Select(s => (DateTime?)s.CreatedAt)
+            .FirstOrDefault();
+        return Task.FromResult(lastUsed);
+    }
+
+    public Task<Dictionary<Guid, (int Count, DateTime? LastUsed)>> GetStatsForAgentsAsync(
+        IEnumerable<Guid> agentIds, CancellationToken cancellationToken)
+    {
+        var agentIdList = agentIds.ToList();
+        var stats = _sessions.Values
+            .Where(s => s.AgentId.HasValue && agentIdList.Contains(s.AgentId.Value))
+            .GroupBy(s => s.AgentId!.Value)
+            .ToDictionary(
+                g => g.Key,
+                g => (g.Count(), (DateTime?)g.Max(s => s.CreatedAt)));
+        return Task.FromResult(stats);
+    }
+
     // Helper method for tests
     public void AddSession(ChatSessionEntity session)
     {
