@@ -61,6 +61,7 @@ public class ApplicationDbContext(
     public DbSet<NotificationEntity> Notifications { get; set; }
     public DbSet<AuditLogEntity> AuditLogs { get; set; }
     public DbSet<RefreshTokenEntity> RefreshTokens { get; set; }
+    public DbSet<AgentRatingEntity> AgentRatings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -567,6 +568,31 @@ public class ApplicationDbContext(
             b.Property(r => r.RevokeReason).HasMaxLength(200);
             b.HasIndex(r => r.Token).IsUnique();
             b.HasIndex(r => new { r.UserId, r.ExpiresAt });
+            b.HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map agent rating entity
+        modelBuilder.Entity<AgentRatingEntity>(b =>
+        {
+            b.ToTable("AgentRatings");
+            b.HasKey(r => r.Id);
+            b.Property(r => r.AgentId).IsRequired();
+            b.Property(r => r.UserId).IsRequired();
+            b.Property(r => r.Rating).IsRequired();
+            b.Property(r => r.Comment).HasMaxLength(1000);
+            b.Property(r => r.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(r => r.UpdatedAt).HasColumnType("timestamp with time zone");
+            // Unique constraint: one rating per user per agent
+            b.HasIndex(r => new { r.AgentId, r.UserId }).IsUnique();
+            // Index for efficient average calculation queries
+            b.HasIndex(r => r.AgentId);
+            b.HasOne(r => r.Agent)
+                .WithMany()
+                .HasForeignKey(r => r.AgentId)
+                .OnDelete(DeleteBehavior.Cascade);
             b.HasOne(r => r.User)
                 .WithMany()
                 .HasForeignKey(r => r.UserId)

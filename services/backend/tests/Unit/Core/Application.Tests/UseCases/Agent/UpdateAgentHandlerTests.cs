@@ -12,6 +12,7 @@ public class UpdateAgentHandlerTests
     private readonly Mock<IAgentRepository> _agentRepositoryMock;
     private readonly Mock<IPluginRepository> _pluginRepositoryMock;
     private readonly Mock<IChatSessionRepository> _chatSessionRepositoryMock;
+    private readonly Mock<IAgentRatingRepository> _agentRatingRepositoryMock;
     private readonly UpdateAgentHandler _handler;
 
     public UpdateAgentHandlerTests()
@@ -19,10 +20,12 @@ public class UpdateAgentHandlerTests
         _agentRepositoryMock = new Mock<IAgentRepository>();
         _pluginRepositoryMock = new Mock<IPluginRepository>();
         _chatSessionRepositoryMock = new Mock<IChatSessionRepository>();
+        _agentRatingRepositoryMock = new Mock<IAgentRatingRepository>();
         _handler = new UpdateAgentHandler(
             _agentRepositoryMock.Object,
             _pluginRepositoryMock.Object,
-            _chatSessionRepositoryMock.Object);
+            _chatSessionRepositoryMock.Object,
+            _agentRatingRepositoryMock.Object);
     }
 
     [Fact]
@@ -54,6 +57,9 @@ public class UpdateAgentHandlerTests
 
         _chatSessionRepositoryMock.Setup(x => x.GetLastUsedByAgentIdAsync(agentId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(DateTime.UtcNow);
+
+        _agentRatingRepositoryMock.Setup(x => x.GetAverageRatingAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((double?)null);
 
         var command = new UpdateAgentCommand(
             agentId,
@@ -217,6 +223,9 @@ public class UpdateAgentHandlerTests
         _chatSessionRepositoryMock.Setup(x => x.GetLastUsedByAgentIdAsync(agentId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((DateTime?)null);
 
+        _agentRatingRepositoryMock.Setup(x => x.GetAverageRatingAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((double?)null);
+
         // Only update Name
         var command = new UpdateAgentCommand(
             agentId,
@@ -271,6 +280,9 @@ public class UpdateAgentHandlerTests
 
         _chatSessionRepositoryMock.Setup(x => x.GetLastUsedByAgentIdAsync(agentId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((DateTime?)null);
+
+        _agentRatingRepositoryMock.Setup(x => x.GetAverageRatingAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((double?)null);
 
         var command = new UpdateAgentCommand(
             agentId,
@@ -330,6 +342,9 @@ public class UpdateAgentHandlerTests
         _chatSessionRepositoryMock.Setup(x => x.GetLastUsedByAgentIdAsync(agentId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((DateTime?)null);
 
+        _agentRatingRepositoryMock.Setup(x => x.GetAverageRatingAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((double?)null);
+
         var command = new UpdateAgentCommand(
             agentId,
             userId,
@@ -384,6 +399,9 @@ public class UpdateAgentHandlerTests
         _chatSessionRepositoryMock.Setup(x => x.GetLastUsedByAgentIdAsync(agentId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((DateTime?)null);
 
+        _agentRatingRepositoryMock.Setup(x => x.GetAverageRatingAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((double?)null);
+
         var command = new UpdateAgentCommand(
             agentId,
             userId,
@@ -434,6 +452,9 @@ public class UpdateAgentHandlerTests
         _chatSessionRepositoryMock.Setup(x => x.GetLastUsedByAgentIdAsync(agentId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(lastUsed);
 
+        _agentRatingRepositoryMock.Setup(x => x.GetAverageRatingAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((double?)null);
+
         var command = new UpdateAgentCommand(
             agentId,
             userId,
@@ -453,5 +474,58 @@ public class UpdateAgentHandlerTests
         Assert.NotNull(result.Stats);
         Assert.Equal(10, result.Stats.TotalConversations);
         Assert.Equal(lastUsed, result.Stats.LastUsed);
+    }
+
+    [Fact]
+    public async Task Handle_Should_Return_Real_Rating()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var agentId = Guid.NewGuid();
+
+        var agent = new AgentEntity
+        {
+            Id = agentId,
+            Name = "Test Agent",
+            UserId = userId,
+            PluginIds = Array.Empty<Guid>()
+        };
+
+        _agentRepositoryMock.Setup(x => x.GetByIdAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(agent);
+
+        _agentRepositoryMock.Setup(x => x.UpdateAsync(It.IsAny<AgentEntity>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        _pluginRepositoryMock.Setup(x => x.ListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<PluginEntity>());
+
+        _chatSessionRepositoryMock.Setup(x => x.CountByAgentIdAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        _chatSessionRepositoryMock.Setup(x => x.GetLastUsedByAgentIdAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DateTime?)null);
+
+        _agentRatingRepositoryMock.Setup(x => x.GetAverageRatingAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(4.5);
+
+        var command = new UpdateAgentCommand(
+            agentId,
+            userId,
+            "New Name",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result.Stats);
+        Assert.Equal(4.5, result.Stats.AvgRating);
     }
 }

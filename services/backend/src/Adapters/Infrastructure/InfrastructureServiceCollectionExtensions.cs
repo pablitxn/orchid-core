@@ -78,6 +78,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<ISubscriptionPlanRepository, SubscriptionPlanRepository>();
         services.AddScoped<IActionCostRepository, ActionCostRepository>();
         services.AddScoped<IAgentRepository, AgentRepository>();
+        services.AddScoped<IAgentRatingRepository, AgentRatingRepository>();
         services.AddScoped<IPersonalityTemplateRepository, PersonalityTemplateRepository>();
         services.AddScoped<IPluginRepository, PluginRepository>();
         services.AddScoped<IUserPluginRepository, UserPluginRepository>();

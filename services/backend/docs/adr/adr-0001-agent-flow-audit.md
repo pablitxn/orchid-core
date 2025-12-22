@@ -39,6 +39,8 @@ All agent operations follow the CQRS pattern with MediatR:
 | VerifyAgentAccess | Query | `VerifyAgentAccessQuery.cs` / `VerifyAgentAccessHandler.cs` |
 | AddPluginToAgent | Command | `AddPluginToAgentCommand.cs` / `AddPluginToAgentHandler.cs` |
 | RemovePluginFromAgent | Command | `RemovePluginFromAgentCommand.cs` / `RemovePluginFromAgentHandler.cs` |
+| RateAgent | Command | `RateAgentCommand.cs` / `RateAgentHandler.cs` |
+| GetAgentRatings | Query | `GetAgentRatingsQuery.cs` / `GetAgentRatingsHandler.cs` |
 
 ### 2. Repository Interface Design
 
@@ -76,7 +78,49 @@ Task<Dictionary<Guid, (int Count, DateTime? LastUsed)>> GetStatsForAgentsAsync(
 
 **Key improvement (MED-002):** `GetStatsForAgentsAsync` retrieves stats for all agents in a single query, eliminating N+1 query problems when listing agents.
 
-### 4. Visibility and Access Control
+### 4. Agent Rating System
+
+Users can rate agents from 1 to 5 stars with an optional comment. Each user can only rate an agent once, but can update their rating.
+
+#### Rating Entity
+
+```csharp
+public class AgentRatingEntity
+{
+    public Guid Id { get; set; }
+    public Guid AgentId { get; set; }
+    public Guid UserId { get; set; }
+    public int Rating { get; set; }  // 1-5
+    public string? Comment { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+```
+
+#### Rating Repository Interface
+
+```csharp
+public interface IAgentRatingRepository
+{
+    Task<AgentRatingEntity?> GetByAgentAndUserAsync(Guid agentId, Guid userId, CancellationToken cancellationToken);
+    Task<List<AgentRatingEntity>> ListByAgentAsync(Guid agentId, CancellationToken cancellationToken);
+    Task<double?> GetAverageRatingAsync(Guid agentId, CancellationToken cancellationToken);
+    Task<Dictionary<Guid, double?>> GetAverageRatingsForAgentsAsync(IEnumerable<Guid> agentIds, CancellationToken cancellationToken);
+    Task CreateAsync(AgentRatingEntity rating, CancellationToken cancellationToken);
+    Task UpdateAsync(AgentRatingEntity rating, CancellationToken cancellationToken);
+}
+```
+
+**Key improvement (MED-003):** `GetAverageRatingsForAgentsAsync` retrieves ratings for all agents in a single query, following the same batch pattern as stats retrieval.
+
+#### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/agents/{id}/rate` | POST | Rate an agent (creates or updates user's rating) |
+| `/api/agents/{id}/ratings` | GET | Get all ratings for an agent with average and count |
+
+### 6. Visibility and Access Control
 
 Agents have two visibility modes:
 
@@ -90,7 +134,7 @@ Access verification (`VerifyAgentAccessHandler`) checks:
 2. Visibility rules (public or owned)
 3. Plugin availability (user must own all required plugins)
 
-### 5. Soft Delete with Recycle Bin
+### 7. Soft Delete with Recycle Bin
 
 Agents are not permanently deleted immediately. Instead:
 
@@ -99,7 +143,7 @@ Agents are not permanently deleted immediately. Instead:
 3. **PermanentDeleteAgent:** Requires agent to be in recycle bin before permanent deletion
 4. **ListExpiredRecycleBinAsync:** Supports automated cleanup of expired items
 
-### 6. DTO Structure
+### 8. DTO Structure
 
 The `AgentDto` provides a complete view:
 
@@ -122,11 +166,12 @@ public record AgentDto
 }
 ```
 
-### 7. Input Validation
+### 9. Input Validation
 
 Commands are validated using dedicated validator classes:
 - `CreateAgentCommandValidator`
 - `UpdateAgentCommandValidator`
+- `RateAgentCommandValidator`
 
 Validators are called at the start of each handler before any business logic executes.
 
@@ -145,7 +190,6 @@ Validators are called at the start of each handler before any business logic exe
 ### Negative
 
 - **Complexity:** Multiple handlers and repositories add some overhead
-- **Rating System:** `AvgRating` in `AgentStatsDto` is not yet implemented (placeholder)
 
 ---
 
@@ -165,6 +209,8 @@ Unit tests cover:
 | `VerifyAgentAccessHandlerTests` | Access verification, plugin requirements |
 | `AddPluginToAgentHandlerTests` | Plugin addition, ownership verification, duplicate prevention |
 | `RemovePluginFromAgentHandlerTests` | Plugin removal, validation, preservation of other plugins |
+| `RateAgentHandlerTests` | Rating creation, update, validation, agent existence check |
+| `GetAgentRatingsHandlerTests` | Rating listing, average calculation, agent existence check |
 
 Integration tests:
 - `AgentIntegrationTests` - End-to-end API testing
@@ -175,7 +221,6 @@ Integration tests:
 
 ## Related ADRs
 
-- (Future) ADR-XXXX: Agent Rating System
 - (Future) ADR-XXXX: Automated Recycle Bin Cleanup Worker
 
 ---
@@ -186,24 +231,28 @@ All components specified in this ADR have been fully implemented:
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| CQRS Handlers (10) | Complete | All commands/queries implemented |
-| Repository Interface | Complete | With optimized batch queries |
+| CQRS Handlers (12) | Complete | All commands/queries implemented including rating |
+| Repository Interfaces | Complete | With optimized batch queries (MED-001, MED-002, MED-003) |
 | Stats Retrieval | Complete | Real-time stats via `GetStatsForAgentsAsync` |
+| Rating System | Complete | Real-time ratings via `GetAverageRatingsForAgentsAsync` |
 | Visibility Controls | Complete | Public/private agent support |
 | Soft Delete | Complete | 30-day recycle bin with expiration |
-| Input Validation | Complete | FluentValidation-style validators |
-| Unit Tests | Complete | 60 tests covering all handlers |
+| Input Validation | Complete | Validators for all commands |
+| Unit Tests | Complete | 72+ tests covering all handlers |
 | Integration Tests | Complete | End-to-end API testing |
+| Recycle Bin Cleanup | Complete | Worker running every 6 hours |
 
-**Pending Items:**
-- Rating System (`AvgRating` in `AgentStatsDto`) - See future ADR
-- Automated Recycle Bin Cleanup Worker - See future ADR
+**All items from this ADR are now implemented.**
 
 ---
 
 ## References
 
 - `src/Core/Application/UseCases/Agent/` - All agent use cases
-- `src/Core/Application/Interfaces/IAgentRepository.cs` - Repository contract
+- `src/Core/Application/Interfaces/IAgentRepository.cs` - Agent repository contract
+- `src/Core/Application/Interfaces/IAgentRatingRepository.cs` - Rating repository contract
 - `src/Core/Application/Interfaces/IChatSessionRepository.cs` - Stats methods
+- `src/Core/Domain/Entities/AgentRatingEntity.cs` - Rating entity
+- `src/Adapters/Infrastructure/Persistence/Repositories/AgentRatingRepository.cs` - Rating repository implementation
+- `src/Adapters/Workers/RecycleBinCleanup/RecycleBinCleanupWorker.cs` - Cleanup worker
 - `tests/Unit/Core/Application.Tests/UseCases/Agent/` - Unit tests

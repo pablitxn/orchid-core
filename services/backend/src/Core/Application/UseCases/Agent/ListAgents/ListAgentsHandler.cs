@@ -7,11 +7,13 @@ namespace Application.UseCases.Agent.ListAgents;
 public class ListAgentsHandler(
     IAgentRepository agentRepository,
     IPluginRepository pluginRepository,
-    IChatSessionRepository chatSessionRepository) : IRequestHandler<ListAgentsQuery, List<AgentDto>>
+    IChatSessionRepository chatSessionRepository,
+    IAgentRatingRepository agentRatingRepository) : IRequestHandler<ListAgentsQuery, List<AgentDto>>
 {
     private readonly IAgentRepository _agentRepository = agentRepository;
     private readonly IPluginRepository _pluginRepository = pluginRepository;
     private readonly IChatSessionRepository _chatSessionRepository = chatSessionRepository;
+    private readonly IAgentRatingRepository _agentRatingRepository = agentRatingRepository;
 
     public async Task<List<AgentDto>> Handle(ListAgentsQuery request, CancellationToken cancellationToken)
     {
@@ -25,9 +27,13 @@ public class ListAgentsHandler(
         var agentIds = filteredAgents.Select(a => a.Id).ToList();
         var stats = await _chatSessionRepository.GetStatsForAgentsAsync(agentIds, cancellationToken);
 
+        // MED-003: Fetch real ratings for all agents in one query
+        var ratings = await _agentRatingRepository.GetAverageRatingsForAgentsAsync(agentIds, cancellationToken);
+
         var agentDtos = filteredAgents.Select(agent =>
         {
             stats.TryGetValue(agent.Id, out var agentStats);
+            ratings.TryGetValue(agent.Id, out var avgRating);
 
             return new AgentDto
             {
@@ -59,7 +65,7 @@ public class ListAgentsHandler(
                 Stats = new AgentStatsDto
                 {
                     TotalConversations = agentStats.Count,
-                    AvgRating = null, // Rating system not yet implemented
+                    AvgRating = avgRating,
                     LastUsed = agentStats.LastUsed
                 }
             };

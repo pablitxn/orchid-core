@@ -7,11 +7,13 @@ namespace Application.UseCases.Agent.UpdateAgent;
 public sealed class UpdateAgentHandler(
     IAgentRepository agentRepository,
     IPluginRepository pluginRepository,
-    IChatSessionRepository chatSessionRepository) : IRequestHandler<UpdateAgentCommand, AgentDto>
+    IChatSessionRepository chatSessionRepository,
+    IAgentRatingRepository agentRatingRepository) : IRequestHandler<UpdateAgentCommand, AgentDto>
 {
     private readonly IAgentRepository _agentRepository = agentRepository;
     private readonly IPluginRepository _pluginRepository = pluginRepository;
     private readonly IChatSessionRepository _chatSessionRepository = chatSessionRepository;
+    private readonly IAgentRatingRepository _agentRatingRepository = agentRatingRepository;
 
     public async Task<AgentDto> Handle(UpdateAgentCommand request, CancellationToken cancellationToken)
     {
@@ -71,6 +73,9 @@ public sealed class UpdateAgentHandler(
         var conversationCount = await _chatSessionRepository.CountByAgentIdAsync(agent.Id, cancellationToken);
         var lastUsed = await _chatSessionRepository.GetLastUsedByAgentIdAsync(agent.Id, cancellationToken);
 
+        // Fetch real rating for the agent
+        var avgRating = await _agentRatingRepository.GetAverageRatingAsync(agent.Id, cancellationToken);
+
         return new AgentDto
         {
             Id = agent.Id,
@@ -101,7 +106,7 @@ public sealed class UpdateAgentHandler(
             Stats = new AgentStatsDto
             {
                 TotalConversations = conversationCount,
-                AvgRating = null, // Rating system not yet implemented
+                AvgRating = avgRating,
                 LastUsed = lastUsed
             }
         };

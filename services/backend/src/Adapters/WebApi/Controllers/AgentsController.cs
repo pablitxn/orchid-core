@@ -1,7 +1,9 @@
 using Application.UseCases.Agent.CreateAgent;
+using Application.UseCases.Agent.GetAgentRatings;
 using Application.UseCases.Agent.ListAgents;
 using Application.UseCases.Agent.ListRecycleBinAgents;
 using Application.UseCases.Agent.PermanentDeleteAgent;
+using Application.UseCases.Agent.RateAgent;
 using Application.UseCases.Agent.RestoreAgent;
 using Application.UseCases.Agent.SoftDeleteAgent;
 using Application.UseCases.Agent.UpdateAgent;
@@ -34,6 +36,19 @@ public class UpdateAgentRequest
     public string? Language { get; set; }
     public Guid[]? PluginIds { get; set; }
     public bool? IsPublic { get; set; }
+}
+
+public class RateAgentRequest
+{
+    /// <summary>
+    /// Rating value from 1 to 5
+    /// </summary>
+    public int Rating { get; set; }
+
+    /// <summary>
+    /// Optional comment/review
+    /// </summary>
+    public string? Comment { get; set; }
 }
 
 [ApiController]
@@ -178,5 +193,34 @@ public class AgentsController(IMediator mediator) : ControllerBase
 
         await _mediator.Send(new PermanentDeleteAgentCommand(id, userGuid));
         return NoContent();
+    }
+
+    /// <summary>
+    /// Rate an agent. Users can rate an agent once and update their rating.
+    /// </summary>
+    [HttpPost("{id}/rate")]
+    [Authorize]
+    public async Task<IActionResult> RateAgent(Guid id, [FromBody] RateAgentRequest request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+        {
+            return Unauthorized("Invalid user identity");
+        }
+
+        var command = new RateAgentCommand(id, userGuid, request.Rating, request.Comment);
+        var result = await _mediator.Send(command);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get all ratings for an agent including average rating and total count
+    /// </summary>
+    [HttpGet("{id}/ratings")]
+    public async Task<IActionResult> GetAgentRatings(Guid id)
+    {
+        var query = new GetAgentRatingsQuery(id);
+        var result = await _mediator.Send(query);
+        return Ok(result);
     }
 }

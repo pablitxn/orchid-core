@@ -11,10 +11,11 @@ public class ListAgentsHandlerTests
     private readonly Mock<IAgentRepository> _agentRepo = new();
     private readonly Mock<IPluginRepository> _pluginRepo = new();
     private readonly Mock<IChatSessionRepository> _chatSessionRepo = new();
+    private readonly Mock<IAgentRatingRepository> _ratingRepo = new();
 
     public ListAgentsHandlerTests()
     {
-        _handler = new ListAgentsHandler(_agentRepo.Object, _pluginRepo.Object, _chatSessionRepo.Object);
+        _handler = new ListAgentsHandler(_agentRepo.Object, _pluginRepo.Object, _chatSessionRepo.Object, _ratingRepo.Object);
     }
 
     [Fact]
@@ -30,6 +31,10 @@ public class ListAgentsHandlerTests
         // Setup stats to return empty dictionary
         _chatSessionRepo.Setup(r => r.GetStatsForAgentsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, (int, DateTime?)>());
+
+        // Setup ratings to return empty dictionary
+        _ratingRepo.Setup(r => r.GetAverageRatingsForAgentsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, double?>());
 
         var result = await _handler.Handle(new ListAgentsQuery(), CancellationToken.None);
 
@@ -49,6 +54,8 @@ public class ListAgentsHandlerTests
             .ReturnsAsync(new List<Domain.Entities.PluginEntity>());
         _chatSessionRepo.Setup(r => r.GetStatsForAgentsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, (int, DateTime?)>());
+        _ratingRepo.Setup(r => r.GetAverageRatingsForAgentsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, double?>());
 
         var result = await _handler.Handle(new ListAgentsQuery(userId), CancellationToken.None);
 
@@ -68,6 +75,8 @@ public class ListAgentsHandlerTests
             .ReturnsAsync(new List<Domain.Entities.PluginEntity>());
         _chatSessionRepo.Setup(r => r.GetStatsForAgentsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, (int, DateTime?)>());
+        _ratingRepo.Setup(r => r.GetAverageRatingsForAgentsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, double?>());
 
         var result = await _handler.Handle(new ListAgentsQuery(), CancellationToken.None);
 
@@ -88,11 +97,34 @@ public class ListAgentsHandlerTests
             .ReturnsAsync(new List<Domain.Entities.PluginEntity>());
         _chatSessionRepo.Setup(r => r.GetStatsForAgentsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, (int, DateTime?)> { { agentId, (5, lastUsed) } });
+        _ratingRepo.Setup(r => r.GetAverageRatingsForAgentsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, double?>());
 
         var result = await _handler.Handle(new ListAgentsQuery(), CancellationToken.None);
 
         Assert.Single(result);
         Assert.Equal(5, result[0].Stats.TotalConversations);
         Assert.Equal(lastUsed, result[0].Stats.LastUsed);
+    }
+
+    [Fact]
+    public async Task Handle_ReturnsRealRatings()
+    {
+        var agentId = Guid.NewGuid();
+        var agent = new AgentEntity { Id = agentId, Name = "agent", PluginIds = [], IsPublic = true };
+
+        _agentRepo.Setup(r => r.ListByUserAsync(It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<AgentEntity> { agent });
+        _pluginRepo.Setup(r => r.ListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Domain.Entities.PluginEntity>());
+        _chatSessionRepo.Setup(r => r.GetStatsForAgentsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, (int, DateTime?)>());
+        _ratingRepo.Setup(r => r.GetAverageRatingsForAgentsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, double?> { { agentId, 4.5 } });
+
+        var result = await _handler.Handle(new ListAgentsQuery(), CancellationToken.None);
+
+        Assert.Single(result);
+        Assert.Equal(4.5, result[0].Stats.AvgRating);
     }
 }
