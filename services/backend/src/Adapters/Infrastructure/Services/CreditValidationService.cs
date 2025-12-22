@@ -228,6 +228,12 @@ public class CreditValidationService : ICreditValidationService
                 return new CreditValidationResult(false, requiredCredits, 0, false, "No active subscription found");
             }
 
+            // Check if subscription has expired
+            if (subscription.ExpiresAt.HasValue && subscription.ExpiresAt.Value < DateTime.UtcNow)
+            {
+                return new CreditValidationResult(false, requiredCredits, subscription.Credits, false, "Subscription has expired");
+            }
+
             if (subscription.HasUnlimitedCredits())
             {
                 return new CreditValidationResult(true, requiredCredits, int.MaxValue, true);
@@ -236,9 +242,9 @@ public class CreditValidationService : ICreditValidationService
             if (subscription.Credits < requiredCredits)
             {
                 return new CreditValidationResult(
-                    false, 
-                    requiredCredits, 
-                    subscription.Credits, 
+                    false,
+                    requiredCredits,
+                    subscription.Credits,
                     false,
                     $"Insufficient credits for {operationType}. Required: {requiredCredits}, Available: {subscription.Credits}");
             }

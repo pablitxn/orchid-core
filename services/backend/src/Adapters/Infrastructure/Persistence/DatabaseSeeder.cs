@@ -114,6 +114,14 @@ public static class DatabaseSeeder
                     Price = 10m,
                     Credits = 25,
                     PaymentUnit = PaymentUnit.PerMessage
+                },
+                new SubscriptionPlanEntity
+                {
+                    Id = Guid.NewGuid(),
+                    PlanEnum = SubscriptionPlanEnum.Unlimited,
+                    Price = 99m,
+                    Credits = 0,
+                    PaymentUnit = PaymentUnit.PerMessage
                 }
             );
             await db.SaveChangesAsync();

@@ -88,7 +88,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             SessionId = sessionId,
             UserId = userId,
             AgentId = agent.Id,
-            StartedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow
         };
         
         await context.Users.AddAsync(user);
@@ -126,7 +126,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
 
         // Check that no credit consumptions were recorded
         var consumptions = await context.CreditConsumptions
-            .Where(c => c.UserId == userId && c.ActionType == "message")
+            .Where(c => c.UserId == userId && c.ConsumptionType == "message")
             .ToListAsync();
         
         consumptions.Should().BeEmpty(); // No consumption records for unlimited plan

@@ -37,6 +37,8 @@ public abstract class CreditSystemTestBase : IClassFixture<WebApplicationFactory
             builder.UseEnvironment("Testing");
             builder.ConfigureTestServices(services =>
             {
+                // Seed subscription plans at startup
+                services.AddHostedService<TestDataSeeder>();
                 // Remove all DbContext related services
                 var dbContextServices = services.Where(d =>
                     d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>) ||
@@ -229,4 +231,65 @@ public class TestAuthenticationHandler : AuthenticationHandler<AuthenticationSch
 
         return Task.FromResult(AuthenticateResult.Fail("Invalid token"));
     }
+}
+
+public class TestDataSeeder : IHostedService
+{
+    private readonly IServiceProvider _serviceProvider;
+
+    public TestDataSeeder(IServiceProvider serviceProvider)
+    {
+        _serviceProvider = serviceProvider;
+    }
+
+    public async Task StartAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        // Seed subscription plans if not present
+        if (!await context.SubscriptionPlans.AnyAsync(cancellationToken))
+        {
+            context.SubscriptionPlans.AddRange(
+                new SubscriptionPlanEntity
+                {
+                    Id = Guid.NewGuid(),
+                    PlanEnum = Domain.Enums.SubscriptionPlanEnum.Monthly100,
+                    Price = 29.99m,
+                    Credits = 100
+                },
+                new SubscriptionPlanEntity
+                {
+                    Id = Guid.NewGuid(),
+                    PlanEnum = Domain.Enums.SubscriptionPlanEnum.Package5,
+                    Price = 4.99m,
+                    Credits = 5
+                },
+                new SubscriptionPlanEntity
+                {
+                    Id = Guid.NewGuid(),
+                    PlanEnum = Domain.Enums.SubscriptionPlanEnum.Package10,
+                    Price = 9.99m,
+                    Credits = 10
+                },
+                new SubscriptionPlanEntity
+                {
+                    Id = Guid.NewGuid(),
+                    PlanEnum = Domain.Enums.SubscriptionPlanEnum.Package25,
+                    Price = 19.99m,
+                    Credits = 25
+                },
+                new SubscriptionPlanEntity
+                {
+                    Id = Guid.NewGuid(),
+                    PlanEnum = Domain.Enums.SubscriptionPlanEnum.Unlimited,
+                    Price = 99.99m,
+                    Credits = 0
+                }
+            );
+            await context.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

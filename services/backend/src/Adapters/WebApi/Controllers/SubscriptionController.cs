@@ -75,9 +75,16 @@ public class SubscriptionController(IMediator mediator) : ControllerBase
         if (!Enum.TryParse<SubscriptionPlanEnum>(request.Plan, true, out var plan))
             return BadRequest("Invalid plan type.");
 
-        var cmd = new PurchasePlanCommand(request.UserId, plan);
-        var result = await _mediator.Send(cmd);
-        return Ok(new { result.UserId, result.Credits, result.ExpiresAt });
+        try
+        {
+            var cmd = new PurchasePlanCommand(request.UserId, plan);
+            var result = await _mediator.Send(cmd);
+            return Ok(new { result.UserId, result.Credits, result.ExpiresAt });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpPost("auto-renew")]

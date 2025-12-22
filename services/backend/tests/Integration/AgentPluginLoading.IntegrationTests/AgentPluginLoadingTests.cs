@@ -4,6 +4,7 @@ using Infrastructure.Ai.SemanticKernel;
 using Infrastructure.Ai.SemanticKernel.Services;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;

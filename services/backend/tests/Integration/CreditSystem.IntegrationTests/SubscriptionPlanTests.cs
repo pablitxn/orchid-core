@@ -95,25 +95,32 @@ public class SubscriptionPlanTests : CreditSystemTestBase
     {
         // Arrange
         await using var context = CreateTestContext();
-        
+
         var userId = Guid.NewGuid();
         await SeedUser(context, userId);
         await SeedSubscriptionPlans(context);
-        
-        // Create existing subscription with some credits
-        var existingSubscription = new SubscriptionEntity
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            Credits = 30,
-            SubscriptionPlanId = (await context.SubscriptionPlans.FirstAsync(p => p.PlanEnum == SubscriptionPlanEnum.Package10)).Id
-        };
-        await context.Subscriptions.AddAsync(existingSubscription);
-        await context.SaveChangesAsync();
-        
+
         await SetAuthHeader(userId);
 
-        // Act
+        // Create initial subscription via API (to ensure server-side consistency)
+        var createResponse = await Client.PostAsJsonAsync("/api/subscription/purchase", new
+        {
+            userId = userId,
+            plan = "Package10" // Start with 10 credits
+        });
+        if (createResponse.StatusCode != HttpStatusCode.OK)
+        {
+            var content = await createResponse.Content.ReadAsStringAsync();
+            throw new Exception($"Failed to create initial subscription: {createResponse.StatusCode}, Content: {content}");
+        }
+        createResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Verify initial state
+        var initialSub = await context.Subscriptions.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == userId);
+        initialSub.Should().NotBeNull();
+        var initialCredits = initialSub!.Credits; // Should be 10
+
+        // Act - Purchase additional credits
         var response = await Client.PostAsJsonAsync("/api/subscription/purchase", new
         {
             userId = userId,
@@ -121,10 +128,16 @@ public class SubscriptionPlanTests : CreditSystemTestBase
         });
 
         // Assert
+        if (response.StatusCode != HttpStatusCode.OK)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Unexpected response: {response.StatusCode}, Content: {content}");
+        }
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
-        await context.Entry(existingSubscription).ReloadAsync();
-        existingSubscription.Credits.Should().Be(55); // 30 + 25
+
+        var updatedSub = await context.Subscriptions.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == userId);
+        updatedSub.Should().NotBeNull();
+        updatedSub!.Credits.Should().Be(initialCredits + 25); // 10 + 25 = 35
     }
 
     [Fact]
@@ -132,27 +145,22 @@ public class SubscriptionPlanTests : CreditSystemTestBase
     {
         // Arrange
         await using var context = CreateTestContext();
-        
+
         var userId = Guid.NewGuid();
         await SeedUser(context, userId);
         await SeedSubscriptionPlans(context);
-        
-        // Create existing limited subscription
-        var limitedPlan = await context.SubscriptionPlans.FirstAsync(p => p.PlanEnum == SubscriptionPlanEnum.Monthly100);
-        var existingSubscription = new SubscriptionEntity
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            Credits = 50,
-            SubscriptionPlanId = limitedPlan.Id,
-            SubscriptionPlan = limitedPlan
-        };
-        await context.Subscriptions.AddAsync(existingSubscription);
-        await context.SaveChangesAsync();
-        
+
         await SetAuthHeader(userId);
 
-        // Act
+        // Create existing limited subscription via API
+        var createResponse = await Client.PostAsJsonAsync("/api/subscription/purchase", new
+        {
+            userId = userId,
+            plan = "Monthly100"
+        });
+        createResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Act - Upgrade to unlimited
         var response = await Client.PostAsJsonAsync("/api/subscription/purchase", new
         {
             userId = userId,
@@ -166,12 +174,16 @@ public class SubscriptionPlanTests : CreditSystemTestBase
             throw new Exception($"Unexpected response: {response.StatusCode}, Content: {content}");
         }
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
-        await context.Entry(existingSubscription).ReloadAsync();
-        await context.Entry(existingSubscription).Reference(s => s.SubscriptionPlan).LoadAsync();
-        
-        existingSubscription.SubscriptionPlan!.PlanEnum.Should().Be(SubscriptionPlanEnum.Unlimited);
-        existingSubscription.HasUnlimitedCredits().Should().BeTrue();
+
+        var subscription = await context.Subscriptions
+            .Include(s => s.SubscriptionPlan)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.UserId == userId);
+
+        subscription.Should().NotBeNull();
+        subscription!.SubscriptionPlan.Should().NotBeNull();
+        subscription.SubscriptionPlan!.PlanEnum.Should().Be(SubscriptionPlanEnum.Unlimited);
+        subscription.HasUnlimitedCredits().Should().BeTrue();
     }
 
     [Fact]
@@ -205,13 +217,14 @@ public class SubscriptionPlanTests : CreditSystemTestBase
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
-        var result = await response.Content.ReadFromJsonAsync<dynamic>();
+
+        var result = await response.Content.ReadFromJsonAsync<SubscriptionStatusResponse>();
         result.Should().NotBeNull();
-        ((int)result!.credits).Should().Be(75);
-        ((DateTime?)result.expiresAt).Should().BeCloseTo(DateTime.UtcNow.AddDays(15), TimeSpan.FromMinutes(1));
-        ((bool)result.autoRenew).Should().BeTrue();
-        ((bool)result.isActive).Should().BeTrue();
+        result!.Credits.Should().Be(75);
+        result.ExpiresAt.Should().NotBeNull();
+        result.ExpiresAt!.Value.Should().BeCloseTo(DateTime.UtcNow.AddDays(15), TimeSpan.FromMinutes(1));
+        result.AutoRenew.Should().BeTrue();
+        result.IsActive.Should().BeTrue();
     }
 
     [Fact]
@@ -343,16 +356,13 @@ public class SubscriptionPlanTests : CreditSystemTestBase
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
-        var result = await response.Content.ReadFromJsonAsync<dynamic>();
+
+        var result = await response.Content.ReadFromJsonAsync<CreditConsumptionHistoryResponse>();
         result.Should().NotBeNull();
-        var consumptions = result!.consumptions as IEnumerable<dynamic>;
-        consumptions.Should().NotBeNull();
-        
-        var consumptionList = consumptions!.ToList();
-        consumptionList.Should().HaveCount(2);
-        consumptionList[0].consumptionType.ToString().Should().Be("plugin");
-        ((int)consumptionList[0].creditsConsumed).Should().Be(50);
+        result!.Consumptions.Should().NotBeNull();
+        result.Consumptions.Should().HaveCount(2);
+        result.Consumptions[0].ConsumptionType.Should().Be("plugin");
+        result.Consumptions[0].CreditsConsumed.Should().Be(50);
     }
 
     private async Task SeedUser(ApplicationDbContext context, Guid userId)
@@ -369,6 +379,12 @@ public class SubscriptionPlanTests : CreditSystemTestBase
 
     private async Task<SubscriptionPlanEntity> SeedSubscriptionPlans(ApplicationDbContext context)
     {
+        // Check if plans already exist to avoid duplicates
+        if (await context.SubscriptionPlans.AnyAsync())
+        {
+            return await context.SubscriptionPlans.FirstAsync(p => p.PlanEnum == SubscriptionPlanEnum.Monthly100);
+        }
+
         var plans = new[]
         {
             new SubscriptionPlanEntity
@@ -407,10 +423,10 @@ public class SubscriptionPlanTests : CreditSystemTestBase
                 Credits = 0
             }
         };
-        
+
         await context.SubscriptionPlans.AddRangeAsync(plans);
         await context.SaveChangesAsync();
-        
+
         return plans[0]; // Return Monthly100 as default
     }
 
@@ -441,5 +457,21 @@ public class SubscriptionPlanTests : CreditSystemTestBase
         public string ConsumptionType { get; set; } = string.Empty;
         public int CreditsConsumed { get; set; }
         public DateTime ConsumedAt { get; set; }
+    }
+
+    private class CreditConsumptionHistoryResponse
+    {
+        public List<CreditConsumptionItem> Consumptions { get; set; } = new();
+    }
+
+    private class CreditConsumptionItem
+    {
+        public Guid Id { get; set; }
+        public string ConsumptionType { get; set; } = string.Empty;
+        public Guid ResourceId { get; set; }
+        public string ResourceName { get; set; } = string.Empty;
+        public int CreditsConsumed { get; set; }
+        public DateTime ConsumedAt { get; set; }
+        public int BalanceAfter { get; set; }
     }
 }

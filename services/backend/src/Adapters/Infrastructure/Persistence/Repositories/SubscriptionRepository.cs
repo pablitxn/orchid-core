@@ -27,7 +27,26 @@ public class SubscriptionRepository(ApplicationDbContext db) : ISubscriptionRepo
 
     public async Task UpdateAsync(SubscriptionEntity subscription, CancellationToken cancellationToken = default)
     {
-        _db.Subscriptions.Update(subscription);
+        // Detach navigation property to avoid tracking conflicts
+        subscription.SubscriptionPlan = null;
+
+        // Get the current version from DB to handle concurrency token correctly
+        var currentVersion = await _db.Subscriptions
+            .AsNoTracking()
+            .Where(s => s.Id == subscription.Id)
+            .Select(s => s.Version)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var entry = _db.Entry(subscription);
+        if (entry.State == EntityState.Detached)
+        {
+            _db.Subscriptions.Attach(subscription);
+            entry.State = EntityState.Modified;
+        }
+
+        // Set the original value for Version to match what's in the database
+        entry.Property(s => s.Version).OriginalValue = currentVersion;
+
         await _db.SaveChangesAsync(cancellationToken);
     }
 
