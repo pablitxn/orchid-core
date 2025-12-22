@@ -1,7 +1,8 @@
 # ADR-0001: Agent Flow Audit
 
-**Status:** Accepted
+**Status:** Implemented
 **Date:** 2025-05-03
+**Last Updated:** 2025-12-22
 **Authors:** Engineering Team
 
 ---
@@ -155,12 +156,20 @@ Unit tests cover:
 | Test Class | Coverage |
 |------------|----------|
 | `CreateAgentHandlerTests` | Agent creation with/without owner, plugins, public/private |
+| `UpdateAgentHandlerTests` | Agent updates, field-level changes, authorization, stats retrieval |
 | `ListAgentsHandlerTests` | Visibility filtering, stats retrieval, anonymous users |
 | `SoftDeleteAgentHandlerTests` | Soft delete behavior, authorization |
+| `RestoreAgentHandlerTests` | Restore from recycle bin, authorization, timestamp updates |
+| `PermanentDeleteAgentHandlerTests` | Permanent deletion, recycle bin requirement, authorization |
+| `ListRecycleBinAgentsHandlerTests` | Recycle bin listing, plugin details, user filtering |
 | `VerifyAgentAccessHandlerTests` | Access verification, plugin requirements |
+| `AddPluginToAgentHandlerTests` | Plugin addition, ownership verification, duplicate prevention |
+| `RemovePluginFromAgentHandlerTests` | Plugin removal, validation, preservation of other plugins |
 
 Integration tests:
 - `AgentIntegrationTests` - End-to-end API testing
+- `AgentAccessVerificationTests` - Access control integration
+- `AgentOwnershipOperationsTests` - Ownership operations integration
 
 ---
 
@@ -168,6 +177,27 @@ Integration tests:
 
 - (Future) ADR-XXXX: Agent Rating System
 - (Future) ADR-XXXX: Automated Recycle Bin Cleanup Worker
+
+---
+
+## Implementation Status
+
+All components specified in this ADR have been fully implemented:
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| CQRS Handlers (10) | Complete | All commands/queries implemented |
+| Repository Interface | Complete | With optimized batch queries |
+| Stats Retrieval | Complete | Real-time stats via `GetStatsForAgentsAsync` |
+| Visibility Controls | Complete | Public/private agent support |
+| Soft Delete | Complete | 30-day recycle bin with expiration |
+| Input Validation | Complete | FluentValidation-style validators |
+| Unit Tests | Complete | 60 tests covering all handlers |
+| Integration Tests | Complete | End-to-end API testing |
+
+**Pending Items:**
+- Rating System (`AvgRating` in `AgentStatsDto`) - See future ADR
+- Automated Recycle Bin Cleanup Worker - See future ADR
 
 ---
 
