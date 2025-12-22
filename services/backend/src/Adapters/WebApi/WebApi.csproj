@@ -38,6 +38,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\Adapters\Infrastructure\Infrastructure.csproj"/>
+        <ProjectReference Include="..\Workers\Workers.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

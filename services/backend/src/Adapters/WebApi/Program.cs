@@ -22,6 +22,7 @@ using WebApi.Hubs;
 using WebApi.Middleware;
 using Infrastructure.Services;
 using WebApi;
+using Workers.RecycleBinCleanup;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -319,7 +320,7 @@ builder.Services.Configure<WebApi.Configuration.CreditSystemConfiguration>(
 #region Background Workers
 
 // Register Recycle Bin Cleanup Worker
-// builder.Services.AddHostedService<RecycleBinCleanupWorker>();
+builder.Services.AddHostedService<RecycleBinCleanupWorker>();
 
 #endregion
 

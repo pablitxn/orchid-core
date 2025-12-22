@@ -5,6 +5,8 @@
 **Last Updated:** 2025-12-22
 **Authors:** Engineering Team
 
+> **Note:** This ADR is fully implemented with all endpoints, handlers, tests, and background workers operational.
+
 ---
 
 ## Context
@@ -119,6 +121,23 @@ public interface IAgentRatingRepository
 |----------|--------|-------------|
 | `/api/agents/{id}/rate` | POST | Rate an agent (creates or updates user's rating) |
 | `/api/agents/{id}/ratings` | GET | Get all ratings for an agent with average and count |
+| `/api/agents/{id}/verify-access` | GET | Verify if user has access to use an agent |
+
+### 5. Complete API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/agents` | GET | List all accessible agents (public + owned) |
+| `/api/agents/my-agents` | GET | List only agents owned by current user |
+| `/api/agents` | POST | Create a new agent |
+| `/api/agents/{id}` | PUT | Update an agent (owner only) |
+| `/api/agents/{id}` | DELETE | Soft delete an agent (owner only) |
+| `/api/agents/recycle-bin` | GET | List agents in recycle bin |
+| `/api/agents/{id}/restore` | POST | Restore an agent from recycle bin |
+| `/api/agents/{id}/permanent` | DELETE | Permanently delete an agent |
+| `/api/agents/{id}/rate` | POST | Rate an agent |
+| `/api/agents/{id}/ratings` | GET | Get agent ratings |
+| `/api/agents/{id}/verify-access` | GET | Verify user access to agent |
 
 ### 6. Visibility and Access Control
 

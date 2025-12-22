@@ -7,6 +7,7 @@ using Application.UseCases.Agent.RateAgent;
 using Application.UseCases.Agent.RestoreAgent;
 using Application.UseCases.Agent.SoftDeleteAgent;
 using Application.UseCases.Agent.UpdateAgent;
+using Application.UseCases.Agent.VerifyAgentAccess;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -221,6 +222,30 @@ public class AgentsController(IMediator mediator) : ControllerBase
     {
         var query = new GetAgentRatingsQuery(id);
         var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Verify if the current user has access to use an agent
+    /// </summary>
+    [HttpGet("{id}/verify-access")]
+    [Authorize]
+    public async Task<IActionResult> VerifyAgentAccess(Guid id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+        {
+            return Unauthorized("Invalid user identity");
+        }
+
+        var query = new VerifyAgentAccessQuery(userGuid, id);
+        var result = await _mediator.Send(query);
+
+        if (!result.HasAccess)
+        {
+            return StatusCode(403, result);
+        }
+
         return Ok(result);
     }
 }
