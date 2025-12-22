@@ -62,10 +62,10 @@ public class GlobalExceptionMiddleware
                     
             UnauthorizedAccessException _ =>
                 CreateProblemDetails(
-                    HttpStatusCode.Unauthorized,
-                    "Unauthorized",
+                    HttpStatusCode.Forbidden,
+                    "Forbidden",
                     "You are not authorized to perform this action.",
-                    "UNAUTHORIZED"),
+                    "FORBIDDEN"),
                     
             ArgumentException argEx =>
                 CreateProblemDetails(

@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
-using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Application.UseCases.Agent.Common;
@@ -13,7 +12,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WebApi.Controllers;
@@ -23,14 +21,18 @@ namespace Agent.IntegrationTests;
 
 public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory<Program>>
 {
-    private readonly WebApplicationFactory<Program> _configuredFactory;
-    private readonly HttpClient _client;
+    private readonly WebApplicationFactory<Program> _baseFactory;
     private readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
-    private static readonly string TestDbName = "TestDb_Ownership_" + Guid.NewGuid();
 
     public AgentOwnershipOperationsTests(WebApplicationFactory<Program> factory)
     {
-        _configuredFactory = factory.WithWebHostBuilder(builder =>
+        _baseFactory = factory;
+    }
+
+    private (WebApplicationFactory<Program> factory, HttpClient client) CreateTestEnvironment(string testName)
+    {
+        var dbName = $"TestDb_Ownership_{testName}_{Guid.NewGuid()}";
+        var configuredFactory = _baseFactory.WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing");
             builder.ConfigureServices(services =>
@@ -46,10 +48,10 @@ public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory
                     services.Remove(service);
                 }
 
-                // Add InMemory database
+                // Add InMemory database with unique name
                 services.AddDbContext<ApplicationDbContext>(options =>
                 {
-                    options.UseInMemoryDatabase(TestDbName);
+                    options.UseInMemoryDatabase(dbName);
                 });
 
                 // Add test authentication as default
@@ -60,16 +62,17 @@ public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory
                 }).AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", _ => { });
             });
         });
-        _client = _configuredFactory.CreateClient();
+        return (configuredFactory, configuredFactory.CreateClient());
     }
 
     [Fact]
     public async Task CreateAgent_Should_Assign_Ownership_To_Creating_User()
     {
         // Arrange
-        using var scope = _configuredFactory.Services.CreateScope();
+        var (factory, client) = CreateTestEnvironment(nameof(CreateAgent_Should_Assign_Ownership_To_Creating_User));
+        using var scope = factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var userId = Guid.NewGuid();
         var user = new UserEntity
         {
@@ -77,11 +80,11 @@ public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory
             Email = "creator@example.com",
             Name = "Creator"
         };
-        
+
         await context.Users.AddAsync(user);
         await context.SaveChangesAsync();
 
-        SetTestUserId(_client, userId);
+        SetTestUserId(client, userId);
 
         var createRequest = new CreateAgentRequest
         {
@@ -92,11 +95,11 @@ public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/agents", createRequest);
+        var response = await client.PostAsJsonAsync("/api/agents", createRequest);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        
+
         var createdAgent = await response.Content.ReadFromJsonAsync<AgentDto>(_jsonOptions);
         createdAgent.Should().NotBeNull();
         createdAgent!.UserId.Should().Be(userId);
@@ -113,79 +116,81 @@ public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory
     public async Task ListAgents_Should_Return_Public_And_Own_Private_Agents()
     {
         // Arrange
-        using var scope = _configuredFactory.Services.CreateScope();
+        var (factory, client) = CreateTestEnvironment(nameof(ListAgents_Should_Return_Public_And_Own_Private_Agents));
+        using var scope = factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var currentUserId = Guid.NewGuid();
         var otherUserId = Guid.NewGuid();
-        
+
         var users = new[]
         {
             new UserEntity { Id = currentUserId, Email = "current@example.com", Name = "Current User" },
             new UserEntity { Id = otherUserId, Email = "other@example.com", Name = "Other User" }
         };
-        
+
         var agents = new[]
         {
-            new AgentEntity 
-            { 
-                Id = Guid.NewGuid(), 
-                Name = "My Private Agent", 
-                IsPublic = false, 
-                UserId = currentUserId 
+            new AgentEntity
+            {
+                Id = Guid.NewGuid(),
+                Name = "My Private Agent",
+                IsPublic = false,
+                UserId = currentUserId
             },
-            new AgentEntity 
-            { 
-                Id = Guid.NewGuid(), 
-                Name = "Other's Private Agent", 
-                IsPublic = false, 
-                UserId = otherUserId 
+            new AgentEntity
+            {
+                Id = Guid.NewGuid(),
+                Name = "Other's Private Agent",
+                IsPublic = false,
+                UserId = otherUserId
             },
-            new AgentEntity 
-            { 
-                Id = Guid.NewGuid(), 
-                Name = "Public Agent 1", 
-                IsPublic = true, 
-                UserId = otherUserId 
+            new AgentEntity
+            {
+                Id = Guid.NewGuid(),
+                Name = "Public Agent 1",
+                IsPublic = true,
+                UserId = otherUserId
             },
-            new AgentEntity 
-            { 
-                Id = Guid.NewGuid(), 
-                Name = "Public Agent 2", 
-                IsPublic = true, 
-                UserId = currentUserId 
+            new AgentEntity
+            {
+                Id = Guid.NewGuid(),
+                Name = "Public Agent 2",
+                IsPublic = true,
+                UserId = currentUserId
             }
         };
-        
+
         await context.Users.AddRangeAsync(users);
         await context.Agents.AddRangeAsync(agents);
         await context.SaveChangesAsync();
 
-        SetTestUserId(_client, currentUserId);
+        SetTestUserId(client, currentUserId);
 
         // Act
-        var response = await _client.GetAsync("/api/agents");
+        var response = await client.GetAsync("/api/agents");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var agentList = await response.Content.ReadFromJsonAsync<List<AgentDto>>(_jsonOptions);
         agentList.Should().NotBeNull();
         agentList.Should().HaveCount(3); // Own private + 2 public agents
-        
+
         agentList.Should().Contain(a => a.Name == "My Private Agent" && !a.IsPublic);
         agentList.Should().Contain(a => a.Name == "Public Agent 1" && a.IsPublic);
         agentList.Should().Contain(a => a.Name == "Public Agent 2" && a.IsPublic);
         agentList.Should().NotContain(a => a.Name == "Other's Private Agent");
     }
 
-    [Fact(Skip = "TODO: Fix authentication handler configuration for integration tests")]
+    [Fact]
     public async Task DeleteAgent_Should_Succeed_For_Owner()
     {
         // Arrange
-        using var scope = _configuredFactory.Services.CreateScope();
+        var (factory, client) = CreateTestEnvironment(nameof(DeleteAgent_Should_Succeed_For_Owner));
+        using var scope = factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var userId = Guid.NewGuid();
         var user = new UserEntity
         {
@@ -193,7 +198,7 @@ public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory
             Email = "owner@example.com",
             Name = "Owner"
         };
-        
+
         var agent = new AgentEntity
         {
             Id = Guid.NewGuid(),
@@ -201,44 +206,46 @@ public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory
             IsPublic = false,
             UserId = userId
         };
-        
+
         await context.Users.AddAsync(user);
         await context.Agents.AddAsync(agent);
         await context.SaveChangesAsync();
 
-        SetTestUserId(_client, userId);
+        SetTestUserId(client, userId);
 
         // Act
-        var response = await _client.DeleteAsync($"/api/agents/{agent.Id}");
+        var response = await client.DeleteAsync($"/api/agents/{agent.Id}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
-        
+
+        // Refresh context to get updated data
+        await context.Entry(agent).ReloadAsync();
+
         // Verify soft delete in database
-        var dbAgent = await context.Agents.FirstOrDefaultAsync(a => a.Id == agent.Id);
-        dbAgent.Should().NotBeNull();
-        dbAgent!.IsDeleted.Should().BeTrue();
-        dbAgent.IsInRecycleBin.Should().BeTrue();
-        dbAgent.DeletedAt.Should().NotBeNull();
-        dbAgent.RecycleBinExpiresAt.Should().BeCloseTo(DateTime.UtcNow.AddDays(30), TimeSpan.FromMinutes(1));
+        agent.IsDeleted.Should().BeTrue();
+        agent.IsInRecycleBin.Should().BeTrue();
+        agent.DeletedAt.Should().NotBeNull();
+        agent.RecycleBinExpiresAt.Should().BeCloseTo(DateTime.UtcNow.AddDays(30), TimeSpan.FromMinutes(1));
     }
 
-    [Fact(Skip = "TODO: Fix authentication handler configuration for integration tests")]
+    [Fact]
     public async Task DeleteAgent_Should_Fail_For_NonOwner()
     {
         // Arrange
-        using var scope = _configuredFactory.Services.CreateScope();
+        var (factory, client) = CreateTestEnvironment(nameof(DeleteAgent_Should_Fail_For_NonOwner));
+        using var scope = factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var ownerId = Guid.NewGuid();
         var otherUserId = Guid.NewGuid();
-        
+
         var users = new[]
         {
             new UserEntity { Id = ownerId, Email = "owner@example.com", Name = "Owner" },
             new UserEntity { Id = otherUserId, Email = "other@example.com", Name = "Other" }
         };
-        
+
         var agent = new AgentEntity
         {
             Id = Guid.NewGuid(),
@@ -246,48 +253,50 @@ public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory
             IsPublic = true,
             UserId = ownerId
         };
-        
+
         await context.Users.AddRangeAsync(users);
         await context.Agents.AddAsync(agent);
         await context.SaveChangesAsync();
 
-        SetTestUserId(_client, otherUserId);
+        SetTestUserId(client, otherUserId);
 
         // Act
-        var response = await _client.DeleteAsync($"/api/agents/{agent.Id}");
+        var response = await client.DeleteAsync($"/api/agents/{agent.Id}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        
+
+        // Refresh context to verify agent is still active
+        await context.Entry(agent).ReloadAsync();
+
         // Verify agent is still active in database
-        var dbAgent = await context.Agents.FirstOrDefaultAsync(a => a.Id == agent.Id);
-        dbAgent.Should().NotBeNull();
-        dbAgent!.IsDeleted.Should().BeFalse();
-        dbAgent.DeletedAt.Should().BeNull();
+        agent.IsDeleted.Should().BeFalse();
+        agent.DeletedAt.Should().BeNull();
     }
 
     [Fact]
     public async Task CreateAgent_With_IsPublic_True_Should_Be_Accessible_To_Others()
     {
         // Arrange
-        using var scope = _configuredFactory.Services.CreateScope();
+        var (factory, client) = CreateTestEnvironment(nameof(CreateAgent_With_IsPublic_True_Should_Be_Accessible_To_Others));
+        using var scope = factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var creatorId = Guid.NewGuid();
         var otherId = Guid.NewGuid();
-        
+
         var users = new[]
         {
             new UserEntity { Id = creatorId, Email = "creator@example.com", Name = "Creator" },
             new UserEntity { Id = otherId, Email = "other@example.com", Name = "Other" }
         };
-        
+
         await context.Users.AddRangeAsync(users);
         await context.SaveChangesAsync();
 
         // Create public agent
-        _client.DefaultRequestHeaders.Clear();
-        SetTestUserId(_client, creatorId);
+        client.DefaultRequestHeaders.Clear();
+        SetTestUserId(client, creatorId);
 
         var createRequest = new CreateAgentRequest
         {
@@ -297,70 +306,72 @@ public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory
             Language = "en"
         };
 
-        var createResponse = await _client.PostAsJsonAsync("/api/agents", createRequest);
+        var createResponse = await client.PostAsJsonAsync("/api/agents", createRequest);
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
-        
+
         var createdAgent = await createResponse.Content.ReadFromJsonAsync<AgentDto>(_jsonOptions);
 
         // List agents as another user
-        _client.DefaultRequestHeaders.Clear();
-        SetTestUserId(_client, otherId);
+        client.DefaultRequestHeaders.Clear();
+        SetTestUserId(client, otherId);
 
         // Act
-        var listResponse = await _client.GetAsync("/api/agents");
+        var listResponse = await client.GetAsync("/api/agents");
 
         // Assert
         listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var agentList = await listResponse.Content.ReadFromJsonAsync<List<AgentDto>>(_jsonOptions);
         agentList.Should().Contain(a => a.Id == createdAgent!.Id && a.IsPublic);
     }
 
-    [Fact(Skip = "TODO: Fix authentication handler configuration for integration tests")]
+    [Fact]
     public async Task Unauthenticated_User_Can_See_Public_Agents_Only()
     {
         // Arrange
-        using var scope = _configuredFactory.Services.CreateScope();
+        var (factory, client) = CreateTestEnvironment(nameof(Unauthenticated_User_Can_See_Public_Agents_Only));
+        using var scope = factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var userId = Guid.NewGuid();
-        
+
         var agents = new[]
         {
-            new AgentEntity 
-            { 
-                Id = Guid.NewGuid(), 
-                Name = "Private Agent", 
-                IsPublic = false, 
-                UserId = userId 
+            new AgentEntity
+            {
+                Id = Guid.NewGuid(),
+                Name = "Private Agent",
+                IsPublic = false,
+                UserId = userId
             },
-            new AgentEntity 
-            { 
-                Id = Guid.NewGuid(), 
-                Name = "Public Agent 1", 
-                IsPublic = true, 
-                UserId = userId 
+            new AgentEntity
+            {
+                Id = Guid.NewGuid(),
+                Name = "Public Agent 1",
+                IsPublic = true,
+                UserId = userId
             },
-            new AgentEntity 
-            { 
-                Id = Guid.NewGuid(), 
-                Name = "Public Agent 2", 
-                IsPublic = true, 
-                UserId = Guid.NewGuid() 
+            new AgentEntity
+            {
+                Id = Guid.NewGuid(),
+                Name = "Public Agent 2",
+                IsPublic = true,
+                UserId = Guid.NewGuid()
             }
         };
-        
+
         await context.Agents.AddRangeAsync(agents);
         await context.SaveChangesAsync();
 
-        // No authentication header
+        // No authentication header - ensure no X-Test-User-Id is set
+        client.DefaultRequestHeaders.Remove("X-Test-User-Id");
 
         // Act
-        var response = await _client.GetAsync("/api/agents");
+        var response = await client.GetAsync("/api/agents");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var agentList = await response.Content.ReadFromJsonAsync<List<AgentDto>>(_jsonOptions);
         agentList.Should().NotBeNull();
         agentList.Should().HaveCount(2); // Only public agents
