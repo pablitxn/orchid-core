@@ -21,4 +21,22 @@ public interface IChatSessionRepository
     Task ArchiveAsync(Guid id, bool archived, CancellationToken cancellationToken);
     Task DeleteAsync(Guid id, CancellationToken cancellationToken);
     Task DeleteManyAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets conversation count for an agent
+    /// </summary>
+    Task<int> CountByAgentIdAsync(Guid agentId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets the most recent session for an agent
+    /// </summary>
+    Task<DateTime?> GetLastUsedByAgentIdAsync(Guid agentId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets aggregated stats (conversation count and last used) for multiple agents.
+    /// Returns a dictionary keyed by AgentId.
+    /// </summary>
+    Task<Dictionary<Guid, (int Count, DateTime? LastUsed)>> GetStatsForAgentsAsync(
+        IEnumerable<Guid> agentIds,
+        CancellationToken cancellationToken);
 }

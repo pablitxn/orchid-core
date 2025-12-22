@@ -1,7 +1,7 @@
 # ADR-0001: Agent Creation Flow Audit
 
 **Date:** 2025-12-22
-**Status:** In Progress (Phase 1 & 2 Complete)
+**Status:** Complete (All Phases)
 **Author:** Audit Report
 **Last Updated:** 2025-12-22
 
@@ -18,8 +18,8 @@ Full audit of the Agent creation and management flow across backend (orchid-core
 | Category | Critical | High | Medium | Low | Fixed |
 |----------|----------|------|--------|-----|-------|
 | Security | ~~3~~ | ~~1~~ | 0 | 0 | 4/4 |
-| Functionality | ~~1~~ | ~~2~~ | 3 | 0 | 3/3 |
-| **Total** | **0** | **0** | **3** | **0** | **7/7** |
+| Functionality | ~~1~~ | ~~2~~ | ~~3~~ | 0 | 6/6 |
+| **Total** | **0** | **0** | **0** | **0** | **10/10** |
 
 ---
 
@@ -250,72 +250,48 @@ Map to DTO before returning.
 
 ---
 
-## Medium Priority Issues
+## Medium Priority Issues (All Fixed)
 
-### MED-001: ListAgents Filters in Memory
+### MED-001: ListAgents Filters in Memory - FIXED
 
-**Location:** `src/Core/Application/UseCases/Agent/ListAgents/ListAgentsHandler.cs:19-22`
+**Location:** `src/Core/Application/UseCases/Agent/ListAgents/ListAgentsHandler.cs`
 
 **Problem:**
 Filters `IsDeleted` in memory after fetching all records.
 
-```csharp
-var agents = await _agentRepository.ListAsync(ct);
-// ListAsync already filters !IsDeleted, but then:
-var filteredAgents = agents.Where(a => a.IsPublic || a.UserId == request.UserId);
-```
-
-**Impact:**
-Performance degradation with large datasets.
-
-**Recommendation:**
-Move all filtering to database query.
+**Solution:**
+Added `ListByUserAsync` method to `IAgentRepository` that performs all filtering at the database level.
 
 ---
 
-### MED-002: Stats Always Empty
+### MED-002: Stats Always Empty - FIXED
 
-**Location:** `src/Core/Application/UseCases/Agent/CreateAgent/CreateAgentHandler.cs:68`
+**Location:** `src/Core/Application/UseCases/Agent/ListAgents/ListAgentsHandler.cs`
 
 **Problem:**
-Agent stats are hardcoded to empty values:
+Agent stats were hardcoded to empty values.
 
-```csharp
-Stats = new AgentStatsDto
-{
-    TotalConversations = 0,
-    AvgRating = null
-}
-```
-
-**Impact:**
-Stats feature is non-functional.
-
-**Recommendation:**
-Implement conversation tracking and rating aggregation.
+**Solution:**
+- Added stats methods to `IChatSessionRepository`: `CountByAgentIdAsync`, `GetLastUsedByAgentIdAsync`, `GetStatsForAgentsAsync`
+- `ListAgentsHandler` now fetches real stats for all agents in one optimized query
+- `UpdateAgentHandler` now returns real stats for the updated agent
+- Note: `AvgRating` remains null as rating system is not yet implemented (future enhancement)
 
 ---
 
-### MED-003: No Input Validation in CreateAgentHandler
+### MED-003: No Input Validation in CreateAgentHandler - FIXED
 
-**Location:** `src/Core/Application/UseCases/Agent/CreateAgent/CreateAgentHandler.cs`
+**Location:** `src/Core/Application/UseCases/Agent/CreateAgent/`
 
 **Problem:**
-No server-side validation of input data. Relies entirely on EF constraints.
+No server-side validation of input data.
 
-**Recommendation:**
-Add FluentValidation:
-```csharp
-public class CreateAgentCommandValidator : AbstractValidator<CreateAgentCommand>
-{
-    public CreateAgentCommandValidator()
-    {
-        RuleFor(x => x.Name).NotEmpty().MinimumLength(3).MaximumLength(100);
-        RuleFor(x => x.Description).MaximumLength(1000);
-        RuleFor(x => x.AvatarUrl).Must(BeValidUrl).When(x => !string.IsNullOrEmpty(x.AvatarUrl));
-    }
-}
-```
+**Solution:**
+Added `CreateAgentCommandValidator` and `UpdateAgentCommandValidator` following existing project patterns:
+- Name: required, 3-100 characters
+- Description: max 1000 characters
+- AvatarUrl: valid URL format, max 500 characters
+- Language: max 10 characters
 
 ---
 
@@ -358,14 +334,17 @@ POST /api/agents
 | File | Purpose |
 |------|---------|
 | `src/Core/Domain/Entities/AgentEntity.cs` | Domain entity |
-| `src/Core/Application/UseCases/Agent/CreateAgent/*` | Create use case |
-| `src/Core/Application/UseCases/Agent/ListAgents/*` | List use case |
+| `src/Core/Application/UseCases/Agent/CreateAgent/*` | Create use case + validator |
+| `src/Core/Application/UseCases/Agent/UpdateAgent/*` | Update use case + validator |
+| `src/Core/Application/UseCases/Agent/ListAgents/*` | List use case (optimized) |
 | `src/Core/Application/UseCases/Agent/SoftDeleteAgent/*` | Soft delete |
 | `src/Core/Application/UseCases/Agent/RestoreAgent/*` | Restore from bin |
-| `src/Core/Application/UseCases/Agent/PermanentDeleteAgent/*` | Permanent delete |
-| `src/Core/Application/Interfaces/IAgentRepository.cs` | Repository port |
+| `src/Core/Application/UseCases/Agent/PermanentDeleteAgent/*` | Permanent delete (hard delete) |
+| `src/Core/Application/Interfaces/IAgentRepository.cs` | Repository port (with `ListByUserAsync`) |
+| `src/Core/Application/Interfaces/IChatSessionRepository.cs` | Chat session port (with stats methods) |
 | `src/Adapters/Infrastructure/Persistence/Repositories/AgentRepository.cs` | Repository adapter |
-| `src/Adapters/WebApi/Controllers/AgentsController.cs` | REST endpoints |
+| `src/Adapters/Infrastructure/Persistence/Repositories/ChatSessionRepository.cs` | Chat session adapter (with stats) |
+| `src/Adapters/WebApi/Controllers/AgentsController.cs` | REST endpoints (all secured) |
 
 ### Frontend
 | File | Purpose |
@@ -393,24 +372,33 @@ POST /api/agents
 6. [x] FUNC-002: Implement proper permanent deletion (now uses hard delete)
 7. [x] FUNC-003: Return DTO instead of Entity
 
-### Phase 3: Improvements (Medium Priority)
-8. [ ] MED-001: Optimize ListAgents query
-9. [ ] MED-002: Implement stats tracking
-10. [ ] MED-003: Add input validation
+### Phase 3: Improvements (Medium Priority) - COMPLETED
+8. [x] MED-001: Optimize ListAgents query (DB-level filtering via `ListByUserAsync`)
+9. [x] MED-002: Implement stats tracking (conversation count and last used)
+10. [x] MED-003: Add input validation (validators for Create and Update commands)
 
 ---
 
 ## Decision
 
-Proceed with fixing issues in priority order starting with Phase 1 (security).
+All identified issues have been resolved across three phases:
+1. Phase 1: Critical security fixes (authentication, authorization, data isolation)
+2. Phase 2: Core functionality (UpdateAgent endpoint, proper deletion, DTO consistency)
+3. Phase 3: Performance and quality improvements (DB-level filtering, stats tracking, validation)
 
 ---
 
 ## Consequences
 
-- Immediate security hardening required before production
-- Update endpoint is critical for user experience
-- Database cleanup strategy needed for zombie records
+**Resolved:**
+- Security hardening complete - all endpoints require authentication and validate ownership
+- Update endpoint now functional - users can edit their agents
+- Database cleanup via hard delete - no zombie records, GDPR compliant
+- Performance optimized - filtering at DB level, batch stats queries
+
+**Future Enhancements (not critical):**
+- Rating system (AvgRating) - requires new Rating entity and aggregation logic
+- Additional validation rules as business requirements evolve
 
 ---
 
@@ -460,3 +448,34 @@ Proceed with fixing issues in priority order starting with Phase 1 (security).
 - UpdateAgent supports partial updates (only provided fields are updated)
 - RecycleBin endpoint now returns proper DTOs with plugin information
 - API contract is now consistent across all agent endpoints
+
+### 2025-12-22 - Phase 3 Improvements
+
+**Files Created:**
+
+| File | Purpose |
+|------|---------|
+| `CreateAgent/CreateAgentCommandValidator.cs` | Input validation for agent creation |
+| `UpdateAgent/UpdateAgentCommandValidator.cs` | Input validation for agent updates |
+
+**Files Modified:**
+
+| File | Change |
+|------|--------|
+| `IAgentRepository.cs` | Added `ListByUserAsync` method for optimized filtering |
+| `AgentRepository.cs` | Implemented `ListByUserAsync` with DB-level filtering |
+| `ListAgentsHandler.cs` | Now uses `ListByUserAsync` + fetches real stats via `GetStatsForAgentsAsync` |
+| `CreateAgentHandler.cs` | Added validator call |
+| `UpdateAgentHandler.cs` | Added validator call + real stats fetching |
+| `IChatSessionRepository.cs` | Added `CountByAgentIdAsync`, `GetLastUsedByAgentIdAsync`, `GetStatsForAgentsAsync` |
+| `ChatSessionRepository.cs` | Implemented stats methods with optimized GROUP BY query |
+
+**Performance Improvements:**
+- Agent listing now filters at database level instead of in-memory
+- Stats for multiple agents fetched in single query using GROUP BY
+- Reduced N+1 query patterns
+
+**Data Quality Improvements:**
+- Server-side validation prevents invalid data from entering the system
+- Stats now show real conversation counts and last used timestamps
+- Note: Rating system (AvgRating) deferred to future enhancement

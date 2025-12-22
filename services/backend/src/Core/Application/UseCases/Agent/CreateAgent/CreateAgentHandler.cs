@@ -14,6 +14,8 @@ public class CreateAgentHandler(
 
     public async Task<AgentDto> Handle(CreateAgentCommand request, CancellationToken cancellationToken)
     {
+        CreateAgentCommandValidator.Validate(request);
+
         var agent = new AgentEntity
         {
             Id = Guid.NewGuid(),

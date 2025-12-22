@@ -20,6 +20,14 @@ public class AgentRepository(ApplicationDbContext dbContext) : IAgentRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<AgentEntity>> ListByUserAsync(Guid? userId, CancellationToken cancellationToken)
+    {
+        return await _dbContext.Agents
+            .Where(a => !a.IsDeleted && (a.IsPublic || (userId.HasValue && a.UserId == userId.Value)))
+            .OrderByDescending(a => a.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task CreateAsync(AgentEntity agent, CancellationToken cancellationToken)
     {
         _dbContext.Agents.Add(agent);

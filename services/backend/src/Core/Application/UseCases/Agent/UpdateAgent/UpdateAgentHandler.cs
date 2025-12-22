@@ -6,13 +6,17 @@ namespace Application.UseCases.Agent.UpdateAgent;
 
 public sealed class UpdateAgentHandler(
     IAgentRepository agentRepository,
-    IPluginRepository pluginRepository) : IRequestHandler<UpdateAgentCommand, AgentDto>
+    IPluginRepository pluginRepository,
+    IChatSessionRepository chatSessionRepository) : IRequestHandler<UpdateAgentCommand, AgentDto>
 {
     private readonly IAgentRepository _agentRepository = agentRepository;
     private readonly IPluginRepository _pluginRepository = pluginRepository;
+    private readonly IChatSessionRepository _chatSessionRepository = chatSessionRepository;
 
     public async Task<AgentDto> Handle(UpdateAgentCommand request, CancellationToken cancellationToken)
     {
+        UpdateAgentCommandValidator.Validate(request);
+
         var agent = await _agentRepository.GetByIdAsync(request.AgentId, cancellationToken);
 
         if (agent is null)
@@ -63,6 +67,10 @@ public sealed class UpdateAgentHandler(
         var plugins = await _pluginRepository.ListAsync(cancellationToken);
         var pluginLookup = plugins.ToDictionary(p => p.Id);
 
+        // Fetch real stats for the agent
+        var conversationCount = await _chatSessionRepository.CountByAgentIdAsync(agent.Id, cancellationToken);
+        var lastUsed = await _chatSessionRepository.GetLastUsedByAgentIdAsync(agent.Id, cancellationToken);
+
         return new AgentDto
         {
             Id = agent.Id,
@@ -92,9 +100,9 @@ public sealed class UpdateAgentHandler(
                 .ToList(),
             Stats = new AgentStatsDto
             {
-                TotalConversations = 0,
-                AvgRating = null,
-                LastUsed = null
+                TotalConversations = conversationCount,
+                AvgRating = null, // Rating system not yet implemented
+                LastUsed = lastUsed
             }
         };
     }

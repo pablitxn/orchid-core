@@ -88,4 +88,43 @@ public class ChatSessionRepository(ApplicationDbContext dbContext) : IChatSessio
             .Include(s => s.Team)
             .FirstOrDefaultAsync(s => s.SessionId == sessionId, cancellationToken);
     }
+
+    public async Task<int> CountByAgentIdAsync(Guid agentId, CancellationToken cancellationToken)
+    {
+        return await _dbContext.ChatSessions
+            .CountAsync(s => s.AgentId == agentId, cancellationToken);
+    }
+
+    public async Task<DateTime?> GetLastUsedByAgentIdAsync(Guid agentId, CancellationToken cancellationToken)
+    {
+        return await _dbContext.ChatSessions
+            .Where(s => s.AgentId == agentId)
+            .OrderByDescending(s => s.CreatedAt)
+            .Select(s => (DateTime?)s.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<Dictionary<Guid, (int Count, DateTime? LastUsed)>> GetStatsForAgentsAsync(
+        IEnumerable<Guid> agentIds,
+        CancellationToken cancellationToken)
+    {
+        var agentIdList = agentIds.ToList();
+        if (agentIdList.Count == 0)
+            return new Dictionary<Guid, (int, DateTime?)>();
+
+        var stats = await _dbContext.ChatSessions
+            .Where(s => s.AgentId.HasValue && agentIdList.Contains(s.AgentId.Value))
+            .GroupBy(s => s.AgentId!.Value)
+            .Select(g => new
+            {
+                AgentId = g.Key,
+                Count = g.Count(),
+                LastUsed = g.Max(s => s.CreatedAt)
+            })
+            .ToListAsync(cancellationToken);
+
+        return stats.ToDictionary(
+            s => s.AgentId,
+            s => (s.Count, (DateTime?)s.LastUsed));
+    }
 }

@@ -8,6 +8,12 @@ public interface IAgentRepository
 
     Task<List<AgentEntity>> ListAsync(CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Lists agents visible to a user (public agents + user's own agents).
+    /// Filtering is done at the database level for performance.
+    /// </summary>
+    Task<List<AgentEntity>> ListByUserAsync(Guid? userId, CancellationToken cancellationToken);
+
     Task CreateAsync(AgentEntity agent, CancellationToken cancellationToken);
 
     Task UpdateAsync(AgentEntity agent, CancellationToken cancellationToken);
