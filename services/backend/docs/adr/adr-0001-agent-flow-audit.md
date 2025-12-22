@@ -230,6 +230,7 @@ Unit tests cover:
 | `RemovePluginFromAgentHandlerTests` | Plugin removal, validation, preservation of other plugins |
 | `RateAgentHandlerTests` | Rating creation, update, validation, agent existence check |
 | `GetAgentRatingsHandlerTests` | Rating listing, average calculation, agent existence check |
+| `RecycleBinCleanupWorkerTests` | Expired agent deletion, error handling, logging verification |
 
 Integration tests:
 - `AgentIntegrationTests` - End-to-end API testing
@@ -257,11 +258,19 @@ All components specified in this ADR have been fully implemented:
 | Visibility Controls | Complete | Public/private agent support |
 | Soft Delete | Complete | 30-day recycle bin with expiration |
 | Input Validation | Complete | Validators for all commands |
-| Unit Tests | Complete | 72+ tests covering all handlers |
+| Unit Tests | Complete | 89+ tests covering all handlers and worker |
 | Integration Tests | Complete | End-to-end API testing |
 | Recycle Bin Cleanup | Complete | Worker running every 6 hours |
 
 **All items from this ADR are now implemented.**
+
+### Changelog
+
+| Date | Change |
+|------|--------|
+| 2025-12-22 | Fixed bug in `RecycleBinCleanupWorker`: now uses `DeleteAsync` to permanently delete expired agents instead of just updating flags |
+| 2025-12-22 | Added 5 unit tests for `RecycleBinCleanupWorker` covering deletion, error handling, and logging |
+| 2025-12-22 | Updated test count to 89+ tests |
 
 ---
 
@@ -274,4 +283,5 @@ All components specified in this ADR have been fully implemented:
 - `src/Core/Domain/Entities/AgentRatingEntity.cs` - Rating entity
 - `src/Adapters/Infrastructure/Persistence/Repositories/AgentRatingRepository.cs` - Rating repository implementation
 - `src/Adapters/Workers/RecycleBinCleanup/RecycleBinCleanupWorker.cs` - Cleanup worker
-- `tests/Unit/Core/Application.Tests/UseCases/Agent/` - Unit tests
+- `tests/Unit/Core/Application.Tests/UseCases/Agent/` - Unit tests for handlers
+- `tests/Unit/Adapters/Infrastructure.Tests/Workers/RecycleBinCleanupWorkerTests.cs` - Unit tests for cleanup worker

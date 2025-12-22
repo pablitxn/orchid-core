@@ -66,22 +66,19 @@ public class RecycleBinCleanupWorker : BackgroundService
         {
             try
             {
-                // Mark as permanently deleted (not in recycle bin anymore)
-                agent.IsInRecycleBin = false;
-                agent.UpdatedAt = DateTime.UtcNow;
-                
-                await agentRepository.UpdateAsync(agent, cancellationToken);
-                
+                // Permanently delete from database
+                await agentRepository.DeleteAsync(agent.Id, cancellationToken);
+
                 _logger.LogInformation(
-                    "Permanently deleted agent {AgentId} ({AgentName}) from recycle bin", 
-                    agent.Id, 
+                    "Permanently deleted agent {AgentId} ({AgentName}) from recycle bin",
+                    agent.Id,
                     agent.Name);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, 
-                    "Failed to permanently delete agent {AgentId} ({AgentName}) from recycle bin", 
-                    agent.Id, 
+                _logger.LogError(ex,
+                    "Failed to permanently delete agent {AgentId} ({AgentName}) from recycle bin",
+                    agent.Id,
                     agent.Name);
             }
         }
