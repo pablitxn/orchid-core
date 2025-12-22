@@ -4,6 +4,7 @@ using Application.UseCases.Agent.ListRecycleBinAgents;
 using Application.UseCases.Agent.PermanentDeleteAgent;
 using Application.UseCases.Agent.RestoreAgent;
 using Application.UseCases.Agent.SoftDeleteAgent;
+using Application.UseCases.Agent.UpdateAgent;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +22,18 @@ public class CreateAgentRequest
     public string? Language { get; set; }
     public Guid[]? PluginIds { get; set; }
     public bool IsPublic { get; set; } = false;
+}
+
+public class UpdateAgentRequest
+{
+    public string? Name { get; set; }
+    public string? Description { get; set; }
+    public string? AvatarUrl { get; set; }
+    public string? Personality { get; set; }
+    public Guid? PersonalityTemplateId { get; set; }
+    public string? Language { get; set; }
+    public Guid[]? PluginIds { get; set; }
+    public bool? IsPublic { get; set; }
 }
 
 [ApiController]
@@ -84,6 +97,33 @@ public class AgentsController(IMediator mediator) : ControllerBase
         return CreatedAtAction(nameof(GetAgents), new { id = agent.Id }, agent);
     }
 
+    [HttpPut("{id:guid}")]
+    [Authorize]
+    public async Task<IActionResult> UpdateAgent(Guid id, [FromBody] UpdateAgentRequest request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+        {
+            return Unauthorized("Invalid user identity");
+        }
+
+        var command = new UpdateAgentCommand(
+            id,
+            userGuid,
+            request.Name,
+            request.Description,
+            request.AvatarUrl,
+            request.Personality,
+            request.PersonalityTemplateId,
+            request.Language,
+            request.PluginIds,
+            request.IsPublic
+        );
+
+        var agent = await _mediator.Send(command);
+        return Ok(agent);
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize]
     public async Task<IActionResult> SoftDeleteAgent(Guid id)
@@ -99,23 +139,44 @@ public class AgentsController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("recycle-bin")]
+    [Authorize]
     public async Task<IActionResult> GetRecycleBinAgents()
     {
-        var agents = await _mediator.Send(new ListRecycleBinAgentsQuery());
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+        {
+            return Unauthorized("Invalid user identity");
+        }
+
+        var agents = await _mediator.Send(new ListRecycleBinAgentsQuery(userGuid));
         return Ok(agents);
     }
 
     [HttpPost("{id}/restore")]
+    [Authorize]
     public async Task<IActionResult> RestoreAgent(Guid id)
     {
-        await _mediator.Send(new RestoreAgentCommand(id));
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+        {
+            return Unauthorized("Invalid user identity");
+        }
+
+        await _mediator.Send(new RestoreAgentCommand(id, userGuid));
         return NoContent();
     }
 
     [HttpDelete("{id}/permanent")]
+    [Authorize]
     public async Task<IActionResult> PermanentDeleteAgent(Guid id)
     {
-        await _mediator.Send(new PermanentDeleteAgentCommand(id));
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+        {
+            return Unauthorized("Invalid user identity");
+        }
+
+        await _mediator.Send(new PermanentDeleteAgentCommand(id, userGuid));
         return NoContent();
     }
 }

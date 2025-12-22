@@ -15,10 +15,15 @@ public sealed class PermanentDeleteAgentHandler : IRequestHandler<PermanentDelet
     public async Task<Unit> Handle(PermanentDeleteAgentCommand command, CancellationToken cancellationToken)
     {
         var agent = await _agentRepository.GetByIdAsync(command.AgentId, cancellationToken);
-        
+
         if (agent == null)
         {
             throw new InvalidOperationException($"Agent with ID {command.AgentId} not found.");
+        }
+
+        if (agent.UserId != command.UserId)
+        {
+            throw new UnauthorizedAccessException("You don't have permission to delete this agent.");
         }
 
         if (!agent.IsInRecycleBin)
@@ -26,11 +31,8 @@ public sealed class PermanentDeleteAgentHandler : IRequestHandler<PermanentDelet
             throw new InvalidOperationException($"Agent with ID {command.AgentId} is not in recycle bin.");
         }
 
-        // Permanently delete from recycle bin (soft delete - mark as permanently deleted)
-        agent.IsInRecycleBin = false;
-        agent.UpdatedAt = DateTime.UtcNow;
-
-        await _agentRepository.UpdateAsync(agent, cancellationToken);
+        // Permanently delete from database
+        await _agentRepository.DeleteAsync(command.AgentId, cancellationToken);
 
         return Unit.Value;
     }

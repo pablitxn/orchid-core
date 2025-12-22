@@ -50,6 +50,14 @@ public class AgentRepository(ApplicationDbContext dbContext) : IAgentRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<AgentEntity>> ListRecycleBinByUserAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        return await _dbContext.Agents
+            .Where(a => a.IsDeleted && a.IsInRecycleBin && a.UserId == userId)
+            .OrderByDescending(a => a.DeletedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<List<AgentEntity>> ListExpiredRecycleBinAsync(CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;

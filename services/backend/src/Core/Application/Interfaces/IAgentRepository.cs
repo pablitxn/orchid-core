@@ -16,6 +16,8 @@ public interface IAgentRepository
 
     Task<List<AgentEntity>> ListRecycleBinAsync(CancellationToken cancellationToken);
 
+    Task<List<AgentEntity>> ListRecycleBinByUserAsync(Guid userId, CancellationToken cancellationToken);
+
     Task<List<AgentEntity>> ListExpiredRecycleBinAsync(CancellationToken cancellationToken);
     
     /// <summary>

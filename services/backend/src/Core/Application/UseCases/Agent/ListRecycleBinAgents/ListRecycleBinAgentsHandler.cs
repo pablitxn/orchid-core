@@ -1,20 +1,57 @@
 using Application.Interfaces;
-using Domain.Entities;
+using Application.UseCases.Agent.Common;
 using MediatR;
 
 namespace Application.UseCases.Agent.ListRecycleBinAgents;
 
-public sealed class ListRecycleBinAgentsHandler : IRequestHandler<ListRecycleBinAgentsQuery, List<AgentEntity>>
+public sealed class ListRecycleBinAgentsHandler(
+    IAgentRepository agentRepository,
+    IPluginRepository pluginRepository) : IRequestHandler<ListRecycleBinAgentsQuery, List<AgentDto>>
 {
-    private readonly IAgentRepository _agentRepository;
+    private readonly IAgentRepository _agentRepository = agentRepository;
+    private readonly IPluginRepository _pluginRepository = pluginRepository;
 
-    public ListRecycleBinAgentsHandler(IAgentRepository agentRepository)
+    public async Task<List<AgentDto>> Handle(ListRecycleBinAgentsQuery request, CancellationToken cancellationToken)
     {
-        _agentRepository = agentRepository;
-    }
+        var agents = await _agentRepository.ListRecycleBinByUserAsync(request.UserId, cancellationToken);
 
-    public async Task<List<AgentEntity>> Handle(ListRecycleBinAgentsQuery request, CancellationToken cancellationToken)
-    {
-        return await _agentRepository.ListRecycleBinAsync(cancellationToken);
+        // Fetch plugin details for the response
+        var plugins = await _pluginRepository.ListAsync(cancellationToken);
+        var pluginLookup = plugins.ToDictionary(p => p.Id);
+
+        return agents.Select(agent => new AgentDto
+        {
+            Id = agent.Id,
+            Name = agent.Name,
+            Description = agent.Description,
+            AvatarUrl = agent.AvatarUrl,
+            Personality = agent.Personality,
+            PersonalityTemplateId = agent.PersonalityTemplateId,
+            Language = agent.Language,
+            UserId = agent.UserId,
+            IsPublic = agent.IsPublic,
+            CreatedAt = agent.CreatedAt,
+            UpdatedAt = agent.UpdatedAt,
+            Plugins = agent.PluginIds
+                .Where(id => pluginLookup.ContainsKey(id))
+                .Select(id =>
+                {
+                    var plugin = pluginLookup[id];
+                    return new PluginDto
+                    {
+                        Id = plugin.Id,
+                        Name = plugin.Name,
+                        Description = plugin.Description,
+                        Icon = null
+                    };
+                })
+                .ToList(),
+            Stats = new AgentStatsDto
+            {
+                TotalConversations = 0,
+                AvgRating = null,
+                LastUsed = null
+            }
+        }).ToList();
     }
 }

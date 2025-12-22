@@ -15,10 +15,15 @@ public sealed class RestoreAgentHandler : IRequestHandler<RestoreAgentCommand, U
     public async Task<Unit> Handle(RestoreAgentCommand command, CancellationToken cancellationToken)
     {
         var agent = await _agentRepository.GetByIdAsync(command.AgentId, cancellationToken);
-        
+
         if (agent == null)
         {
             throw new InvalidOperationException($"Agent with ID {command.AgentId} not found.");
+        }
+
+        if (agent.UserId != command.UserId)
+        {
+            throw new UnauthorizedAccessException("You don't have permission to restore this agent.");
         }
 
         if (!agent.IsInRecycleBin)
