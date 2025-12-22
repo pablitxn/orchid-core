@@ -1,50 +1,69 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
 using Application.UseCases.Agent.Common;
 using Domain.Entities;
 using FluentAssertions;
 using Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Agent.IntegrationTests;
 
 public class AgentAccessVerificationTests : IClassFixture<WebApplicationFactory<Program>>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly WebApplicationFactory<Program> _configuredFactory;
     private readonly HttpClient _client;
+    private static readonly string TestDbName = "TestDb_Access_" + Guid.NewGuid();
 
     public AgentAccessVerificationTests(WebApplicationFactory<Program> factory)
     {
-        _factory = factory;
-        _client = _factory.WithWebHostBuilder(builder =>
+        _configuredFactory = factory.WithWebHostBuilder(builder =>
         {
+            builder.UseEnvironment("Testing");
             builder.ConfigureServices(services =>
             {
-                // Remove the existing DbContext registration
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
-                if (descriptor != null)
+                // Remove all EF Core related services
+                var efCoreServices = services
+                    .Where(d => d.ServiceType.FullName?.Contains("EntityFrameworkCore") == true
+                             || d.ServiceType.FullName?.Contains("DbContext") == true
+                             || d.ImplementationType?.FullName?.Contains("Npgsql") == true)
+                    .ToList();
+                foreach (var service in efCoreServices)
                 {
-                    services.Remove(descriptor);
+                    services.Remove(service);
                 }
 
-                // Add in-memory database for testing
+                // Add InMemory database
                 services.AddDbContext<ApplicationDbContext>(options =>
                 {
-                    options.UseInMemoryDatabase("TestDb_" + Guid.NewGuid());
+                    options.UseInMemoryDatabase(TestDbName);
                 });
+
+                // Add test authentication as default
+                services.AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = "Test";
+                    options.DefaultChallengeScheme = "Test";
+                }).AddScheme<AuthenticationSchemeOptions, AccessTestAuthHandler>("Test", _ => { });
             });
-        }).CreateClient();
+        });
+        _client = _configuredFactory.CreateClient();
     }
 
     [Fact]
     public async Task User_Can_Access_Own_Private_Agent()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
+        using var scope = _configuredFactory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         
         var userId = Guid.NewGuid();
@@ -68,7 +87,7 @@ public class AgentAccessVerificationTests : IClassFixture<WebApplicationFactory<
         await context.SaveChangesAsync();
 
         // Set up authentication
-        _client.DefaultRequestHeaders.Add("Authorization", $"Bearer {GenerateTestToken(userId)}");
+        SetTestUserId(_client, userId);
 
         // Act
         var response = await _client.GetAsync($"/api/agents/{agent.Id}/verify-access");
@@ -85,7 +104,7 @@ public class AgentAccessVerificationTests : IClassFixture<WebApplicationFactory<
     public async Task User_Cannot_Access_Others_Private_Agent()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
+        using var scope = _configuredFactory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         
         var ownerId = Guid.NewGuid();
@@ -118,7 +137,7 @@ public class AgentAccessVerificationTests : IClassFixture<WebApplicationFactory<
         await context.SaveChangesAsync();
 
         // Set up authentication as other user
-        _client.DefaultRequestHeaders.Add("Authorization", $"Bearer {GenerateTestToken(otherUserId)}");
+        SetTestUserId(_client, otherUserId);
 
         // Act
         var response = await _client.GetAsync($"/api/agents/{agent.Id}/verify-access");
@@ -135,7 +154,7 @@ public class AgentAccessVerificationTests : IClassFixture<WebApplicationFactory<
     public async Task User_Can_Access_Public_Agent_Without_Plugins()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
+        using var scope = _configuredFactory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         
         var ownerId = Guid.NewGuid();
@@ -161,7 +180,7 @@ public class AgentAccessVerificationTests : IClassFixture<WebApplicationFactory<
         await context.Agents.AddAsync(agent);
         await context.SaveChangesAsync();
 
-        _client.DefaultRequestHeaders.Add("Authorization", $"Bearer {GenerateTestToken(userId)}");
+        SetTestUserId(_client, userId);
 
         // Act
         var response = await _client.GetAsync($"/api/agents/{agent.Id}/verify-access");
@@ -176,7 +195,7 @@ public class AgentAccessVerificationTests : IClassFixture<WebApplicationFactory<
     public async Task User_Cannot_Access_Public_Agent_Without_Required_Plugins()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
+        using var scope = _configuredFactory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         
         var userId = Guid.NewGuid();
@@ -231,7 +250,7 @@ public class AgentAccessVerificationTests : IClassFixture<WebApplicationFactory<
         await context.UserPlugins.AddAsync(userPlugin);
         await context.SaveChangesAsync();
 
-        _client.DefaultRequestHeaders.Add("Authorization", $"Bearer {GenerateTestToken(userId)}");
+        SetTestUserId(_client, userId);
 
         // Act
         var response = await _client.GetAsync($"/api/agents/{agent.Id}/verify-access");
@@ -250,7 +269,7 @@ public class AgentAccessVerificationTests : IClassFixture<WebApplicationFactory<
     public async Task User_Can_Access_Public_Agent_With_All_Required_Plugins()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
+        using var scope = _configuredFactory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         
         var userId = Guid.NewGuid();
@@ -306,7 +325,7 @@ public class AgentAccessVerificationTests : IClassFixture<WebApplicationFactory<
         await context.UserPlugins.AddRangeAsync(userPlugins);
         await context.SaveChangesAsync();
 
-        _client.DefaultRequestHeaders.Add("Authorization", $"Bearer {GenerateTestToken(userId)}");
+        SetTestUserId(_client, userId);
 
         // Act
         var response = await _client.GetAsync($"/api/agents/{agent.Id}/verify-access");
@@ -318,11 +337,10 @@ public class AgentAccessVerificationTests : IClassFixture<WebApplicationFactory<
         result.MissingPlugins.Should().BeNullOrEmpty();
     }
 
-    private string GenerateTestToken(Guid userId)
+    private static void SetTestUserId(HttpClient client, Guid userId)
     {
-        // In a real scenario, this would generate a proper JWT token
-        // For testing, we'll use a simple encoded user ID
-        return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(userId.ToString()));
+        client.DefaultRequestHeaders.Remove("X-Test-User-Id");
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", userId.ToString());
     }
 
     private class VerifyAccessResponse
@@ -330,5 +348,42 @@ public class AgentAccessVerificationTests : IClassFixture<WebApplicationFactory<
         public bool HasAccess { get; set; }
         public string? Reason { get; set; }
         public List<Guid>? MissingPlugins { get; set; }
+    }
+}
+
+public class AccessTestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+{
+    public AccessTestAuthHandler(
+        IOptionsMonitor<AuthenticationSchemeOptions> options,
+        ILoggerFactory logger,
+        UrlEncoder encoder)
+        : base(options, logger, encoder)
+    {
+    }
+
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        if (!Request.Headers.TryGetValue("X-Test-User-Id", out var userIdHeader))
+        {
+            return Task.FromResult(AuthenticateResult.NoResult());
+        }
+
+        if (!Guid.TryParse(userIdHeader.FirstOrDefault(), out var userId))
+        {
+            return Task.FromResult(AuthenticateResult.Fail("Invalid user ID"));
+        }
+
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(ClaimTypes.Name, "Test User"),
+            new Claim(ClaimTypes.Email, "test@example.com")
+        };
+
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        var ticket = new AuthenticationTicket(principal, "Test");
+
+        return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 }
