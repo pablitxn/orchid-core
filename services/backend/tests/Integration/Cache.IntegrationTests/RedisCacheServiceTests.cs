@@ -8,7 +8,7 @@ namespace Cache.IntegrationTests;
 
 public class RedisCacheServiceTests : IAsyncLifetime
 {
-    private readonly TestcontainersContainer _redis = new TestcontainersBuilder<TestcontainersContainer>()
+    private readonly IContainer _redis = new ContainerBuilder()
         .WithImage("redis:7-alpine")
         .WithPortBinding(6379, true)
         .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(6379))

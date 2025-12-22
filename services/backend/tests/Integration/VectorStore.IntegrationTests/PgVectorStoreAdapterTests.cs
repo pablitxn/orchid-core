@@ -16,7 +16,7 @@ public sealed class PgVectorStoreAdapterTests : IAsyncLifetime, IDisposable
 {
     private const int Dimension = 3;
 
-    private readonly TestcontainersContainer _postgresContainer = new TestcontainersBuilder<TestcontainersContainer>()
+    private readonly IContainer _postgresContainer = new ContainerBuilder()
         .WithImage("pgvector/pgvector:pg17")
         .WithEnvironment("POSTGRES_USER", "postgres")
         .WithEnvironment("POSTGRES_PASSWORD", "postgres")
