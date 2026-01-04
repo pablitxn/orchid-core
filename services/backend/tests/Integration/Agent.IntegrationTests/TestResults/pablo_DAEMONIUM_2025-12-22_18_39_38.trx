@@ -1,0 +1,821 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="ce1af173-35b3-4feb-ae64-17a9e5f6bbcf" name="pablo@DAEMONIUM 2025-12-22 18:39:38" runUser="DAEMONIUM\pablo" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2025-12-22T18:39:38.7454246-03:00" queuing="2025-12-22T18:39:38.7454252-03:00" start="2025-12-22T18:39:34.6550570-03:00" finish="2025-12-22T18:39:40.0940580-03:00" />
+  <TestSettings name="default" id="d9a7191b-a943-4c00-81d4-7af802bf3af7">
+    <Deployment runDeploymentRoot="pablo_DAEMONIUM_2025-12-22_18_39_38" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="e527191d-fb27-453f-95e5-c0fa7909c402" testId="c765f6fd-f137-92be-a27a-8acbdac85de0" testName="Agent.IntegrationTests.AgentOwnershipOperationsTests.ListAgents_Should_Return_Public_And_Own_Private_Agents" computerName="DAEMONIUM" duration="00:00:03.0711381" startTime="2025-12-22T18:39:38.7541132-03:00" endTime="2025-12-22T18:39:38.7541138-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e527191d-fb27-453f-95e5-c0fa7909c402" />
+    <UnitTestResult executionId="22a6b35b-c936-4ea0-9b51-88a38ee9f157" testId="6ec042e3-7d9b-b55f-36dc-ab71537a46d7" testName="Agent.IntegrationTests.AgentAccessVerificationTests.User_Cannot_Access_Public_Agent_Without_Required_Plugins" computerName="DAEMONIUM" duration="00:00:00.1537605" startTime="2025-12-22T18:39:39.4845868-03:00" endTime="2025-12-22T18:39:39.4845872-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="22a6b35b-c936-4ea0-9b51-88a38ee9f157" />
+    <UnitTestResult executionId="2dc7f802-4025-4438-9749-6041ad37fd9d" testId="cefe8677-944a-5ae3-7df1-b8dc1d85c648" testName="Agent.IntegrationTests.AgentOwnershipOperationsTests.DeleteAgent_Should_Succeed_For_Owner" computerName="DAEMONIUM" duration="00:00:00.2581269" startTime="2025-12-22T18:39:39.0214580-03:00" endTime="2025-12-22T18:39:39.0214593-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2dc7f802-4025-4438-9749-6041ad37fd9d">
+      <Output>
+        <ErrorInfo>
+          <Message>Expected response.StatusCode to be True, but found False.</Message>
+          <StackTrace>   at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)&#xD;
+   at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)&#xD;
+   at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)&#xD;
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)&#xD;
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)&#xD;
+   at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)&#xD;
+   at FluentAssertions.Primitives.BooleanAssertions`1.BeTrue(String because, Object[] becauseArgs)&#xD;
+   at Agent.IntegrationTests.AgentOwnershipOperationsTests.DeleteAgent_Should_Succeed_For_Owner() in C:\Users\pablo\repos\orchid-core\services\backend\tests\Integration\Agent.IntegrationTests\AgentOwnershipOperationsTests.cs:line 220&#xD;
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="3f4df633-6aa2-486a-8723-a699b0fe2ba4" testId="6d6f1c11-47ca-c72e-d043-ebb542b33e33" testName="Agent.IntegrationTests.AgentOwnershipOperationsTests.DeleteAgent_Should_Fail_For_NonOwner" computerName="DAEMONIUM" duration="00:00:00.2519506" startTime="2025-12-22T18:39:39.7383997-03:00" endTime="2025-12-22T18:39:39.7384002-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3f4df633-6aa2-486a-8723-a699b0fe2ba4" />
+    <UnitTestResult executionId="86effb85-3edd-47c4-b0b1-e94b1ef68dc5" testId="21e01731-7685-9fa2-5350-0c2249db3cb3" testName="Agent.IntegrationTests.AgentOwnershipOperationsTests.CreateAgent_With_IsPublic_True_Should_Be_Accessible_To_Others" computerName="DAEMONIUM" duration="00:00:00.2589387" startTime="2025-12-22T18:39:39.4846776-03:00" endTime="2025-12-22T18:39:39.4846777-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="86effb85-3edd-47c4-b0b1-e94b1ef68dc5" />
+    <UnitTestResult executionId="69e49dfb-11ce-45e1-8525-15d745a8cac3" testId="a546b1d0-21a1-0b9e-d461-0d49d3ba5259" testName="Agent.IntegrationTests.AgentAccessVerificationTests.User_Cannot_Access_Others_Private_Agent" computerName="DAEMONIUM" duration="00:00:00.1444618" startTime="2025-12-22T18:39:39.0324719-03:00" endTime="2025-12-22T18:39:39.0324723-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="69e49dfb-11ce-45e1-8525-15d745a8cac3" />
+    <UnitTestResult executionId="74cc7572-c1a8-45d4-9127-c1af1fa34c52" testId="62f8db3c-048a-d41c-759d-f1a8cfae2d8e" testName="Agent.IntegrationTests.AgentOwnershipOperationsTests.CreateAgent_Should_Assign_Ownership_To_Creating_User" computerName="DAEMONIUM" duration="00:00:00.1750846" startTime="2025-12-22T18:39:39.9142963-03:00" endTime="2025-12-22T18:39:39.9142968-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="74cc7572-c1a8-45d4-9127-c1af1fa34c52" />
+    <UnitTestResult executionId="c78cb40e-e474-415f-9c81-8f2476f3d458" testId="efc68856-f631-1f9d-8a5f-2e8367d30014" testName="Agent.IntegrationTests.AgentOwnershipOperationsTests.Unauthenticated_User_Can_See_Public_Agents_Only" computerName="DAEMONIUM" duration="00:00:00.2075730" startTime="2025-12-22T18:39:39.2339841-03:00" endTime="2025-12-22T18:39:39.2339846-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c78cb40e-e474-415f-9c81-8f2476f3d458">
+      <Output>
+        <ErrorInfo>
+          <Message>Expected collection to contain 2 item(s), but found 4: {&#xD;
+    Application.UseCases.Agent.Common.AgentDto&#xD;
+    {&#xD;
+        AvatarUrl = &lt;null&gt;,&#xD;
+        CreatedAt = &lt;2025-12-22 21:39:39.1516614&gt;,&#xD;
+        Description = &lt;null&gt;,&#xD;
+        Id = {9ad025dc-2be7-4e0f-b79c-39060dd5ea9c},&#xD;
+        IsPublic = True,&#xD;
+        Language = &lt;null&gt;,&#xD;
+        Name = "Public Agent 2",&#xD;
+        Personality = &lt;null&gt;,&#xD;
+        PersonalityTemplateId = &lt;null&gt;,&#xD;
+        Plugins = {empty},&#xD;
+        Stats = Application.UseCases.Agent.Common.AgentStatsDto&#xD;
+        {&#xD;
+            AvgRating = &lt;null&gt;,&#xD;
+            LastUsed = &lt;null&gt;,&#xD;
+            TotalConversations = 0&#xD;
+        },&#xD;
+        UpdatedAt = &lt;2025-12-22 21:39:39.1516615&gt;,&#xD;
+        UserId = {fe454bb3-9820-4820-a15c-b82f1d5aacd4}&#xD;
+    },&#xD;
+    Application.UseCases.Agent.Common.AgentDto&#xD;
+    {&#xD;
+        AvatarUrl = &lt;null&gt;,&#xD;
+        CreatedAt = &lt;2025-12-22 21:39:39.1516609&gt;,&#xD;
+        Description = &lt;null&gt;,&#xD;
+        Id = {50945c8b-a71c-4103-8f09-148b7c57a536},&#xD;
+        IsPublic = True,&#xD;
+        Language = &lt;null&gt;,&#xD;
+        Name = "Public Agent 1",&#xD;
+        Personality = &lt;null&gt;,&#xD;
+        PersonalityTemplateId = &lt;null&gt;,&#xD;
+        Plugins = {empty},&#xD;
+        Stats = Application.UseCases.Agent.Common.AgentStatsDto&#xD;
+        {&#xD;
+            AvgRating = &lt;null&gt;,&#xD;
+            LastUsed = &lt;null&gt;,&#xD;
+            TotalConversations = 0&#xD;
+        },&#xD;
+        UpdatedAt = &lt;2025-12-22 21:39:39.1516609&gt;,&#xD;
+        UserId = {5c24f3df-7915-4e39-894c-9b127e23dea5}&#xD;
+    },&#xD;
+    Application.UseCases.Agent.Common.AgentDto&#xD;
+    {&#xD;
+        AvatarUrl = &lt;null&gt;,&#xD;
+        CreatedAt = &lt;2025-12-22 21:39:38.1952227&gt;,&#xD;
+        Description = &lt;null&gt;,&#xD;
+        Id = {e08d391d-cd6e-44c0-829d-48abdd5f3002},&#xD;
+        IsPublic = True,&#xD;
+        Language = &lt;null&gt;,&#xD;
+        Name = "Public Agent 2",&#xD;
+        Personality = &lt;null&gt;,&#xD;
+        PersonalityTemplateId = &lt;null&gt;,&#xD;
+        Plugins = {empty},&#xD;
+        Stats = Application.UseCases.Agent.Common.AgentStatsDto&#xD;
+        {&#xD;
+            AvgRating = &lt;null&gt;,&#xD;
+            LastUsed = &lt;null&gt;,&#xD;
+            TotalConversations = 0&#xD;
+        },&#xD;
+        UpdatedAt = &lt;2025-12-22 21:39:38.1952227&gt;,&#xD;
+        UserId = {2d18ab3e-db98-4c2c-9aec-a06e4f2f6f95}&#xD;
+    },&#xD;
+    Application.UseCases.Agent.Common.AgentDto&#xD;
+    {&#xD;
+        AvatarUrl = &lt;null&gt;,&#xD;
+        CreatedAt = &lt;2025-12-22 21:39:38.1952224&gt;,&#xD;
+        Description = &lt;null&gt;,&#xD;
+        Id = {10c745ea-1cbb-4d35-a368-0f13f8f25b7f},&#xD;
+        IsPublic = True,&#xD;
+        Language = &lt;null&gt;,&#xD;
+        Name = "Public Agent 1",&#xD;
+        Personality = &lt;null&gt;,&#xD;
+        PersonalityTemplateId = &lt;null&gt;,&#xD;
+        Plugins = {empty},&#xD;
+        Stats = Application.UseCases.Agent.Common.AgentStatsDto&#xD;
+        {&#xD;
+            AvgRating = &lt;null&gt;,&#xD;
+            LastUsed = &lt;null&gt;,&#xD;
+            TotalConversations = 0&#xD;
+        },&#xD;
+        UpdatedAt = &lt;2025-12-22 21:39:38.1952225&gt;,&#xD;
+        UserId = {bd29cef1-cb7c-472f-90bc-a654d5282971}&#xD;
+    }&#xD;
+}.</Message>
+          <StackTrace>   at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)&#xD;
+   at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)&#xD;
+   at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)&#xD;
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)&#xD;
+   at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)&#xD;
+   at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)&#xD;
+   at FluentAssertions.Collections.GenericCollectionAssertions`3.HaveCount(Int32 expected, String because, Object[] becauseArgs)&#xD;
+   at Agent.IntegrationTests.AgentOwnershipOperationsTests.Unauthenticated_User_Can_See_Public_Agents_Only() in C:\Users\pablo\repos\orchid-core\services\backend\tests\Integration\Agent.IntegrationTests\AgentOwnershipOperationsTests.cs:line 366&#xD;
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="4f38d8d1-c1d5-4c60-9e81-00d8b266e701" testId="0688bcc9-6d1d-2865-cbf3-f824398c4811" testName="Agent.IntegrationTests.AgentAccessVerificationTests.User_Can_Access_Own_Private_Agent" computerName="DAEMONIUM" duration="00:00:00.2220157" startTime="2025-12-22T18:39:38.8872580-03:00" endTime="2025-12-22T18:39:38.8872588-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4f38d8d1-c1d5-4c60-9e81-00d8b266e701" />
+    <UnitTestResult executionId="82919628-2d6e-4d9f-819a-42e278c8faa3" testId="b6882ee0-8b97-42f3-a33b-4471980f474b" testName="Agent.IntegrationTests.AgentAccessVerificationTests.User_Can_Access_Public_Agent_Without_Plugins" computerName="DAEMONIUM" duration="00:00:02.9719840" startTime="2025-12-22T18:39:38.6639736-03:00" endTime="2025-12-22T18:39:38.6640026-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="82919628-2d6e-4d9f-819a-42e278c8faa3" />
+    <UnitTestResult executionId="a1c3208c-d7b3-4fc7-a2da-735e872718ce" testId="1ab54a7e-e508-bd3d-e50b-2169f25db461" testName="Agent.IntegrationTests.AgentAccessVerificationTests.User_Can_Access_Public_Agent_With_All_Required_Plugins" computerName="DAEMONIUM" duration="00:00:00.2968386" startTime="2025-12-22T18:39:39.3300346-03:00" endTime="2025-12-22T18:39:39.3300351-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a1c3208c-d7b3-4fc7-a2da-735e872718ce" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Agent.IntegrationTests.AgentOwnershipOperationsTests.DeleteAgent_Should_Fail_For_NonOwner" storage="c:\users\pablo\repos\orchid-core\services\backend\tests\integration\agent.integrationtests\bin\debug\net9.0\agent.integrationtests.dll" id="6d6f1c11-47ca-c72e-d043-ebb542b33e33">
+      <Execution id="3f4df633-6aa2-486a-8723-a699b0fe2ba4" />
+      <TestMethod codeBase="C:\Users\pablo\repos\orchid-core\services\backend\tests\Integration\Agent.IntegrationTests\bin\Debug\net9.0\Agent.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Agent.IntegrationTests.AgentOwnershipOperationsTests" name="DeleteAgent_Should_Fail_For_NonOwner" />
+    </UnitTest>
+    <UnitTest name="Agent.IntegrationTests.AgentOwnershipOperationsTests.ListAgents_Should_Return_Public_And_Own_Private_Agents" storage="c:\users\pablo\repos\orchid-core\services\backend\tests\integration\agent.integrationtests\bin\debug\net9.0\agent.integrationtests.dll" id="c765f6fd-f137-92be-a27a-8acbdac85de0">
+      <Execution id="e527191d-fb27-453f-95e5-c0fa7909c402" />
+      <TestMethod codeBase="C:\Users\pablo\repos\orchid-core\services\backend\tests\Integration\Agent.IntegrationTests\bin\Debug\net9.0\Agent.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Agent.IntegrationTests.AgentOwnershipOperationsTests" name="ListAgents_Should_Return_Public_And_Own_Private_Agents" />
+    </UnitTest>
+    <UnitTest name="Agent.IntegrationTests.AgentOwnershipOperationsTests.CreateAgent_With_IsPublic_True_Should_Be_Accessible_To_Others" storage="c:\users\pablo\repos\orchid-core\services\backend\tests\integration\agent.integrationtests\bin\debug\net9.0\agent.integrationtests.dll" id="21e01731-7685-9fa2-5350-0c2249db3cb3">
+      <Execution id="86effb85-3edd-47c4-b0b1-e94b1ef68dc5" />
+      <TestMethod codeBase="C:\Users\pablo\repos\orchid-core\services\backend\tests\Integration\Agent.IntegrationTests\bin\Debug\net9.0\Agent.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Agent.IntegrationTests.AgentOwnershipOperationsTests" name="CreateAgent_With_IsPublic_True_Should_Be_Accessible_To_Others" />
+    </UnitTest>
+    <UnitTest name="Agent.IntegrationTests.AgentAccessVerificationTests.User_Can_Access_Public_Agent_Without_Plugins" storage="c:\users\pablo\repos\orchid-core\services\backend\tests\integration\agent.integrationtests\bin\debug\net9.0\agent.integrationtests.dll" id="b6882ee0-8b97-42f3-a33b-4471980f474b">
+      <Execution id="82919628-2d6e-4d9f-819a-42e278c8faa3" />
+      <TestMethod codeBase="C:\Users\pablo\repos\orchid-core\services\backend\tests\Integration\Agent.IntegrationTests\bin\Debug\net9.0\Agent.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Agent.IntegrationTests.AgentAccessVerificationTests" name="User_Can_Access_Public_Agent_Without_Plugins" />
+    </UnitTest>
+    <UnitTest name="Agent.IntegrationTests.AgentAccessVerificationTests.User_Cannot_Access_Others_Private_Agent" storage="c:\users\pablo\repos\orchid-core\services\backend\tests\integration\agent.integrationtests\bin\debug\net9.0\agent.integrationtests.dll" id="a546b1d0-21a1-0b9e-d461-0d49d3ba5259">
+      <Execution id="69e49dfb-11ce-45e1-8525-15d745a8cac3" />
+      <TestMethod codeBase="C:\Users\pablo\repos\orchid-core\services\backend\tests\Integration\Agent.IntegrationTests\bin\Debug\net9.0\Agent.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Agent.IntegrationTests.AgentAccessVerificationTests" name="User_Cannot_Access_Others_Private_Agent" />
+    </UnitTest>
+    <UnitTest name="Agent.IntegrationTests.AgentOwnershipOperationsTests.DeleteAgent_Should_Succeed_For_Owner" storage="c:\users\pablo\repos\orchid-core\services\backend\tests\integration\agent.integrationtests\bin\debug\net9.0\agent.integrationtests.dll" id="cefe8677-944a-5ae3-7df1-b8dc1d85c648">
+      <Execution id="2dc7f802-4025-4438-9749-6041ad37fd9d" />
+      <TestMethod codeBase="C:\Users\pablo\repos\orchid-core\services\backend\tests\Integration\Agent.IntegrationTests\bin\Debug\net9.0\Agent.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Agent.IntegrationTests.AgentOwnershipOperationsTests" name="DeleteAgent_Should_Succeed_For_Owner" />
+    </UnitTest>
+    <UnitTest name="Agent.IntegrationTests.AgentOwnershipOperationsTests.Unauthenticated_User_Can_See_Public_Agents_Only" storage="c:\users\pablo\repos\orchid-core\services\backend\tests\integration\agent.integrationtests\bin\debug\net9.0\agent.integrationtests.dll" id="efc68856-f631-1f9d-8a5f-2e8367d30014">
+      <Execution id="c78cb40e-e474-415f-9c81-8f2476f3d458" />
+      <TestMethod codeBase="C:\Users\pablo\repos\orchid-core\services\backend\tests\Integration\Agent.IntegrationTests\bin\Debug\net9.0\Agent.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Agent.IntegrationTests.AgentOwnershipOperationsTests" name="Unauthenticated_User_Can_See_Public_Agents_Only" />
+    </UnitTest>
+    <UnitTest name="Agent.IntegrationTests.AgentOwnershipOperationsTests.CreateAgent_Should_Assign_Ownership_To_Creating_User" storage="c:\users\pablo\repos\orchid-core\services\backend\tests\integration\agent.integrationtests\bin\debug\net9.0\agent.integrationtests.dll" id="62f8db3c-048a-d41c-759d-f1a8cfae2d8e">
+      <Execution id="74cc7572-c1a8-45d4-9127-c1af1fa34c52" />
+      <TestMethod codeBase="C:\Users\pablo\repos\orchid-core\services\backend\tests\Integration\Agent.IntegrationTests\bin\Debug\net9.0\Agent.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Agent.IntegrationTests.AgentOwnershipOperationsTests" name="CreateAgent_Should_Assign_Ownership_To_Creating_User" />
+    </UnitTest>
+    <UnitTest name="Agent.IntegrationTests.AgentAccessVerificationTests.User_Can_Access_Public_Agent_With_All_Required_Plugins" storage="c:\users\pablo\repos\orchid-core\services\backend\tests\integration\agent.integrationtests\bin\debug\net9.0\agent.integrationtests.dll" id="1ab54a7e-e508-bd3d-e50b-2169f25db461">
+      <Execution id="a1c3208c-d7b3-4fc7-a2da-735e872718ce" />
+      <TestMethod codeBase="C:\Users\pablo\repos\orchid-core\services\backend\tests\Integration\Agent.IntegrationTests\bin\Debug\net9.0\Agent.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Agent.IntegrationTests.AgentAccessVerificationTests" name="User_Can_Access_Public_Agent_With_All_Required_Plugins" />
+    </UnitTest>
+    <UnitTest name="Agent.IntegrationTests.AgentAccessVerificationTests.User_Can_Access_Own_Private_Agent" storage="c:\users\pablo\repos\orchid-core\services\backend\tests\integration\agent.integrationtests\bin\debug\net9.0\agent.integrationtests.dll" id="0688bcc9-6d1d-2865-cbf3-f824398c4811">
+      <Execution id="4f38d8d1-c1d5-4c60-9e81-00d8b266e701" />
+      <TestMethod codeBase="C:\Users\pablo\repos\orchid-core\services\backend\tests\Integration\Agent.IntegrationTests\bin\Debug\net9.0\Agent.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Agent.IntegrationTests.AgentAccessVerificationTests" name="User_Can_Access_Own_Private_Agent" />
+    </UnitTest>
+    <UnitTest name="Agent.IntegrationTests.AgentAccessVerificationTests.User_Cannot_Access_Public_Agent_Without_Required_Plugins" storage="c:\users\pablo\repos\orchid-core\services\backend\tests\integration\agent.integrationtests\bin\debug\net9.0\agent.integrationtests.dll" id="6ec042e3-7d9b-b55f-36dc-ab71537a46d7">
+      <Execution id="22a6b35b-c936-4ea0-9b51-88a38ee9f157" />
+      <TestMethod codeBase="C:\Users\pablo\repos\orchid-core\services\backend\tests\Integration\Agent.IntegrationTests\bin\Debug\net9.0\Agent.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Agent.IntegrationTests.AgentAccessVerificationTests" name="User_Cannot_Access_Public_Agent_Without_Required_Plugins" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="c765f6fd-f137-92be-a27a-8acbdac85de0" executionId="e527191d-fb27-453f-95e5-c0fa7909c402" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6ec042e3-7d9b-b55f-36dc-ab71537a46d7" executionId="22a6b35b-c936-4ea0-9b51-88a38ee9f157" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="cefe8677-944a-5ae3-7df1-b8dc1d85c648" executionId="2dc7f802-4025-4438-9749-6041ad37fd9d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6d6f1c11-47ca-c72e-d043-ebb542b33e33" executionId="3f4df633-6aa2-486a-8723-a699b0fe2ba4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="21e01731-7685-9fa2-5350-0c2249db3cb3" executionId="86effb85-3edd-47c4-b0b1-e94b1ef68dc5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a546b1d0-21a1-0b9e-d461-0d49d3ba5259" executionId="69e49dfb-11ce-45e1-8525-15d745a8cac3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="62f8db3c-048a-d41c-759d-f1a8cfae2d8e" executionId="74cc7572-c1a8-45d4-9127-c1af1fa34c52" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="efc68856-f631-1f9d-8a5f-2e8367d30014" executionId="c78cb40e-e474-415f-9c81-8f2476f3d458" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0688bcc9-6d1d-2865-cbf3-f824398c4811" executionId="4f38d8d1-c1d5-4c60-9e81-00d8b266e701" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b6882ee0-8b97-42f3-a33b-4471980f474b" executionId="82919628-2d6e-4d9f-819a-42e278c8faa3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1ab54a7e-e508-bd3d-e50b-2169f25db461" executionId="a1c3208c-d7b3-4fc7-a2da-735e872718ce" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Les résultats ne figurent pas dans une liste" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="Tous les résultats chargés" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="11" executed="11" passed="9" failed="2" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2+699d445a1a (64-bit .NET 9.0.11)&#xD;
+[xUnit.net 00:00:00.15]   Discovering: Agent.IntegrationTests&#xD;
+[xUnit.net 00:00:00.21]   Discovered:  Agent.IntegrationTests&#xD;
+[xUnit.net 00:00:00.22]   Starting:    Agent.IntegrationTests&#xD;
+info: Startup[0]&#xD;
+      Starting application setup.&#xD;
+info: Startup[0]&#xD;
+      Starting application setup.&#xD;
+info: Startup[0]&#xD;
+      MediatR handlers registered&#xD;
+info: Startup[0]&#xD;
+      MediatR handlers registered&#xD;
+info: Startup[0]&#xD;
+      Infrastructure services registered&#xD;
+info: Startup[0]&#xD;
+      Infrastructure services registered&#xD;
+info: Startup[0]&#xD;
+      Telemetry services registered&#xD;
+info: Startup[0]&#xD;
+      Telemetry services registered&#xD;
+info: Startup[0]&#xD;
+      WebApi adapters registered&#xD;
+info: Startup[0]&#xD;
+      WebApi adapters registered&#xD;
+info: Startup[0]&#xD;
+      Swagger configured&#xD;
+info: Startup[0]&#xD;
+      Swagger configured&#xD;
+info: Startup[0]&#xD;
+      CORS policy added&#xD;
+info: Startup[0]&#xD;
+      CORS policy added&#xD;
+dbug: Microsoft.AspNetCore.SignalR.Internal.DefaultHubProtocolResolver[1]&#xD;
+      Registered SignalR Protocol: json, implemented by Microsoft.AspNetCore.SignalR.Protocol.JsonHubProtocol.&#xD;
+dbug: Microsoft.AspNetCore.SignalR.Internal.DefaultHubProtocolResolver[1]&#xD;
+      Registered SignalR Protocol: json, implemented by Microsoft.AspNetCore.SignalR.Protocol.JsonHubProtocol.&#xD;
+info: MassTransit[0]&#xD;
+      Configured endpoint CreditNotificationHandler, Consumer: Infrastructure.Messaging.Consumers.CreditNotificationHandler&#xD;
+info: MassTransit[0]&#xD;
+      Configured endpoint CreditNotificationHandler, Consumer: Infrastructure.Messaging.Consumers.CreditNotificationHandler&#xD;
+info: Startup[0]&#xD;
+      Application configuration complete - running.&#xD;
+info: Startup[0]&#xD;
+      Application configuration complete - running.&#xD;
+fail: Infrastructure.Persistence.Seeders.PluginSeeder[0]&#xD;
+      Error during plugin seeding&#xD;
+      System.InvalidOperationException: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetRelationalService[TService](IInfrastructure`1 databaseFacade)&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.MigrateAsync(DatabaseFacade databaseFacade, CancellationToken cancellationToken)&#xD;
+         at Infrastructure.Persistence.Seeders.PluginSeeder.StartAsync(CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\Infrastructure\Persistence\Seeders\PluginSeeder.cs:line 30&#xD;
+fail: Infrastructure.Persistence.Seeders.PluginSeeder[0]&#xD;
+      Error during plugin seeding&#xD;
+      System.InvalidOperationException: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetRelationalService[TService](IInfrastructure`1 databaseFacade)&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.MigrateAsync(DatabaseFacade databaseFacade, CancellationToken cancellationToken)&#xD;
+         at Infrastructure.Persistence.Seeders.PluginSeeder.StartAsync(CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\Infrastructure\Persistence\Seeders\PluginSeeder.cs:line 30&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker started&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker started&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Starting recycle bin cleanup&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Starting recycle bin cleanup&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      No expired agents found in recycle bin&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      No expired agents found in recycle bin&#xD;
+info: MassTransit[0]&#xD;
+      Bus started: rabbitmq://localhost/&#xD;
+info: MassTransit[0]&#xD;
+      Bus started: rabbitmq://localhost/&#xD;
+info: Microsoft.EntityFrameworkCore.Update[30100]&#xD;
+      Saved 2 entities to in-memory store.&#xD;
+info: Microsoft.EntityFrameworkCore.Update[30100]&#xD;
+      Saved 6 entities to in-memory store.&#xD;
+warn: LuckyPennySoftware.MediatR.License[0]&#xD;
+      You do not have a valid license key for the Lucky Penny software MediatR. This is allowed for development and testing scenarios. If you are running in production you are required to have a licensed version. Please visit https://luckypennysoftware.com to obtain a valid license.&#xD;
+     Warning:&#xD;
+     The component "Fluent Assertions" is governed by the rules defined in the Xceed License Agreement and&#xD;
+     the Xceed Fluent Assertions Community License. You may use Fluent Assertions free of charge for&#xD;
+     non-commercial use only. An active subscription is required to use Fluent Assertions for commercial use.&#xD;
+     Please contact Xceed Sales mailto:sales@xceed.com to acquire a subscription at a very low cost.&#xD;
+     A paid commercial license supports the development and continued increasing support of&#xD;
+     Fluent Assertions users under both commercial and community licenses. Help us&#xD;
+     keep Fluent Assertions at the forefront of unit testing.&#xD;
+     For more information, visit https://xceed.com/products/unit-testing/fluent-assertions/&#xD;
+info: Startup[0]&#xD;
+      Starting application setup.&#xD;
+info: Startup[0]&#xD;
+      MediatR handlers registered&#xD;
+info: Startup[0]&#xD;
+      Infrastructure services registered&#xD;
+info: Startup[0]&#xD;
+      Telemetry services registered&#xD;
+info: Startup[0]&#xD;
+      WebApi adapters registered&#xD;
+info: Startup[0]&#xD;
+      Swagger configured&#xD;
+info: Startup[0]&#xD;
+      CORS policy added&#xD;
+info: Startup[0]&#xD;
+      Starting application setup.&#xD;
+info: Startup[0]&#xD;
+      MediatR handlers registered&#xD;
+info: Startup[0]&#xD;
+      Infrastructure services registered&#xD;
+info: Startup[0]&#xD;
+      Telemetry services registered&#xD;
+info: Startup[0]&#xD;
+      WebApi adapters registered&#xD;
+info: Startup[0]&#xD;
+      Swagger configured&#xD;
+info: Startup[0]&#xD;
+      CORS policy added&#xD;
+dbug: Microsoft.AspNetCore.SignalR.Internal.DefaultHubProtocolResolver[1]&#xD;
+      Registered SignalR Protocol: json, implemented by Microsoft.AspNetCore.SignalR.Protocol.JsonHubProtocol.&#xD;
+info: MassTransit[0]&#xD;
+      Configured endpoint CreditNotificationHandler, Consumer: Infrastructure.Messaging.Consumers.CreditNotificationHandler&#xD;
+info: Startup[0]&#xD;
+      Application configuration complete - running.&#xD;
+fail: Infrastructure.Persistence.Seeders.PluginSeeder[0]&#xD;
+      Error during plugin seeding&#xD;
+      System.InvalidOperationException: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetRelationalService[TService](IInfrastructure`1 databaseFacade)&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.MigrateAsync(DatabaseFacade databaseFacade, CancellationToken cancellationToken)&#xD;
+         at Infrastructure.Persistence.Seeders.PluginSeeder.StartAsync(CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\Infrastructure\Persistence\Seeders\PluginSeeder.cs:line 30&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker started&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Starting recycle bin cleanup&#xD;
+dbug: Microsoft.AspNetCore.SignalR.Internal.DefaultHubProtocolResolver[1]&#xD;
+      Registered SignalR Protocol: json, implemented by Microsoft.AspNetCore.SignalR.Protocol.JsonHubProtocol.&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      No expired agents found in recycle bin&#xD;
+info: MassTransit[0]&#xD;
+      Configured endpoint CreditNotificationHandler, Consumer: Infrastructure.Messaging.Consumers.CreditNotificationHandler&#xD;
+info: Startup[0]&#xD;
+      Application configuration complete - running.&#xD;
+info: Microsoft.EntityFrameworkCore.Update[30100]&#xD;
+      Saved 2 entities to in-memory store.&#xD;
+fail: Infrastructure.Persistence.Seeders.PluginSeeder[0]&#xD;
+      Error during plugin seeding&#xD;
+      System.InvalidOperationException: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetRelationalService[TService](IInfrastructure`1 databaseFacade)&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.MigrateAsync(DatabaseFacade databaseFacade, CancellationToken cancellationToken)&#xD;
+         at Infrastructure.Persistence.Seeders.PluginSeeder.StartAsync(CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\Infrastructure\Persistence\Seeders\PluginSeeder.cs:line 30&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker started&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Starting recycle bin cleanup&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      No expired agents found in recycle bin&#xD;
+warn: LuckyPennySoftware.MediatR.License[0]&#xD;
+      You do not have a valid license key for the Lucky Penny software MediatR. This is allowed for development and testing scenarios. If you are running in production you are required to have a licensed version. Please visit https://luckypennysoftware.com to obtain a valid license.&#xD;
+info: Microsoft.EntityFrameworkCore.Update[30100]&#xD;
+      Saved 2 entities to in-memory store.&#xD;
+info: Startup[0]&#xD;
+      Starting application setup.&#xD;
+info: Startup[0]&#xD;
+      MediatR handlers registered&#xD;
+info: Startup[0]&#xD;
+      Infrastructure services registered&#xD;
+info: Startup[0]&#xD;
+      Telemetry services registered&#xD;
+info: Startup[0]&#xD;
+      WebApi adapters registered&#xD;
+info: Startup[0]&#xD;
+      Swagger configured&#xD;
+info: Startup[0]&#xD;
+      CORS policy added&#xD;
+info: Microsoft.EntityFrameworkCore.Update[30100]&#xD;
+      Saved 1 entities to in-memory store.&#xD;
+dbug: Microsoft.AspNetCore.SignalR.Internal.DefaultHubProtocolResolver[1]&#xD;
+      Registered SignalR Protocol: json, implemented by Microsoft.AspNetCore.SignalR.Protocol.JsonHubProtocol.&#xD;
+info: MassTransit[0]&#xD;
+      Configured endpoint CreditNotificationHandler, Consumer: Infrastructure.Messaging.Consumers.CreditNotificationHandler&#xD;
+info: Startup[0]&#xD;
+      Application configuration complete - running.&#xD;
+fail: Infrastructure.Persistence.Seeders.PluginSeeder[0]&#xD;
+      Error during plugin seeding&#xD;
+      System.InvalidOperationException: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetRelationalService[TService](IInfrastructure`1 databaseFacade)&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.MigrateAsync(DatabaseFacade databaseFacade, CancellationToken cancellationToken)&#xD;
+         at Infrastructure.Persistence.Seeders.PluginSeeder.StartAsync(CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\Infrastructure\Persistence\Seeders\PluginSeeder.cs:line 30&#xD;
+info: MassTransit[0]&#xD;
+      Bus started: rabbitmq://localhost/&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker started&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Starting recycle bin cleanup&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      No expired agents found in recycle bin&#xD;
+info: MassTransit[0]&#xD;
+      Bus started: rabbitmq://localhost/&#xD;
+info: Microsoft.EntityFrameworkCore.Update[30100]&#xD;
+      Saved 3 entities to in-memory store.&#xD;
+info: Startup[0]&#xD;
+      Starting application setup.&#xD;
+[xUnit.net 00:00:03.63]       Expected response.StatusCode to be True, but found False.&#xD;
+[xUnit.net 00:00:03.64]       Stack Trace:&#xD;
+[xUnit.net 00:00:03.64]            at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)&#xD;
+[xUnit.net 00:00:03.64]            at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)&#xD;
+[xUnit.net 00:00:03.64]            at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)&#xD;
+[xUnit.net 00:00:03.64]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)&#xD;
+[xUnit.net 00:00:03.64]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)&#xD;
+[xUnit.net 00:00:03.64]            at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)&#xD;
+[xUnit.net 00:00:03.64]            at FluentAssertions.Primitives.BooleanAssertions`1.BeTrue(String because, Object[] becauseArgs)&#xD;
+[xUnit.net 00:00:03.64]         C:\Users\pablo\repos\orchid-core\services\backend\tests\Integration\Agent.IntegrationTests\AgentOwnershipOperationsTests.cs(220,0): at Agent.IntegrationTests.AgentOwnershipOperationsTests.DeleteAgent_Should_Succeed_For_Owner()&#xD;
+[xUnit.net 00:00:03.64]         --- End of stack trace from previous location ---&#xD;
+warn: LuckyPennySoftware.MediatR.License[0]&#xD;
+      You do not have a valid license key for the Lucky Penny software MediatR. This is allowed for development and testing scenarios. If you are running in production you are required to have a licensed version. Please visit https://luckypennysoftware.com to obtain a valid license.&#xD;
+info: Startup[0]&#xD;
+      MediatR handlers registered&#xD;
+info: Startup[0]&#xD;
+      Infrastructure services registered&#xD;
+info: Startup[0]&#xD;
+      Telemetry services registered&#xD;
+info: Startup[0]&#xD;
+      WebApi adapters registered&#xD;
+info: Startup[0]&#xD;
+      Swagger configured&#xD;
+info: Startup[0]&#xD;
+      CORS policy added&#xD;
+info: Startup[0]&#xD;
+      Starting application setup.&#xD;
+info: Startup[0]&#xD;
+      MediatR handlers registered&#xD;
+info: Startup[0]&#xD;
+      Infrastructure services registered&#xD;
+info: Startup[0]&#xD;
+      Telemetry services registered&#xD;
+info: Startup[0]&#xD;
+      WebApi adapters registered&#xD;
+info: Startup[0]&#xD;
+      Swagger configured&#xD;
+info: Startup[0]&#xD;
+      CORS policy added&#xD;
+dbug: Microsoft.AspNetCore.SignalR.Internal.DefaultHubProtocolResolver[1]&#xD;
+      Registered SignalR Protocol: json, implemented by Microsoft.AspNetCore.SignalR.Protocol.JsonHubProtocol.&#xD;
+info: MassTransit[0]&#xD;
+      Configured endpoint CreditNotificationHandler, Consumer: Infrastructure.Messaging.Consumers.CreditNotificationHandler&#xD;
+dbug: Microsoft.AspNetCore.SignalR.Internal.DefaultHubProtocolResolver[1]&#xD;
+      Registered SignalR Protocol: json, implemented by Microsoft.AspNetCore.SignalR.Protocol.JsonHubProtocol.&#xD;
+info: Startup[0]&#xD;
+      Application configuration complete - running.&#xD;
+fail: Infrastructure.Persistence.Seeders.PluginSeeder[0]&#xD;
+      Error during plugin seeding&#xD;
+      System.InvalidOperationException: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetRelationalService[TService](IInfrastructure`1 databaseFacade)&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.MigrateAsync(DatabaseFacade databaseFacade, CancellationToken cancellationToken)&#xD;
+         at Infrastructure.Persistence.Seeders.PluginSeeder.StartAsync(CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\Infrastructure\Persistence\Seeders\PluginSeeder.cs:line 30&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker started&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Starting recycle bin cleanup&#xD;
+info: MassTransit[0]&#xD;
+      Configured endpoint CreditNotificationHandler, Consumer: Infrastructure.Messaging.Consumers.CreditNotificationHandler&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      No expired agents found in recycle bin&#xD;
+info: Startup[0]&#xD;
+      Application configuration complete - running.&#xD;
+fail: Infrastructure.Persistence.Seeders.PluginSeeder[0]&#xD;
+      Error during plugin seeding&#xD;
+      System.InvalidOperationException: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetRelationalService[TService](IInfrastructure`1 databaseFacade)&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.MigrateAsync(DatabaseFacade databaseFacade, CancellationToken cancellationToken)&#xD;
+         at Infrastructure.Persistence.Seeders.PluginSeeder.StartAsync(CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\Infrastructure\Persistence\Seeders\PluginSeeder.cs:line 30&#xD;
+info: Microsoft.EntityFrameworkCore.Update[30100]&#xD;
+      Saved 3 entities to in-memory store.&#xD;
+info: MassTransit[0]&#xD;
+      Bus started: rabbitmq://localhost/&#xD;
+warn: LuckyPennySoftware.MediatR.License[0]&#xD;
+      You do not have a valid license key for the Lucky Penny software MediatR. This is allowed for development and testing scenarios. If you are running in production you are required to have a licensed version. Please visit https://luckypennysoftware.com to obtain a valid license.&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker started&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Starting recycle bin cleanup&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      No expired agents found in recycle bin&#xD;
+[xUnit.net 00:00:03.84]       Expected collection to contain 2 item(s), but found 4: {&#xD;
+[xUnit.net 00:00:03.84]           Application.UseCases.Agent.Common.AgentDto&#xD;
+[xUnit.net 00:00:03.84]           {&#xD;
+[xUnit.net 00:00:03.84]               AvatarUrl = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]               CreatedAt = &lt;2025-12-22 21:39:39.1516614&gt;,&#xD;
+[xUnit.net 00:00:03.84]               Description = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]               Id = {9ad025dc-2be7-4e0f-b79c-39060dd5ea9c},&#xD;
+[xUnit.net 00:00:03.84]               IsPublic = True,&#xD;
+[xUnit.net 00:00:03.84]               Language = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]               Name = "Public Agent 2",&#xD;
+[xUnit.net 00:00:03.84]               Personality = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]               PersonalityTemplateId = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]               Plugins = {empty},&#xD;
+[xUnit.net 00:00:03.84]               Stats = Application.UseCases.Agent.Common.AgentStatsDto&#xD;
+[xUnit.net 00:00:03.84]               {&#xD;
+[xUnit.net 00:00:03.84]                   AvgRating = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]                   LastUsed = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]                   TotalConversations = 0&#xD;
+[xUnit.net 00:00:03.84]               },&#xD;
+[xUnit.net 00:00:03.84]               UpdatedAt = &lt;2025-12-22 21:39:39.1516615&gt;,&#xD;
+[xUnit.net 00:00:03.84]               UserId = {fe454bb3-9820-4820-a15c-b82f1d5aacd4}&#xD;
+[xUnit.net 00:00:03.84]           },&#xD;
+[xUnit.net 00:00:03.84]           Application.UseCases.Agent.Common.AgentDto&#xD;
+[xUnit.net 00:00:03.84]           {&#xD;
+[xUnit.net 00:00:03.84]               AvatarUrl = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]               CreatedAt = &lt;2025-12-22 21:39:39.1516609&gt;,&#xD;
+[xUnit.net 00:00:03.84]               Description = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]               Id = {50945c8b-a71c-4103-8f09-148b7c57a536},&#xD;
+[xUnit.net 00:00:03.84]               IsPublic = True,&#xD;
+[xUnit.net 00:00:03.84]               Language = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]               Name = "Public Agent 1",&#xD;
+[xUnit.net 00:00:03.84]               Personality = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]               PersonalityTemplateId = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]               Plugins = {empty},&#xD;
+[xUnit.net 00:00:03.84]               Stats = Application.UseCases.Agent.Common.AgentStatsDto&#xD;
+[xUnit.net 00:00:03.84]               {&#xD;
+[xUnit.net 00:00:03.84]                   AvgRating = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]                   LastUsed = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]                   TotalConversations = 0&#xD;
+[xUnit.net 00:00:03.84]               },&#xD;
+[xUnit.net 00:00:03.84]               UpdatedAt = &lt;2025-12-22 21:39:39.1516609&gt;,&#xD;
+[xUnit.net 00:00:03.84]               UserId = {5c24f3df-7915-4e39-894c-9b127e23dea5}&#xD;
+[xUnit.net 00:00:03.84]           },&#xD;
+[xUnit.net 00:00:03.84]           Application.UseCases.Agent.Common.AgentDto&#xD;
+[xUnit.net 00:00:03.84]           {&#xD;
+[xUnit.net 00:00:03.84]               AvatarUrl = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]               CreatedAt = &lt;2025-12-22 21:39:38.1952227&gt;,&#xD;
+[xUnit.net 00:00:03.84]               Description = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.84]               Id = {e08d391d-cd6e-44c0-829d-48abdd5f3002},&#xD;
+[xUnit.net 00:00:03.84]               IsPublic = True,&#xD;
+[xUnit.net 00:00:03.85]               Language = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.85]               Name = "Public Agent 2",&#xD;
+[xUnit.net 00:00:03.85]               Personality = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.85]               PersonalityTemplateId = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.85]               Plugins = {empty},&#xD;
+[xUnit.net 00:00:03.85]               Stats = Application.UseCases.Agent.Common.AgentStatsDto&#xD;
+[xUnit.net 00:00:03.85]               {&#xD;
+[xUnit.net 00:00:03.85]                   AvgRating = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.85]                   LastUsed = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.85]                   TotalConversations = 0&#xD;
+[xUnit.net 00:00:03.85]               },&#xD;
+[xUnit.net 00:00:03.85]               UpdatedAt = &lt;2025-12-22 21:39:38.1952227&gt;,&#xD;
+[xUnit.net 00:00:03.85]               UserId = {2d18ab3e-db98-4c2c-9aec-a06e4f2f6f95}&#xD;
+[xUnit.net 00:00:03.85]           },&#xD;
+[xUnit.net 00:00:03.85]           Application.UseCases.Agent.Common.AgentDto&#xD;
+[xUnit.net 00:00:03.85]           {&#xD;
+[xUnit.net 00:00:03.85]               AvatarUrl = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.85]               CreatedAt = &lt;2025-12-22 21:39:38.1952224&gt;,&#xD;
+[xUnit.net 00:00:03.85]               Description = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.85]               Id = {10c745ea-1cbb-4d35-a368-0f13f8f25b7f},&#xD;
+[xUnit.net 00:00:03.85]               IsPublic = True,&#xD;
+[xUnit.net 00:00:03.85]               Language = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.85]               Name = "Public Agent 1",&#xD;
+[xUnit.net 00:00:03.85]               Personality = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.85]               PersonalityTemplateId = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.85]               Plugins = {empty},&#xD;
+info: Startup[0]&#xD;
+      Starting application setup.&#xD;
+[xUnit.net 00:00:03.85]               Stats = Application.UseCases.Agent.Common.AgentStatsDto&#xD;
+[xUnit.net 00:00:03.85]               {&#xD;
+[xUnit.net 00:00:03.85]                   AvgRating = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.85]                   LastUsed = &lt;null&gt;,&#xD;
+[xUnit.net 00:00:03.85]                   TotalConversations = 0&#xD;
+[xUnit.net 00:00:03.85]               },&#xD;
+[xUnit.net 00:00:03.85]               UpdatedAt = &lt;2025-12-22 21:39:38.1952225&gt;,&#xD;
+[xUnit.net 00:00:03.85]               UserId = {bd29cef1-cb7c-472f-90bc-a654d5282971}&#xD;
+[xUnit.net 00:00:03.85]           }&#xD;
+[xUnit.net 00:00:03.85]       }.&#xD;
+[xUnit.net 00:00:03.85]       Stack Trace:&#xD;
+[xUnit.net 00:00:03.85]            at FluentAssertions.Execution.LateBoundTestFramework.Throw(String message)&#xD;
+[xUnit.net 00:00:03.85]            at FluentAssertions.Execution.DefaultAssertionStrategy.HandleFailure(String message)&#xD;
+[xUnit.net 00:00:03.85]            at FluentAssertions.Execution.AssertionScope.AddPreFormattedFailure(String formattedFailureMessage)&#xD;
+[xUnit.net 00:00:03.85]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)&#xD;
+[xUnit.net 00:00:03.85]            at FluentAssertions.Execution.AssertionChain.FailWith(Func`1 getFailureReason)&#xD;
+[xUnit.net 00:00:03.85]            at FluentAssertions.Execution.AssertionChain.FailWith(String message, Object[] args)&#xD;
+[xUnit.net 00:00:03.85]            at FluentAssertions.Collections.GenericCollectionAssertions`3.HaveCount(Int32 expected, String because, Object[] becauseArgs)&#xD;
+[xUnit.net 00:00:03.85]         C:\Users\pablo\repos\orchid-core\services\backend\tests\Integration\Agent.IntegrationTests\AgentOwnershipOperationsTests.cs(366,0): at Agent.IntegrationTests.AgentOwnershipOperationsTests.Unauthenticated_User_Can_See_Public_Agents_Only()&#xD;
+[xUnit.net 00:00:03.85]         --- End of stack trace from previous location ---&#xD;
+info: Startup[0]&#xD;
+      MediatR handlers registered&#xD;
+info: Startup[0]&#xD;
+      Infrastructure services registered&#xD;
+info: Startup[0]&#xD;
+      Telemetry services registered&#xD;
+info: Startup[0]&#xD;
+      WebApi adapters registered&#xD;
+info: Startup[0]&#xD;
+      Swagger configured&#xD;
+info: Startup[0]&#xD;
+      CORS policy added&#xD;
+info: Microsoft.EntityFrameworkCore.Update[30100]&#xD;
+      Saved 6 entities to in-memory store.&#xD;
+warn: LuckyPennySoftware.MediatR.License[0]&#xD;
+      You do not have a valid license key for the Lucky Penny software MediatR. This is allowed for development and testing scenarios. If you are running in production you are required to have a licensed version. Please visit https://luckypennysoftware.com to obtain a valid license.&#xD;
+info: MassTransit[0]&#xD;
+      Bus started: rabbitmq://localhost/&#xD;
+info: MassTransit[0]&#xD;
+      Bus started: rabbitmq://localhost/&#xD;
+dbug: Microsoft.AspNetCore.SignalR.Internal.DefaultHubProtocolResolver[1]&#xD;
+      Registered SignalR Protocol: json, implemented by Microsoft.AspNetCore.SignalR.Protocol.JsonHubProtocol.&#xD;
+info: Startup[0]&#xD;
+      Starting application setup.&#xD;
+info: MassTransit[0]&#xD;
+      Configured endpoint CreditNotificationHandler, Consumer: Infrastructure.Messaging.Consumers.CreditNotificationHandler&#xD;
+info: Startup[0]&#xD;
+      Application configuration complete - running.&#xD;
+fail: Infrastructure.Persistence.Seeders.PluginSeeder[0]&#xD;
+      Error during plugin seeding&#xD;
+      System.InvalidOperationException: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetRelationalService[TService](IInfrastructure`1 databaseFacade)&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.MigrateAsync(DatabaseFacade databaseFacade, CancellationToken cancellationToken)&#xD;
+         at Infrastructure.Persistence.Seeders.PluginSeeder.StartAsync(CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\Infrastructure\Persistence\Seeders\PluginSeeder.cs:line 30&#xD;
+info: Startup[0]&#xD;
+      MediatR handlers registered&#xD;
+info: Startup[0]&#xD;
+      Infrastructure services registered&#xD;
+info: Startup[0]&#xD;
+      Telemetry services registered&#xD;
+info: Startup[0]&#xD;
+      WebApi adapters registered&#xD;
+info: Startup[0]&#xD;
+      Swagger configured&#xD;
+info: Startup[0]&#xD;
+      CORS policy added&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker started&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Starting recycle bin cleanup&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      No expired agents found in recycle bin&#xD;
+info: Microsoft.EntityFrameworkCore.Update[30100]&#xD;
+      Saved 2 entities to in-memory store.&#xD;
+dbug: Microsoft.AspNetCore.SignalR.Internal.DefaultHubProtocolResolver[1]&#xD;
+      Registered SignalR Protocol: json, implemented by Microsoft.AspNetCore.SignalR.Protocol.JsonHubProtocol.&#xD;
+warn: LuckyPennySoftware.MediatR.License[0]&#xD;
+      You do not have a valid license key for the Lucky Penny software MediatR. This is allowed for development and testing scenarios. If you are running in production you are required to have a licensed version. Please visit https://luckypennysoftware.com to obtain a valid license.&#xD;
+info: MassTransit[0]&#xD;
+      Configured endpoint CreditNotificationHandler, Consumer: Infrastructure.Messaging.Consumers.CreditNotificationHandler&#xD;
+info: Startup[0]&#xD;
+      Application configuration complete - running.&#xD;
+fail: Infrastructure.Persistence.Seeders.PluginSeeder[0]&#xD;
+      Error during plugin seeding&#xD;
+      System.InvalidOperationException: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetRelationalService[TService](IInfrastructure`1 databaseFacade)&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.MigrateAsync(DatabaseFacade databaseFacade, CancellationToken cancellationToken)&#xD;
+         at Infrastructure.Persistence.Seeders.PluginSeeder.StartAsync(CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\Infrastructure\Persistence\Seeders\PluginSeeder.cs:line 30&#xD;
+info: Microsoft.EntityFrameworkCore.Update[30100]&#xD;
+      Saved 1 entities to in-memory store.&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker started&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Starting recycle bin cleanup&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      No expired agents found in recycle bin&#xD;
+info: Microsoft.EntityFrameworkCore.Update[30100]&#xD;
+      Saved 5 entities to in-memory store.&#xD;
+info: MassTransit[0]&#xD;
+      Bus started: rabbitmq://localhost/&#xD;
+info: Startup[0]&#xD;
+      Starting application setup.&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker stopped&#xD;
+info: Startup[0]&#xD;
+      MediatR handlers registered&#xD;
+info: Startup[0]&#xD;
+      Infrastructure services registered&#xD;
+info: Startup[0]&#xD;
+      Telemetry services registered&#xD;
+info: Startup[0]&#xD;
+      WebApi adapters registered&#xD;
+info: Startup[0]&#xD;
+      Swagger configured&#xD;
+info: Startup[0]&#xD;
+      CORS policy added&#xD;
+info: MassTransit[0]&#xD;
+      Bus started: rabbitmq://localhost/&#xD;
+dbug: Microsoft.AspNetCore.SignalR.Internal.DefaultHubProtocolResolver[1]&#xD;
+      Registered SignalR Protocol: json, implemented by Microsoft.AspNetCore.SignalR.Protocol.JsonHubProtocol.&#xD;
+info: MassTransit[0]&#xD;
+      Bus stopped: rabbitmq://localhost/&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker stopped&#xD;
+info: MassTransit[0]&#xD;
+      Bus stopped: rabbitmq://localhost/&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker stopped&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker stopped&#xD;
+info: MassTransit[0]&#xD;
+      Bus stopped: rabbitmq://localhost/&#xD;
+info: MassTransit[0]&#xD;
+      Bus stopped: rabbitmq://localhost/&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker stopped&#xD;
+info: MassTransit[0]&#xD;
+      Configured endpoint CreditNotificationHandler, Consumer: Infrastructure.Messaging.Consumers.CreditNotificationHandler&#xD;
+info: Startup[0]&#xD;
+      Application configuration complete - running.&#xD;
+fail: Infrastructure.Persistence.Seeders.PluginSeeder[0]&#xD;
+      Error during plugin seeding&#xD;
+      System.InvalidOperationException: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetRelationalService[TService](IInfrastructure`1 databaseFacade)&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.MigrateAsync(DatabaseFacade databaseFacade, CancellationToken cancellationToken)&#xD;
+         at Infrastructure.Persistence.Seeders.PluginSeeder.StartAsync(CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\Infrastructure\Persistence\Seeders\PluginSeeder.cs:line 30&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker started&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Starting recycle bin cleanup&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      No expired agents found in recycle bin&#xD;
+info: Microsoft.EntityFrameworkCore.Update[30100]&#xD;
+      Saved 3 entities to in-memory store.&#xD;
+warn: LuckyPennySoftware.MediatR.License[0]&#xD;
+      You do not have a valid license key for the Lucky Penny software MediatR. This is allowed for development and testing scenarios. If you are running in production you are required to have a licensed version. Please visit https://luckypennysoftware.com to obtain a valid license.&#xD;
+info: MassTransit[0]&#xD;
+      Bus stopped: rabbitmq://localhost/&#xD;
+fail: WebApi.Middleware.GlobalExceptionMiddleware[0]&#xD;
+      An unhandled exception occurred&#xD;
+      System.UnauthorizedAccessException: User e76a8a24-3333-446f-b00e-4994af6ffcac is not authorized to delete agent 529ef28a-f30f-4094-bb80-b88114eaaf5f.&#xD;
+         at Application.UseCases.Agent.SoftDeleteAgent.SoftDeleteAgentHandler.Handle(SoftDeleteAgentCommand command, CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Core\Application\UseCases\Agent\SoftDeleteAgent\SoftDeleteAgentHandler.cs:line 27&#xD;
+         at Infrastructure.Telemetry.Ai.Spreadsheet.SpreadsheetTelemetryBehavior`2.Handle(TRequest request, RequestHandlerDelegate`1 next, CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\Infrastructure\Telemetry\Ai\Spreadsheet\SpreadsheetTelemetryBehavior.cs:line 35&#xD;
+         at Infrastructure.Telemetry.Ai.Langfuse.LangfuseTelemetryBehavior`2.Handle(TRequest request, RequestHandlerDelegate`1 next, CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\Infrastructure\Telemetry\Ai\Langfuse\LangfuseTelemetryBehavior.cs:line 36&#xD;
+         at Infrastructure.Telemetry.Ai.Langfuse.LangfuseTelemetryBehavior`2.Handle(TRequest request, RequestHandlerDelegate`1 next, CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\Infrastructure\Telemetry\Ai\Langfuse\LangfuseTelemetryBehavior.cs:line 52&#xD;
+         at Infrastructure.Telemetry.Ai.Spreadsheet.SpreadsheetTelemetryBehavior`2.Handle(TRequest request, RequestHandlerDelegate`1 next, CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\Infrastructure\Telemetry\Ai\Spreadsheet\SpreadsheetTelemetryBehavior.cs:line 35&#xD;
+         at WebApi.Controllers.AgentsController.SoftDeleteAgent(Guid id) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\WebApi\Controllers\AgentsController.cs:line 153&#xD;
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)&#xD;
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.&lt;InvokeActionMethodAsync&gt;g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)&#xD;
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.&lt;InvokeNextActionFilterAsync&gt;g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)&#xD;
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)&#xD;
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State&amp; next, Scope&amp; scope, Object&amp; state, Boolean&amp; isCompleted)&#xD;
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.&lt;InvokeFilterPipelineAsync&gt;g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)&#xD;
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.&lt;InvokeAsync&gt;g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)&#xD;
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.&lt;InvokeAsync&gt;g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)&#xD;
+         at WebApi.Middleware.AuthorizationMiddleware.InvokeAsync(HttpContext context) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\WebApi\Middleware\AuthorizationMiddleware.cs:line 22&#xD;
+         at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)&#xD;
+         at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)&#xD;
+         at Microsoft.AspNetCore.Localization.RequestLocalizationMiddleware.Invoke(HttpContext context)&#xD;
+         at Program.&lt;&gt;c.&lt;&lt;&lt;Main&gt;$&gt;b__0_10&gt;d.MoveNext() in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\WebApi\Program.cs:line 364&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at WebApi.Middleware.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\WebApi\Middleware\GlobalExceptionMiddleware.cs:line 27&#xD;
+info: Startup[0]&#xD;
+      Starting application setup.&#xD;
+info: Startup[0]&#xD;
+      MediatR handlers registered&#xD;
+info: Startup[0]&#xD;
+      Infrastructure services registered&#xD;
+info: Startup[0]&#xD;
+      Telemetry services registered&#xD;
+info: Startup[0]&#xD;
+      WebApi adapters registered&#xD;
+info: Startup[0]&#xD;
+      Swagger configured&#xD;
+info: Startup[0]&#xD;
+      CORS policy added&#xD;
+dbug: Microsoft.AspNetCore.SignalR.Internal.DefaultHubProtocolResolver[1]&#xD;
+      Registered SignalR Protocol: json, implemented by Microsoft.AspNetCore.SignalR.Protocol.JsonHubProtocol.&#xD;
+info: MassTransit[0]&#xD;
+      Configured endpoint CreditNotificationHandler, Consumer: Infrastructure.Messaging.Consumers.CreditNotificationHandler&#xD;
+info: Startup[0]&#xD;
+      Application configuration complete - running.&#xD;
+info: MassTransit[0]&#xD;
+      Bus started: rabbitmq://localhost/&#xD;
+fail: Infrastructure.Persistence.Seeders.PluginSeeder[0]&#xD;
+      Error during plugin seeding&#xD;
+      System.InvalidOperationException: Relational-specific methods can only be used when the context is using a relational database provider.&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetRelationalService[TService](IInfrastructure`1 databaseFacade)&#xD;
+         at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.MigrateAsync(DatabaseFacade databaseFacade, CancellationToken cancellationToken)&#xD;
+         at Infrastructure.Persistence.Seeders.PluginSeeder.StartAsync(CancellationToken cancellationToken) in C:\Users\pablo\repos\orchid-core\services\backend\src\Adapters\Infrastructure\Persistence\Seeders\PluginSeeder.cs:line 30&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker started&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Starting recycle bin cleanup&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      No expired agents found in recycle bin&#xD;
+info: Microsoft.EntityFrameworkCore.Update[30100]&#xD;
+      Saved 1 entities to in-memory store.&#xD;
+warn: LuckyPennySoftware.MediatR.License[0]&#xD;
+      You do not have a valid license key for the Lucky Penny software MediatR. This is allowed for development and testing scenarios. If you are running in production you are required to have a licensed version. Please visit https://luckypennysoftware.com to obtain a valid license.&#xD;
+info: Microsoft.EntityFrameworkCore.Update[30100]&#xD;
+      Saved 1 entities to in-memory store.&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker stopped&#xD;
+info: MassTransit[0]&#xD;
+      Bus stopped: rabbitmq://localhost/&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker stopped&#xD;
+info: MassTransit[0]&#xD;
+      Bus stopped: rabbitmq://localhost/&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker stopped&#xD;
+info: MassTransit[0]&#xD;
+      Bus stopped: rabbitmq://localhost/&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker stopped&#xD;
+info: MassTransit[0]&#xD;
+      Bus stopped: rabbitmq://localhost/&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker stopped&#xD;
+info: MassTransit[0]&#xD;
+      Bus stopped: rabbitmq://localhost/&#xD;
+info: Workers.RecycleBinCleanup.RecycleBinCleanupWorker[0]&#xD;
+      Recycle Bin Cleanup Worker stopped&#xD;
+info: MassTransit[0]&#xD;
+      Bus started: rabbitmq://localhost/&#xD;
+warn: MassTransit[0]&#xD;
+      Failed to stop bus: rabbitmq://localhost/DAEMONIUM_testhost_bus_9n1oyyy3mgon1b6jbdxrdewhdc?temporary=true (Not Started)&#xD;
+[xUnit.net 00:00:04.59]   Finished:    Agent.IntegrationTests&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="DAEMONIUM" outcome="Error" timestamp="2025-12-22T18:39:39.0185507-03:00">
+        <Text>[xUnit.net 00:00:03.63]     Agent.IntegrationTests.AgentOwnershipOperationsTests.DeleteAgent_Should_Succeed_For_Owner [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="DAEMONIUM" outcome="Error" timestamp="2025-12-22T18:39:39.2254162-03:00">
+        <Text>[xUnit.net 00:00:03.84]     Agent.IntegrationTests.AgentOwnershipOperationsTests.Unauthenticated_User_Can_See_Public_Agents_Only [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>
