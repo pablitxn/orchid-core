@@ -1,0 +1,67 @@
+name: CodeQL Security Analysis
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "services/backend/**"
+      - ".github/workflows/codeql.yaml"
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - "services/backend/**"
+      - ".github/workflows/codeql.yaml"
+  schedule:
+    # Run weekly on Sundays at 00:00 UTC
+    - cron: "0 0 * * 0"
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+env:
+  DOTNET_VERSION: "9.0.x"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  analyze:
+    name: Analyze C#
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          queries: +security-extended,security-and-quality
+          # Customize CodeQL configuration
+          config: |
+            paths:
+              - services/backend/src
+            paths-ignore:
+              - services/backend/tests
+              - "**/*.Tests.csproj"
+              - "**/obj/**"
+              - "**/bin/**"
+
+      - name: Build solution
+        run: |
+          dotnet restore services/backend/Backend.sln
+          dotnet build services/backend/Backend.sln --configuration Release --no-restore
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:csharp"
+          upload: true

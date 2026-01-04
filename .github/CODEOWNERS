@@ -1,0 +1,22 @@
+# CODEOWNERS for Orchid Core
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything
+* @pablitxn
+
+# Backend service owners
+/services/backend/ @pablitxn
+
+# Infrastructure and CI/CD
+/.github/ @pablitxn
+/infrastructure/ @pablitxn
+/Dockerfile @pablitxn
+/docker-compose*.yaml @pablitxn
+/docker-compose*.yml @pablitxn
+
+# Documentation
+/docs/ @pablitxn
+/*.md @pablitxn
+
+# Scripts
+/scripts/ @pablitxn
