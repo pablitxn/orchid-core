@@ -41,6 +41,13 @@ workflow_status:
         status: "optional"
         agent: "analyst"
         command: "/bmad:bmm:workflows:research"
+      - id: "product-brief"
+        status: "completed"
+        agent: "analyst"
+        command: "/bmad:bmm:workflows:create-product-brief"
+        completed_at: "2026-01-04"
+        outputs:
+          - "_bmad-output/planning-artifacts/product-brief-orchid-core-2026-01-04.md"
 
   # Phase 2: Planning
   - phase: 2

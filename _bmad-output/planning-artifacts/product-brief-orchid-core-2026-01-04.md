@@ -1,5 +1,7 @@
 ---
-stepsCompleted: [1, 2, 3, 4]
+stepsCompleted: [1, 2, 3, 4, 5, 6]
+workflowComplete: true
+completedAt: 2026-01-04
 inputDocuments:
   - docs/index.md
   - docs/project-overview.md
@@ -243,3 +245,92 @@ This single metric captures value on both sides:
 - Consumers are using agents (getting value)
 - Agents use plugins (creators get installs/revenue)
 - Platform is enabling real work to get done
+
+---
+
+## MVP Scope
+
+### Core Features (Must Have)
+
+#### For Consumers (Sam)
+
+| Feature | Description | Success Criteria |
+|---------|-------------|------------------|
+| **Agent Creation** | Create custom AI agents with name, personality, and configuration | Agent created in < 5 minutes |
+| **Agent Chat** | Conversational interface to interact with agents | Real-time responses, context retention |
+| **Plugin Installation** | Browse marketplace and add plugins to agents | One-click install, immediate availability |
+| **Knowledge Base** | Upload documents to give agents context | Supports common formats, RAG search works |
+| **Account & Auth** | Sign up, log in, manage profile | Secure authentication, session management |
+
+#### For Creators (Alex)
+
+| Feature | Description | Success Criteria |
+|---------|-------------|------------------|
+| **Plugin Publishing** | Submit MCP/OpenAPI plugins to marketplace | Submission → review → published flow |
+| **Plugin Management** | Update, version, and monitor plugins | Version history, install stats visible |
+| **Marketplace Listing** | Plugin appears in searchable catalog | Discoverable by consumers |
+| **Monetization** | Set pricing, receive revenue from sales | Payments processed, revenue visible |
+
+#### Platform Foundation
+
+| Feature | Description | Success Criteria |
+|---------|-------------|------------------|
+| **Marketplace** | Searchable catalog of plugins | Search, filter, categories work |
+| **Credits System** | Usage-based consumption model | Credits deducted on AI usage |
+| **Subscription Plans** | Tiered access and credit allocation | Plans selectable, billing works |
+
+---
+
+### Out of Scope for MVP
+
+| Feature | Rationale | Target Phase |
+|---------|-----------|--------------|
+| **Multi-Agent Teams** | Adds complexity, core agent value comes first | v2 |
+| **Workflows & Automation** | Nice-to-have, not essential for initial value | v2 |
+| **Video Calls / Huddles** | Not core to agent platform value | v2+ |
+| **Enterprise Features** | SSO, self-hosting, advanced admin - wait for traction | v2+ |
+| **Advanced Analytics** | Basic metrics first, expand based on needs | v2 |
+| **Mobile Apps** | Web-first, mobile can follow | v2+ |
+| **API Access** | Platform UI first, API for power users later | v2 |
+
+---
+
+### MVP Success Criteria
+
+The MVP is successful when:
+
+| Criteria | Target | Validation |
+|----------|--------|------------|
+| **Agents are useful** | Users create agents that solve real problems | 50+ agents created, users returning |
+| **Marketplace works** | Creators publish, consumers install | 10+ plugins, installs happening |
+| **Monetization validates** | Revenue flows to creators | First $100 in creator earnings |
+| **Retention is healthy** | Users come back | >40% week-1 retention |
+
+**Go/No-Go Decision Point:** At 3 months, evaluate if core loop is working before investing in v2 features.
+
+---
+
+### Future Vision
+
+#### Phase 2: Teams & Collaboration
+- Multi-agent teams that work together
+- Shared workspaces for organizations
+- Agent-to-agent communication
+
+#### Phase 3: Workflows & Automation
+- Visual workflow builder
+- Scheduled agent tasks
+- Event-driven triggers
+- Integration with external systems
+
+#### Phase 4: Enterprise & Scale
+- SSO / SAML authentication
+- Self-hosting options
+- Advanced admin controls
+- Audit logs and compliance
+
+#### Long-term Vision (2-3 years)
+- **The "App Store" for AI agents** - largest marketplace of AI capabilities
+- **AI-native productivity platform** - where work gets done with agent teams
+- **Creator economy for AI** - developers earn meaningful revenue from their expertise
+- **Enterprise AI orchestration** - companies deploy custom agent fleets
