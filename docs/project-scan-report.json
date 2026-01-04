@@ -1,0 +1,51 @@
+{
+  "workflow_version": "1.2.0",
+  "timestamps": {
+    "started": "2026-01-04T12:00:00Z",
+    "last_updated": "2026-01-04T12:30:00Z",
+    "completed": "2026-01-04T12:30:00Z"
+  },
+  "mode": "initial_scan",
+  "scan_level": "exhaustive",
+  "project_root": "C:\\Users\\pablo\\repos\\orchid-core",
+  "output_folder": "C:\\Users\\pablo\\repos\\orchid-core\\docs",
+  "status": "completed",
+  "completed_steps": [
+    {"step": "step_1", "status": "completed", "summary": "Classified as monolith with 1 part (backend)"},
+    {"step": "step_2", "status": "completed", "summary": "Discovered existing docs: readme.md, AGENTS.md, ADRs"},
+    {"step": "step_3", "status": "completed", "summary": "Analyzed tech stack: .NET 9, EF Core, Redis, RabbitMQ, Semantic Kernel"},
+    {"step": "step_4", "status": "completed", "summary": "Exhaustive scan: 44 entities, 86 ports, 22 controllers, 100+ use cases"},
+    {"step": "step_5", "status": "completed", "summary": "Generated source tree analysis"},
+    {"step": "step_6", "status": "completed", "summary": "Extracted development and operational info"},
+    {"step": "step_7", "status": "completed", "summary": "Generated architecture documentation"},
+    {"step": "step_8", "status": "completed", "summary": "Generated API contracts and data models"},
+    {"step": "step_9", "status": "completed", "summary": "Generated master index"}
+  ],
+  "project_types": [
+    {"part_id": "backend", "project_type_id": "backend", "display_name": "Backend (.NET/C#)"}
+  ],
+  "findings": {
+    "project_classification": {
+      "repository_type": "monolith",
+      "parts_count": 1,
+      "primary_tech": ".NET/C# Hexagonal Architecture"
+    },
+    "domain_entities": 44,
+    "ports_interfaces": 86,
+    "api_controllers": 22,
+    "use_cases": 100,
+    "db_migrations": 11,
+    "test_projects": 15
+  },
+  "outputs_generated": [
+    "project-scan-report.json",
+    "index.md",
+    "project-overview.md",
+    "architecture.md",
+    "api-contracts.md",
+    "data-models.md",
+    "source-tree-analysis.md",
+    "development-guide.md"
+  ],
+  "resume_instructions": "Scan completed. All documentation generated."
+}
