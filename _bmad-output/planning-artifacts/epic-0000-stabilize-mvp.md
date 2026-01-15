@@ -237,12 +237,16 @@ This epic focuses on transforming the current experimental codebase into a produ
 
 ---
 
-## Open Questions
+## Resolved Questions
 
-1. What is the current test coverage baseline?
-2. Are there any known security issues to prioritize?
-3. Which orphaned database tables can be dropped vs. need data migration?
-4. Is there any code that appears dead but is used by external systems?
+| Question | Resolution | Date |
+|----------|------------|------|
+| What is the current test coverage baseline? | **12.7%** line coverage (target: 85%). Application layer at 53%. | 2026-01-15 |
+| Are there any known security issues to prioritize? | BouncyCastle.Cryptography 2.2.1 has moderate vulnerabilities (GHSA-8xfc-gm6g-vgpv, GHSA-m44j-cfrm-g8qc, GHSA-v435-xc8x-wvr9). Standard security audit will be performed. | 2026-01-15 |
+| Which orphaned database tables can be dropped vs. need data migration? | To be investigated during epic implementation. Will document findings. | 2026-01-15 |
+| Is there any code that appears dead but is used by external systems? | No external dependencies. orchid-core is self-contained. | 2026-01-15 |
+
+**Additional Finding:** Project updated to .NET 10.0 during assessment (was .NET 9.0).
 
 ---
 

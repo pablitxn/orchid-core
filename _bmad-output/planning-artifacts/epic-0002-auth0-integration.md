@@ -370,13 +370,15 @@ POST /api/auth/sync-profile → Manual profile sync trigger
 
 ---
 
-## Open Questions
+## Resolved Questions
 
-1. What social login providers should be enabled initially?
-2. Should MFA be required for admin users from day one?
-3. What's the timeline to delete archived password data?
-4. Should we allow username login or email only?
-5. How to handle users who registered but never verified email?
+| Question | Resolution | Date |
+|----------|------------|------|
+| What social login providers should be enabled initially? | **Google + GitHub** enabled at launch. | 2026-01-15 |
+| Should MFA be required for admin users from day one? | **Yes, MFA required** for admin users from day one. | 2026-01-15 |
+| What's the timeline to delete archived password data? | **6 months** retention post-migration, then delete. | 2026-01-15 |
+| Should we allow username login or email only? | **Email only** for login identifier. | 2026-01-15 |
+| How to handle users who registered but never verified email? | **Migrate and require verification** on first Auth0 login. | 2026-01-15 |
 
 ---
 

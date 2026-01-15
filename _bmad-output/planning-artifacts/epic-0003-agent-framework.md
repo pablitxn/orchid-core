@@ -463,13 +463,15 @@ Infrastructure Layer
 
 ---
 
-## Open Questions
+## Resolved Questions
 
-1. Should plugins run in isolated contexts for security?
-2. What's the plugin versioning strategy?
-3. How to handle plugin deprecation?
-4. Should conversation history be encrypted at rest?
-5. What's the maximum conversation length before forced truncation?
+| Question | Resolution | Date |
+|----------|------------|------|
+| Should plugins run in isolated contexts for security? | **Full process isolation** - plugins run in separate processes for maximum security. | 2026-01-15 |
+| What's the plugin versioning strategy? | **Strict SemVer** - Major=breaking changes, Minor=features, Patch=fixes. | 2026-01-15 |
+| How to handle plugin deprecation? | **90-day sunset period** - marked deprecated, works for 90 days, then removed. | 2026-01-15 |
+| Should conversation history be encrypted at rest? | **Yes, AES-256 encryption** for conversation data at rest. | 2026-01-15 |
+| What's the maximum conversation length before forced truncation? | **8,000 tokens** maximum context before truncation. | 2026-01-15 |
 
 ---
 

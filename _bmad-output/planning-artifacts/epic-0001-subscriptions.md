@@ -365,13 +365,15 @@ Infrastructure
 
 ---
 
-## Open Questions
+## Resolved Questions
 
-1. What are the exact credit costs per AI operation type?
-2. Should credits expire? If so, what's the policy?
-3. What's the grace period for failed payments before suspension?
-4. Should free tier users have limited credits or no access to paid features?
-5. How to handle refunds - restore credits or just Stripe refund?
+| Question | Resolution | Date |
+|----------|------------|------|
+| What are the exact credit costs per AI operation type? | **Token-based pricing**: 1 credit = 1,000 tokens. Cost calculated based on actual token usage. | 2026-01-15 |
+| Should credits expire? If so, what's the policy? | **Yes, credits expire with subscription**. When subscription ends/cancels, remaining credits expire. | 2026-01-15 |
+| What's the grace period for failed payments before suspension? | **7 days** grace period before access suspension. | 2026-01-15 |
+| Should free tier users have limited credits or no access to paid features? | **5 credits per day** for free tier users (~150 credits/month equivalent). | 2026-01-15 |
+| How to handle refunds - restore credits or just Stripe refund? | **Stripe refund only**. Credits remain unchanged when refund is processed. | 2026-01-15 |
 
 ---
 

@@ -581,13 +581,15 @@ public async Task<PagedResult<PluginSummary>> SearchPluginsAsync(
 
 ---
 
-## Open Questions
+## Resolved Questions
 
-1. Should there be a review process for all plugins or only featured?
-2. What categories should exist at launch?
-3. How to handle plugin security scanning?
-4. Should publishers be able to see who installed their plugins?
-5. What's the plugin deprecation policy?
+| Question | Resolution | Date |
+|----------|------------|------|
+| Should there be a review process for all plugins or only featured? | **All plugins reviewed** - manual review for every plugin submission. | 2026-01-15 |
+| What categories should exist at launch? | **Minimal (4 categories)**: Productivity, Data, Integration, Utilities. | 2026-01-15 |
+| How to handle plugin security scanning? | **Automated + manual** - automated security scan first, then manual review for approval. | 2026-01-15 |
+| Should publishers be able to see who installed their plugins? | **No, anonymous stats only** - publishers see install count, not user identities. | 2026-01-15 |
+| What's the plugin deprecation policy? | **60 days notice** - marked deprecated, 60 days notice, then removed from marketplace. | 2026-01-15 |
 
 ---
 
