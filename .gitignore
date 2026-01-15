@@ -13,3 +13,5 @@ apps/web/.yarnrc.yml
 .env
 **/appsettings.Local.json
 **/appsettings.local.json
+secrets.json
+**/secrets*.json

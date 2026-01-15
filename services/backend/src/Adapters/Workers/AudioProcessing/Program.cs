@@ -25,10 +25,14 @@ public static class Program
 
                     config.UsingRabbitMq((context, cfg) =>
                     {
-                        cfg.Host("localhost", "/", h =>
+                        var host = ctx.Configuration["RabbitMq:Host"] ?? "localhost";
+                        var username = ctx.Configuration["RabbitMq:Username"] ?? "guest";
+                        var password = ctx.Configuration["RabbitMq:Password"] ?? "guest";
+
+                        cfg.Host(host, "/", h =>
                         {
-                            h.Username("guest");
-                            h.Password("guest");
+                            h.Username(username);
+                            h.Password(password);
                         });
 
                         cfg.UseConsumeFilter(typeof(LangfuseConsumeFilter<>), context);

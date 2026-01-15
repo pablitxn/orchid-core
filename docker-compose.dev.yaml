@@ -15,6 +15,7 @@ services:
 
   redis-commander:
     image: rediscommander/redis-commander:latest
+    platform: linux/amd64
     container_name: orchid-core-dev-redis-commander
     networks:
       - orchid-core
@@ -161,7 +162,7 @@ services:
     environment:
       CLICKHOUSE_DB: default
       CLICKHOUSE_USER: clickhouse
-      CLICKHOUSE_PASSWORD: clickhouse # CHANGEME
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
     volumes:
       - langfuse_clickhouse_data:/var/lib/clickhouse
       - langfuse_clickhouse_logs:/var/log/clickhouse-server

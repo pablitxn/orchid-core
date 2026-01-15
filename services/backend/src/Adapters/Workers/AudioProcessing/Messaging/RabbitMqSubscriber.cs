@@ -1,12 +1,13 @@
 ﻿using AudioProcessingWorker.Handlers;
 using MassTransit;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AudioProcessingWorker.Messaging;
 
 public static class RabbitMqSubscriber
 {
-    public static IServiceCollection AddRabbitMqConsumer(this IServiceCollection services)
+    public static IServiceCollection AddRabbitMqConsumer(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddMassTransit(config =>
         {
@@ -14,10 +15,14 @@ public static class RabbitMqSubscriber
 
             config.UsingRabbitMq((context, cfg) =>
             {
-                cfg.Host("localhost", "/", h =>
+                var host = configuration["RabbitMq:Host"] ?? "localhost";
+                var username = configuration["RabbitMq:Username"] ?? "guest";
+                var password = configuration["RabbitMq:Password"] ?? "guest";
+
+                cfg.Host(host, "/", h =>
                 {
-                    h.Username("guest");
-                    h.Password("guest");
+                    h.Username(username);
+                    h.Password(password);
                 });
 
                 cfg.ReceiveEndpoint("project-created-queue",
