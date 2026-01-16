@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+- Harden API security with FluentValidation input rules, JWT algorithm enforcement, stricter CORS origins, and dependency update for BouncyCastle.
+- Add Roslynator analyzers and remove unused backend code/packages as part of dead code cleanup.
 - Fix AutoRenewToggle tests to rely on shared i18n mock and await async effects.
 - Add extensive unit tests for backend use cases to increase coverage.
 - Fix logout flow to use POST request and show toast notification on failure.

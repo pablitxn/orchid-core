@@ -117,6 +117,7 @@ public class AuthorizationMiddleware(RequestDelegate next, ILogger<Authorization
                 ValidAudience = configuration["Jwt:Audience"],
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero,
+                ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
             };

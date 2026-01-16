@@ -18,6 +18,8 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using WebApi.Hubs;
 using WebApi.Middleware;
 using Infrastructure.Services;
@@ -25,6 +27,7 @@ using WebApi;
 using Workers.RecycleBinCleanup;
 
 var builder = WebApplication.CreateBuilder(args);
+var env = builder.Environment;
 
 // ─── Load optional local settings (not committed to git) ─────────────────────
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
@@ -87,6 +90,8 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSignalR();
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
@@ -153,10 +158,38 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("MyPolicy", policy =>
     {
-        policy.WithOrigins(builder.Configuration["FrontendUrl"]!)
-            .AllowAnyMethod()
-            .AllowAnyHeader()
-            .AllowCredentials();
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+        if (allowedOrigins == null || allowedOrigins.Length == 0)
+        {
+            var frontendUrl = builder.Configuration["FrontendUrl"];
+            if (!string.IsNullOrWhiteSpace(frontendUrl))
+            {
+                allowedOrigins = [frontendUrl];
+            }
+        }
+
+        if (!env.IsDevelopment())
+        {
+            if (allowedOrigins == null || allowedOrigins.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    "CORS allowed origins must be configured for non-development environments.");
+            }
+
+            if (allowedOrigins.Any(origin => origin.Contains('*')))
+            {
+                throw new InvalidOperationException(
+                    "CORS allowed origins cannot include wildcards in non-development environments.");
+            }
+        }
+
+        if (allowedOrigins != null && allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins)
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials();
+        }
     });
 });
 logger.LogInformation("CORS policy added");
@@ -213,7 +246,6 @@ builder.Services.AddStackExchangeRedisCache(options =>
 #region Environment-Specific Services
 
 // ─── Authentication (test-double vs. JWT Bearer) ────────────────────────
-var env = builder.Environment;
 if (!env.IsEnvironment("Testing"))
 {
     // Security: Validate JWT key configuration
@@ -271,6 +303,7 @@ if (!env.IsEnvironment("Testing"))
                 ValidAudience = builder.Configuration["Jwt:Audience"],
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero,
+                ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = new SymmetricSecurityKey(
                     Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))

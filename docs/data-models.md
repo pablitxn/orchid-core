@@ -198,6 +198,18 @@ Cell data.
 | Row | int | Row index |
 | Column | int | Column index |
 | Value | string? | Cell value |
+
+---
+
+## Orphaned or Legacy Tables
+
+The following table concepts appear in legacy docs or code paths but are not
+part of the current EF Core model or migrations. Do not drop them without a DB
+audit.
+
+- WorkbookEntity
+- WorksheetEntity
+- CellEntity
 | Formula | string? | Cell formula |
 | DataType | string | Value type |
 

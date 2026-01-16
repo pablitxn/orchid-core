@@ -326,7 +326,7 @@ public class AuthController(
         // For now, log it only in development
         if (token != null && _env.IsDevelopment())
         {
-            _logger.LogWarning("DEV ONLY - Password reset token for {Email}: {Token}", request.Email, token);
+            _logger.LogWarning("DEV ONLY - Password reset token generated.");
         }
 
         // Always return success to prevent email enumeration
