@@ -1,0 +1,241 @@
+{
+  "name": "Orchid Core Development",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FEATURES - Additional tools installed via devcontainer features
+  // ═══════════════════════════════════════════════════════════════════════════
+  "features": {
+    // Git and GitHub CLI
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    // Docker-in-Docker for running containers
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": true
+    },
+    // Common utilities
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "installOhMyZsh": true,
+      "upgradePackages": false
+    }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VS CODE CUSTOMIZATIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // .NET Development
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.vscode-dotnet-runtime",
+        "kreativ-software.csharpextensions",
+        "jmrog.vscode-nuget-package-manager",
+
+        // Frontend Development
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "dsznajder.es7-react-js-snippets",
+
+        // Database & Infrastructure
+        "cweijan.vscode-postgresql-client2",
+        "cweijan.vscode-redis-client",
+        "ms-azuretools.vscode-docker",
+
+        // Git & Collaboration
+        "eamodio.gitlens",
+        "github.copilot",
+        "github.copilot-chat",
+
+        // Productivity
+        "streetsidesoftware.code-spell-checker",
+        "usernamehw.errorlens",
+        "gruntfuggly.todo-tree",
+        "wayou.vscode-todo-highlight",
+
+        // Testing
+        "formulahendry.dotnet-test-explorer",
+
+        // API Development
+        "humao.rest-client",
+        "42Crunch.vscode-openapi",
+
+        // Formatting & Linting
+        "editorconfig.editorconfig",
+        "ms-dotnettools.csharp"
+      ],
+      "settings": {
+        // Editor
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.bracketPairColorization.enabled": true,
+        "editor.guides.bracketPairs": true,
+        "editor.minimap.enabled": false,
+        "editor.fontSize": 14,
+        "editor.tabSize": 2,
+
+        // Terminal
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.fontSize": 13,
+
+        // C# / .NET
+        "[csharp]": {
+          "editor.defaultFormatter": "ms-dotnettools.csharp",
+          "editor.formatOnSave": true,
+          "editor.tabSize": 4
+        },
+        "dotnet.defaultSolution": "services/backend/Backend.sln",
+        "omnisharp.enableRoslynAnalyzers": true,
+        "omnisharp.enableEditorConfigSupport": true,
+
+        // TypeScript/JavaScript
+        "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[typescriptreact]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[javascript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+
+        // JSON
+        "[json]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[jsonc]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+
+        // Files
+        "files.exclude": {
+          "**/bin": true,
+          "**/obj": true,
+          "**/node_modules": true,
+          "**/.git": true
+        },
+        "files.watcherExclude": {
+          "**/bin/**": true,
+          "**/obj/**": true,
+          "**/node_modules/**": true
+        },
+
+        // Explorer
+        "explorer.confirmDelete": false,
+        "explorer.confirmDragAndDrop": false,
+
+        // Git
+        "git.autofetch": true,
+        "git.confirmSync": false,
+
+        // Testing
+        "dotnet-test-explorer.testProjectPath": "services/backend/tests/**/*.csproj",
+
+        // REST Client
+        "rest-client.environmentVariables": {
+          "$shared": {},
+          "development": {
+            "baseUrl": "http://localhost:5000",
+            "token": ""
+          }
+        }
+      }
+    },
+    // GitHub Codespaces specific
+    "codespaces": {
+      "openFiles": [
+        "README.md",
+        "CLAUDE.md"
+      ]
+    }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LIFECYCLE SCRIPTS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Run after container is created (first time only)
+  "postCreateCommand": "bash .devcontainer/postCreateCommand.sh",
+
+  // Run every time the container starts
+  "postStartCommand": "echo '🌸 Orchid Core devcontainer ready!' && dotnet --version && node --version",
+
+  // Run when VS Code attaches to the container
+  "postAttachCommand": "git fetch --all",
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FORWARDED PORTS
+  // ═══════════════════════════════════════════════════════════════════════════
+  "forwardPorts": [
+    5000,   // Backend API (HTTP)
+    5001,   // Backend API (HTTPS)
+    5173,   // Frontend (Vite)
+    5433,   // PostgreSQL
+    6379,   // Redis
+    15672,  // RabbitMQ Management
+    8888,   // pgAdmin
+    8082,   // Redis Commander
+    3033,   // Langfuse
+    9090,   // MinIO API
+    9091    // MinIO Console
+  ],
+  "portsAttributes": {
+    "5000": { "label": "Backend API", "onAutoForward": "notify" },
+    "5001": { "label": "Backend API (HTTPS)", "onAutoForward": "silent" },
+    "5173": { "label": "Frontend", "onAutoForward": "openBrowser" },
+    "5433": { "label": "PostgreSQL", "onAutoForward": "silent" },
+    "6379": { "label": "Redis", "onAutoForward": "silent" },
+    "15672": { "label": "RabbitMQ", "onAutoForward": "notify" },
+    "8888": { "label": "pgAdmin", "onAutoForward": "notify" },
+    "8082": { "label": "Redis Commander", "onAutoForward": "silent" },
+    "3033": { "label": "Langfuse", "onAutoForward": "notify" },
+    "9090": { "label": "MinIO API", "onAutoForward": "silent" },
+    "9091": { "label": "MinIO Console", "onAutoForward": "silent" }
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // USER & PERMISSIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+  "remoteUser": "vscode",
+  "containerUser": "vscode",
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ENVIRONMENT VARIABLES (can be overridden by .env)
+  // ═══════════════════════════════════════════════════════════════════════════
+  "containerEnv": {
+    "ASPNETCORE_ENVIRONMENT": "Development",
+    "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+    "DOTNET_NOLOGO": "1"
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HOST REQUIREMENTS (for Codespaces)
+  // ═══════════════════════════════════════════════════════════════════════════
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MOUNTS
+  // ═══════════════════════════════════════════════════════════════════════════
+  "mounts": [
+    // Persist bash history
+    "source=orchid-bashhistory,target=/home/vscode/.bash_history,type=volume",
+    // Persist zsh history
+    "source=orchid-zshhistory,target=/home/vscode/.zsh_history,type=volume"
+  ],
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // INIT PROCESS (for proper signal handling)
+  // ═══════════════════════════════════════════════════════════════════════════
+  "init": true,
+  "privileged": false
+}

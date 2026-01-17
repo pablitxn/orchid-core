@@ -1,0 +1,326 @@
+# DevContainer Docker Compose
+# Extends the main docker-compose.dev.yaml with a development container
+
+services:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # DEVELOPMENT CONTAINER
+  # This is where VS Code / Codespaces runs your code
+  # ═══════════════════════════════════════════════════════════════════════════
+  devcontainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      # Mount the workspace
+      - ..:/workspace:cached
+      # Persist VS Code extensions
+      - vscode-extensions:/home/vscode/.vscode-server/extensions
+      # Persist bash/zsh history
+      - devcontainer-history:/home/vscode/.history
+      # Docker socket for running containers from within devcontainer
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Persist NuGet packages
+      - nuget-packages:/home/vscode/.nuget
+      # Persist npm cache
+      - npm-cache:/home/vscode/.npm
+    environment:
+      # .NET Configuration
+      - ASPNETCORE_ENVIRONMENT=Development
+      - DOTNET_CLI_TELEMETRY_OPTOUT=1
+      # Database
+      - ConnectionStrings__DefaultConnection=Host=database;Port=5432;Database=orchid_core;Username=orchid_admin;Password=dev_password_123
+      # Redis
+      - Redis__Configuration=redis_orchid_core:6379,password=dev_password_123
+      # RabbitMQ
+      - RabbitMq__Host=rabbitmq
+      - RabbitMq__Username=orchid_mq
+      - RabbitMq__Password=dev_password_123
+      # Langfuse
+      - Langfuse__BaseUrl=http://langfuse-web:3000
+      # JWT (dev only)
+      - Jwt__Key=devcontainer_secret_key_32bytes_min_f8a9b2c4d6e8f0a1b3c5d7e9f1a2b4c6
+    networks:
+      - orchid-core
+    # Keep container running
+    command: sleep infinity
+    # Wait for services to be ready
+    depends_on:
+      database:
+        condition: service_healthy
+      redis_orchid_core:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # CORE INFRASTRUCTURE SERVICES
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  database:
+    image: pgvector/pgvector:pg17
+    container_name: orchid_devcontainer_db
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: orchid_admin
+      POSTGRES_PASSWORD: dev_password_123
+      POSTGRES_DB: orchid_core
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - orchid-core
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orchid_admin -d orchid_core"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis_orchid_core:
+    image: bitnami/redis:latest
+    container_name: orchid_devcontainer_redis
+    restart: unless-stopped
+    environment:
+      - REDIS_MASTER_PASSWORD=dev_password_123
+      - REDIS_PASSWORD=dev_password_123
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/bitnami/redis/data
+    networks:
+      - orchid-core
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: orchid_devcontainer_rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: orchid_mq
+      RABBITMQ_DEFAULT_PASS: dev_password_123
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - orchid-core
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # DEVELOPMENT TOOLS (UI)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: orchid_devcontainer_pgadmin
+    restart: unless-stopped
+    ports:
+      - "8888:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: dev@orchid.local
+      PGADMIN_DEFAULT_PASSWORD: dev_password_123
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - orchid-core
+    profiles:
+      - tools
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: orchid_devcontainer_redis_commander
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis_orchid_core:6379:0:dev_password_123
+    ports:
+      - "8082:8081"
+    networks:
+      - orchid-core
+    depends_on:
+      - redis_orchid_core
+    profiles:
+      - tools
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # LANGFUSE (LLM OBSERVABILITY) - Optional for full stack
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  langfuse-web:
+    image: langfuse/langfuse:3
+    container_name: orchid_devcontainer_langfuse
+    restart: unless-stopped
+    depends_on:
+      postgres_langfuse:
+        condition: service_healthy
+      redis_langfuse:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "3033:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres_langfuse:5432/postgres
+      SALT: "devsalt123456789"
+      ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      NEXTAUTH_URL: http://localhost:3033
+      NEXTAUTH_SECRET: "devcontainer_nextauth_secret"
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+      REDIS_HOST: redis_langfuse
+      REDIS_PORT: 6379
+      REDIS_AUTH: langfuse_redis_password
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: miniosecret
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: minio
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: miniosecret
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+    networks:
+      - orchid-core
+    profiles:
+      - langfuse
+
+  langfuse-worker:
+    image: langfuse/langfuse-worker:3
+    container_name: orchid_devcontainer_langfuse_worker
+    restart: unless-stopped
+    depends_on:
+      postgres_langfuse:
+        condition: service_healthy
+      redis_langfuse:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres_langfuse:5432/postgres
+      SALT: "devsalt123456789"
+      ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+      REDIS_HOST: redis_langfuse
+      REDIS_PORT: 6379
+      REDIS_AUTH: langfuse_redis_password
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: miniosecret
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+    networks:
+      - orchid-core
+    profiles:
+      - langfuse
+
+  postgres_langfuse:
+    image: postgres:16-alpine
+    container_name: orchid_devcontainer_langfuse_pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - langfuse-postgres-data:/var/lib/postgresql/data
+    networks:
+      - orchid-core
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    profiles:
+      - langfuse
+
+  redis_langfuse:
+    image: redis:7
+    container_name: orchid_devcontainer_langfuse_redis
+    restart: unless-stopped
+    command: --requirepass langfuse_redis_password
+    networks:
+      - orchid-core
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "langfuse_redis_password", "ping"]
+      interval: 3s
+      timeout: 10s
+      retries: 10
+    profiles:
+      - langfuse
+
+  clickhouse:
+    image: clickhouse/clickhouse-server
+    container_name: orchid_devcontainer_clickhouse
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    networks:
+      - orchid-core
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    profiles:
+      - langfuse
+
+  minio:
+    image: minio/minio
+    container_name: orchid_devcontainer_minio
+    restart: unless-stopped
+    entrypoint: sh
+    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: miniosecret
+    ports:
+      - "9090:9000"
+      - "9091:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - orchid-core
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - langfuse
+
+# ═══════════════════════════════════════════════════════════════════════════
+# VOLUMES
+# ═══════════════════════════════════════════════════════════════════════════
+volumes:
+  postgres-data:
+  redis-data:
+  rabbitmq-data:
+  pgadmin-data:
+  vscode-extensions:
+  devcontainer-history:
+  nuget-packages:
+  npm-cache:
+  # Langfuse volumes
+  langfuse-postgres-data:
+  clickhouse-data:
+  minio-data:
+
+# ═══════════════════════════════════════════════════════════════════════════
+# NETWORKS
+# ═══════════════════════════════════════════════════════════════════════════
+networks:
+  orchid-core:
+    driver: bridge
