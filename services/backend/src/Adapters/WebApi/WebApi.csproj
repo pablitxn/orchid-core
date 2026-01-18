@@ -39,17 +39,12 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\Adapters\Infrastructure\Infrastructure.csproj"/>
-        <ProjectReference Include="..\Workers\Workers.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
         <None Update="appsettings.Testing.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Folder Include="data\"/>
     </ItemGroup>
 
     <PropertyGroup>

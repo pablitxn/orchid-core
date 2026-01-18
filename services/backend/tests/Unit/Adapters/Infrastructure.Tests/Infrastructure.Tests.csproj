@@ -23,7 +23,6 @@
     <ItemGroup>
         <ProjectReference Include="..\..\..\..\src\Adapters\Infrastructure\Infrastructure.csproj" />
         <ProjectReference Include="..\..\..\..\src\Adapters\WebApi\WebApi.csproj" />
-        <ProjectReference Include="..\..\..\..\src\Adapters\Workers\Workers.csproj" />
     </ItemGroup>
 
     <ItemGroup>
