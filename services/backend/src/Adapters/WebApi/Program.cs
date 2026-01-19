@@ -73,7 +73,7 @@ Log.Information("MediatR handlers registered");
 #region Infrastructure Services
 
 // ─── Infrastructure (DB, repos, etc.) ─────────────────────────────────────────
-await builder.Services.AddInfrastructure(builder.Configuration);
+await builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 Log.Information("Infrastructure services registered");
 
 // ─── Telemetry Services (including Langfuse for AI operations) ─────────────────
@@ -298,6 +298,17 @@ if (!env.IsEnvironment("Testing"))
         throw new InvalidOperationException(
             "AllowedHosts must be explicitly configured in production. " +
             "Set 'AllowedHosts' to your domain(s), e.g., 'example.com;api.example.com'.");
+    }
+
+    // Security: Validate Entity Framework logging configuration in production
+    var efLogLevel = builder.Configuration["Logging:LogLevel:Microsoft.EntityFrameworkCore.Database.Command"];
+    if (!env.IsDevelopment() && efLogLevel != null &&
+        (efLogLevel.Equals("Debug", StringComparison.OrdinalIgnoreCase) ||
+         efLogLevel.Equals("Trace", StringComparison.OrdinalIgnoreCase)))
+    {
+        throw new InvalidOperationException(
+            "Entity Framework command logging is set to detailed level in non-development environment. " +
+            "This can expose sensitive SQL parameters. Set 'Logging:LogLevel:Microsoft.EntityFrameworkCore.Database.Command' to 'Warning' or higher.");
     }
 
     // JWT Bearer authentication for Development and Production
