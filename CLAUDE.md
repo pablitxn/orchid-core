@@ -1,6 +1,6 @@
 # Orchid Labs Core – LLM Agent Context Guide
 
-*Version 1.0 – 2025-05-03*
+*Version 1.1 – 2025-01-19*
 
 ---
 
@@ -232,7 +232,28 @@ public class RedisCacheServiceTests : IAsyncLifetime
 
 ---
 
-## 13  Glossary (Agent Quick-Look)
+## 13  Temporary Code & Pre-Production Checklist
+
+When adding **temporary code** (migrations, feature flags, backwards-compatibility shims, startup seeders for retroactive fixes, etc.):
+
+1. **Mark it clearly** with a `// TODO: Remove before production` comment in the code.
+2. **Document it** in `docs/pre-production-checklist.md` with:
+   - Date added
+   - Purpose/context
+   - Exact files and line numbers to modify/remove
+   - Verification steps after removal
+
+> **Important:** Before any production deployment, review `docs/pre-production-checklist.md` and complete all listed cleanup tasks.
+
+Examples of temporary code that must be tracked:
+- Database migration seeders (e.g., `UserPluginMigrationSeeder`)
+- Feature flags for gradual rollouts
+- Backwards-compatibility shims during API transitions
+- Debug/diagnostic code for troubleshooting specific issues
+
+---
+
+## 14  Glossary (Agent Quick-Look)
 
 | Term                    | Meaning                                         |
 |-------------------------|-------------------------------------------------|
