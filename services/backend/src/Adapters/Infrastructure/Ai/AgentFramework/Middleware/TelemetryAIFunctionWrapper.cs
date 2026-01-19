@@ -10,6 +10,7 @@ namespace Infrastructure.Ai.AgentFramework.Middleware;
 /// Wraps an AIFunction with telemetry tracking to record all tool invocations.
 /// Records function_invoking, function_invoked, and function_error events.
 /// Uses IEnhancedTelemetryClient for provider-agnostic telemetry recording.
+/// Optionally tracks credit consumption for tool usage.
 /// </summary>
 public sealed class TelemetryAIFunctionWrapper : AIFunction
 {
@@ -22,6 +23,9 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
     private readonly AIFunction _innerFunction;
     private readonly IEnhancedTelemetryClient _telemetryClient;
     private readonly ILogger _logger;
+    private readonly ICreditTrackingService? _creditTrackingService;
+    private readonly IPluginRepository? _pluginRepository;
+    private readonly string? _toolSystemName;
 
     /// <summary>
     /// Creates a new TelemetryAIFunctionWrapper that wraps the specified function with telemetry tracking.
@@ -29,14 +33,23 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
     /// <param name="innerFunction">The function to wrap.</param>
     /// <param name="telemetryClient">The telemetry client for recording events.</param>
     /// <param name="logger">Logger for diagnostic output.</param>
+    /// <param name="creditTrackingService">Optional credit tracking service for billing.</param>
+    /// <param name="pluginRepository">Optional plugin repository for resolving plugin IDs.</param>
+    /// <param name="toolSystemName">Optional tool system name for credit tracking.</param>
     public TelemetryAIFunctionWrapper(
         AIFunction innerFunction,
         IEnhancedTelemetryClient telemetryClient,
-        ILogger logger)
+        ILogger logger,
+        ICreditTrackingService? creditTrackingService = null,
+        IPluginRepository? pluginRepository = null,
+        string? toolSystemName = null)
     {
         _innerFunction = innerFunction ?? throw new ArgumentNullException(nameof(innerFunction));
         _telemetryClient = telemetryClient ?? throw new ArgumentNullException(nameof(telemetryClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _creditTrackingService = creditTrackingService;
+        _pluginRepository = pluginRepository;
+        _toolSystemName = toolSystemName;
     }
 
     /// <inheritdoc />
@@ -93,6 +106,9 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
                 result,
                 stopwatch.ElapsedMilliseconds,
                 cancellationToken);
+
+            // Track credit usage for successful tool invocations
+            await TrackCreditUsageAsync(functionName, cancellationToken);
 
             return result;
         }
@@ -285,6 +301,85 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
     }
 
     /// <summary>
+    /// Tracks credit usage for a successful tool invocation.
+    /// Only tracks if credit tracking is enabled and userId is available.
+    /// </summary>
+    private async Task TrackCreditUsageAsync(string functionName, CancellationToken cancellationToken)
+    {
+        // Skip if credit tracking is not configured
+        if (_creditTrackingService == null || _pluginRepository == null)
+        {
+            return;
+        }
+
+        // Get userId from TelemetryContext
+        var userIdString = TelemetryContext.UserId;
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            _logger.LogDebug(
+                "Credit tracking skipped for '{FunctionName}': no valid userId in context",
+                functionName);
+            return;
+        }
+
+        // Determine tool system name: use explicit value or lookup from context
+        var toolSystemName = _toolSystemName ?? TelemetryContext.GetToolSystemName(functionName);
+        if (string.IsNullOrEmpty(toolSystemName))
+        {
+            _logger.LogDebug(
+                "Credit tracking skipped for '{FunctionName}': no tool system name available",
+                functionName);
+            return;
+        }
+
+        try
+        {
+            // Get plugin from repository to obtain the plugin ID and credit cost
+            var plugin = await _pluginRepository.GetBySystemNameAsync(toolSystemName, cancellationToken);
+            if (plugin == null)
+            {
+                _logger.LogWarning(
+                    "Credit tracking skipped for '{FunctionName}': plugin '{ToolSystemName}' not found in database",
+                    functionName,
+                    toolSystemName);
+                return;
+            }
+
+            var sessionId = TelemetryContext.SessionId ?? "unknown";
+            var metadata = JsonSerializer.Serialize(new
+            {
+                functionName,
+                sessionId,
+                timestamp = DateTimeOffset.UtcNow
+            }, JsonOptions);
+
+            await _creditTrackingService.TrackPluginUsageAsync(
+                userId,
+                plugin.Id,
+                plugin.Name,
+                plugin.PriceCredits,
+                metadata,
+                cancellationToken);
+
+            _logger.LogDebug(
+                "Tracked credit usage for '{FunctionName}' (tool: {ToolSystemName}, credits: {Credits}, user: {UserId})",
+                functionName,
+                toolSystemName,
+                plugin.PriceCredits,
+                userId);
+        }
+        catch (Exception ex)
+        {
+            // Credit tracking failures should not break the function execution
+            _logger.LogWarning(
+                ex,
+                "Failed to track credit usage for '{FunctionName}' (tool: {ToolSystemName})",
+                functionName,
+                toolSystemName);
+        }
+    }
+
+    /// <summary>
     /// Wraps a collection of AIFunctions with telemetry tracking.
     /// </summary>
     /// <param name="functions">The functions to wrap.</param>
@@ -298,6 +393,35 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
     {
         return functions
             .Select(f => new TelemetryAIFunctionWrapper(f, telemetryClient, logger))
+            .ToList<AIFunction>();
+    }
+
+    /// <summary>
+    /// Wraps a collection of AIFunctions with telemetry tracking and credit tracking.
+    /// </summary>
+    /// <param name="functions">The functions to wrap.</param>
+    /// <param name="telemetryClient">The telemetry client for recording events.</param>
+    /// <param name="logger">Logger for diagnostic output.</param>
+    /// <param name="creditTrackingService">Credit tracking service for billing.</param>
+    /// <param name="pluginRepository">Plugin repository for resolving plugin IDs.</param>
+    /// <param name="toolSystemName">The tool system name that all functions belong to.</param>
+    /// <returns>Collection of wrapped functions with credit tracking.</returns>
+    public static IReadOnlyList<AIFunction> WrapAllWithCreditTracking(
+        IEnumerable<AIFunction> functions,
+        IEnhancedTelemetryClient telemetryClient,
+        ILogger logger,
+        ICreditTrackingService creditTrackingService,
+        IPluginRepository pluginRepository,
+        string toolSystemName)
+    {
+        return functions
+            .Select(f => new TelemetryAIFunctionWrapper(
+                f,
+                telemetryClient,
+                logger,
+                creditTrackingService,
+                pluginRepository,
+                toolSystemName))
             .ToList<AIFunction>();
     }
 }

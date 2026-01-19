@@ -29,16 +29,43 @@ public static class TelemetryContext
     public static bool IsEnabled => CurrentScope.Value?.IsEnabled ?? false;
 
     /// <summary>
+    /// Gets the function-to-tool mapping for credit tracking.
+    /// Maps function names to their tool system names.
+    /// </summary>
+    internal static IReadOnlyDictionary<string, string>? FunctionToolMapping =>
+        CurrentScope.Value?.FunctionToolMapping;
+
+    /// <summary>
+    /// Gets the tool system name for a given function name.
+    /// </summary>
+    /// <param name="functionName">The name of the function.</param>
+    /// <returns>The tool system name if found, null otherwise.</returns>
+    public static string? GetToolSystemName(string functionName)
+    {
+        if (CurrentScope.Value?.FunctionToolMapping == null)
+            return null;
+
+        return CurrentScope.Value.FunctionToolMapping.TryGetValue(functionName, out var systemName)
+            ? systemName
+            : null;
+    }
+
+    /// <summary>
     /// Creates a new telemetry scope that will be active for the duration of the returned IDisposable.
     /// </summary>
     /// <param name="traceId">The trace ID for this scope.</param>
     /// <param name="sessionId">The session ID for this scope.</param>
     /// <param name="userId">The user ID for this scope.</param>
+    /// <param name="functionToolMapping">Optional mapping of function names to tool system names for credit tracking.</param>
     /// <returns>An IDisposable that restores the previous scope when disposed.</returns>
-    public static IDisposable BeginScope(string traceId, string? sessionId = null, string? userId = null)
+    public static IDisposable BeginScope(
+        string traceId,
+        string? sessionId = null,
+        string? userId = null,
+        IReadOnlyDictionary<string, string>? functionToolMapping = null)
     {
         var previousScope = CurrentScope.Value;
-        CurrentScope.Value = new TelemetryScope(traceId, sessionId, userId, true);
+        CurrentScope.Value = new TelemetryScope(traceId, sessionId, userId, true, functionToolMapping);
         return new ScopeDisposer(previousScope);
     }
 
@@ -48,7 +75,7 @@ public static class TelemetryContext
     public static IDisposable BeginDisabledScope()
     {
         var previousScope = CurrentScope.Value;
-        CurrentScope.Value = new TelemetryScope(null, null, null, false);
+        CurrentScope.Value = new TelemetryScope(null, null, null, false, null);
         return new ScopeDisposer(previousScope);
     }
 
@@ -74,5 +101,6 @@ public static class TelemetryContext
         string? TraceId,
         string? SessionId,
         string? UserId,
-        bool IsEnabled);
+        bool IsEnabled,
+        IReadOnlyDictionary<string, string>? FunctionToolMapping);
 }
