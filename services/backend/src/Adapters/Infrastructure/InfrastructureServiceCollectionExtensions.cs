@@ -115,13 +115,6 @@ public static class InfrastructureServiceCollectionExtensions
 
         #endregion
 
-        #region Audio Processing
-
-        // ─── Audio processing ─────────────────────────────────────────────────────────
-        services.AddTransient<IAudioNormalizer, AudioNormalizer>();
-
-        #endregion
-
         #region AI & Embeddings
 
         // ─── Embedding generator: OpenAI embeddings ───────────────────────────────────
