@@ -8,7 +8,7 @@ using Core.Application.Interfaces;
 using Core.Domain.Entities;
 using Infrastructure.Persistence;
 
-namespace Infrastructure.Repositories;
+namespace Infrastructure.Persistence.Repositories;
 
 public sealed class LoginHistoryRepository : ILoginHistoryRepository
 {

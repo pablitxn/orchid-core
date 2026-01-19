@@ -3,7 +3,7 @@ using Domain.Entities;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace Infrastructure.Repositories;
+namespace Infrastructure.Persistence.Repositories;
 
 public class RefreshTokenRepository(ApplicationDbContext context) : IRefreshTokenRepository
 {

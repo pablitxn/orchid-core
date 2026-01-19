@@ -10,7 +10,6 @@ using Infrastructure.Cache;
 using Infrastructure.Persistence;
 using Infrastructure.Persistence.Repositories;
 using Infrastructure.Providers;
-using Infrastructure.Repositories;
 using Infrastructure.Storage;
 using Infrastructure.Telemetry.Ai.Langfuse;
 using Infrastructure.Telemetry.Ai.NoOpTelemetryClient;
@@ -24,7 +23,6 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using ActionCostRepository = Infrastructure.Persistence.ActionCostRepository;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using CreditConsumptionRepository = Infrastructure.Persistence.Repositories.CreditConsumptionRepository;
 
 namespace Infrastructure;
 

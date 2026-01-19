@@ -10,7 +10,7 @@ using Core.Domain.Entities;
 using Domain.Entities;
 using Infrastructure.Persistence;
 
-namespace Infrastructure.Repositories;
+namespace Infrastructure.Persistence.Repositories;
 
 public sealed class UserWorkflowRepository : IUserWorkflowRepository
 {

@@ -3,7 +3,7 @@ using Core.Domain.Entities;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace Infrastructure.Repositories;
+namespace Infrastructure.Persistence.Repositories;
 
 public class PersonalityTemplateRepository(ApplicationDbContext context) : IPersonalityTemplateRepository
 {
