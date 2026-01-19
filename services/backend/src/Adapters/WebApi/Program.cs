@@ -1,6 +1,5 @@
 using System.Globalization;
 using Application.Interfaces;
-using Application.UseCases.Auth.GoogleLogin;
 using Application.UseCases.User.CreateUser;
 using Application.UseCases.User.GetUser;
 using HealthChecks.UI.Client;
@@ -51,7 +50,6 @@ builder.Services.AddMediatR(cfg =>
 {
     cfg.RegisterServicesFromAssembly(typeof(CreateUserCommandHandler).Assembly);
     cfg.RegisterServicesFromAssembly(typeof(GetUserHandler).Assembly);
-    cfg.RegisterServicesFromAssembly(typeof(GoogleLoginHandler).Assembly);
     cfg.RegisterServicesFromAssembly(typeof(GetWorkflowByIdHandler).Assembly);
     cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
 });

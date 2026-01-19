@@ -3,7 +3,6 @@ using Application.UseCases.Agent.AddPluginToAgent;
 using Domain.Entities;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace Application.Tests.UseCases.Agent;
 
@@ -121,7 +120,7 @@ public class AddPluginToAgentHandlerTests
             Id = agentId,
             Name = "Test Agent",
             UserId = userId,
-            PluginIds = new[] { pluginId } // Plugin already exists
+            PluginIds = [pluginId] // Plugin already exists
         };
 
         _userPluginRepositoryMock.Setup(x => x.UserOwnsPluginAsync(userId, pluginId, It.IsAny<CancellationToken>()))
@@ -191,7 +190,7 @@ public class AddPluginToAgentHandlerTests
             Id = agentId,
             Name = "Test Agent",
             UserId = userId,
-            PluginIds = new[] { existingPluginId }
+            PluginIds = [existingPluginId]
         };
 
         _userPluginRepositoryMock.Setup(x => x.UserOwnsPluginAsync(userId, newPluginId, It.IsAny<CancellationToken>()))

@@ -149,8 +149,6 @@ public static class InfrastructureServiceCollectionExtensions
             return new TypedFileStorageService(inner, root);
         });
 
-        // ─── Recording of huddle sessions ─────────────────────────────────────────────
-        services.AddTransient<IHuddleRecordingService, FileHuddleRecordingService>();
 
         #endregion
 

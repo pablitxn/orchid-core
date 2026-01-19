@@ -2,7 +2,6 @@ using Application.Interfaces;
 using Application.UseCases.Agent.CreateAgent;
 using Domain.Entities;
 using Moq;
-using Xunit;
 
 namespace Application.Tests.UseCases.Agent;
 
@@ -31,7 +30,7 @@ public class CreateAgentHandlerTests
             "Friendly personality",
             null,
             "en",
-            new Guid[] { },
+            [],
             userId,
             true
         );
@@ -54,7 +53,6 @@ public class CreateAgentHandlerTests
         Assert.True(capturedAgent.IsPublic);
         Assert.Equal("Test Agent", capturedAgent.Name);
         Assert.Equal("Test Description", capturedAgent.Description);
-        
         Assert.NotNull(result);
         Assert.Equal(userId, result.UserId);
         Assert.True(result.IsPublic);
@@ -73,8 +71,7 @@ public class CreateAgentHandlerTests
             null,
             null,
             null,
-            userId,
-            false // explicitly private
+            userId
         );
 
         var plugins = new List<PluginEntity>();
@@ -87,7 +84,7 @@ public class CreateAgentHandlerTests
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
+        await _handler.Handle(command, CancellationToken.None);
 
         // Assert
         Assert.NotNull(capturedAgent);
@@ -121,7 +118,7 @@ public class CreateAgentHandlerTests
             .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
+        await _handler.Handle(command, CancellationToken.None);
 
         // Assert
         Assert.NotNull(capturedAgent);
@@ -141,7 +138,7 @@ public class CreateAgentHandlerTests
             null,
             null,
             null,
-            new[] { pluginId },
+            [pluginId],
             Guid.NewGuid(),
             true
         );
@@ -154,7 +151,7 @@ public class CreateAgentHandlerTests
         };
 
         _pluginRepositoryMock.Setup(x => x.ListAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<PluginEntity> { plugin });
+            .ReturnsAsync([plugin]);
 
         _agentRepositoryMock.Setup(x => x.CreateAsync(It.IsAny<AgentEntity>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);

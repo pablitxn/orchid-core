@@ -2,7 +2,6 @@ using Application.Interfaces;
 using Application.UseCases.Agent.GetAgentRatings;
 using Domain.Entities;
 using Moq;
-using Xunit;
 
 namespace Application.Tests.UseCases.Agent;
 
@@ -168,7 +167,7 @@ public class GetAgentRatingsHandlerTests
         };
 
         _ratingRepositoryMock.Setup(x => x.ListByAgentAsync(agentId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<AgentRatingEntity> { rating });
+            .ReturnsAsync([rating]);
 
         _ratingRepositoryMock.Setup(x => x.GetAverageRatingAsync(agentId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(5.0);

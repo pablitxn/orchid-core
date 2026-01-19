@@ -26,7 +26,7 @@ public class ListAgentsHandlerTests
 
         // Setup the plugin repository to return an empty list
         _pluginRepo.Setup(r => r.ListAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Domain.Entities.PluginEntity>());
+            .ReturnsAsync([]);
 
         // Setup stats to return empty dictionary
         _chatSessionRepo.Setup(r => r.GetStatsForAgentsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))

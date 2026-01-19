@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Application.Interfaces;
-using Application.UseCases.Plugin.ExecutePlugin;
 using Application.UseCases.Subscription.ConsumeCredits;
 using Application.UseCases.Workflow.PurchaseWorkflow;
 using Domain.Entities;
@@ -22,128 +21,6 @@ public class EnhancedCreditSystemTests : CreditSystemTestBase
     {
     }
     
-    [Fact]
-    public async Task ExecutePlugin_Should_ConsumeCredits_BasedOnUsageCost()
-    {
-        // Arrange
-        var userId = Guid.NewGuid();
-        var pluginId = Guid.NewGuid();
-        
-        // Create user with subscription
-        await CreateUserWithSubscription(userId, 1000);
-        
-        using var scope = Factory.Services.CreateScope();
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        
-        // Create and configure plugin
-        var plugin = new PluginEntity
-        {
-            Id = pluginId,
-            Name = "Test Plugin",
-            Description = "Test",
-            IsActive = true,
-            IsSubscriptionBased = false,
-            CreatedAt = DateTime.UtcNow
-        };
-        await unitOfWork.Plugins.CreateAsync(plugin, CancellationToken.None);
-        
-        // User owns the plugin
-        var userPlugin = new UserPluginEntity
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            PluginId = pluginId,
-            PurchasedAt = DateTime.UtcNow,
-            IsActive = true
-        };
-        await unitOfWork.UserPlugins.CreateAsync(userPlugin, CancellationToken.None);
-        
-        // Configure plugin usage cost
-        var costConfig = new CostConfigurationEntity
-        {
-            Id = Guid.NewGuid(),
-            CostType = "plugin_usage",
-            ResourceId = pluginId,
-            CreditCost = 5, // 5 credits per use
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        };
-        await unitOfWork.CostConfigurations.CreateAsync(costConfig, CancellationToken.None);
-        await unitOfWork.SaveChangesAsync();
-        
-        // Act
-        var command = new ExecutePluginCommand(userId, pluginId, "{\"test\": \"data\"}");
-        var result = await mediator.Send(command);
-        
-        // Assert
-        result.Success.Should().BeTrue();
-        result.CreditsUsed.Should().Be(5);
-        
-        var subscription = await unitOfWork.Subscriptions.GetByUserIdAsync(userId);
-        subscription!.Credits.Should().Be(995); // 1000 - 5
-    }
-
-    [Fact]
-    public async Task ExecutePlugin_WithHighQualityParameter_Should_ConsumeMoreCredits()
-    {
-        // Arrange
-        var userId = Guid.NewGuid();
-        var pluginId = Guid.NewGuid();
-        
-        await CreateUserWithSubscription(userId, 1000);
-        
-        using var scope = Factory.Services.CreateScope();
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        
-        // Setup plugin and ownership
-        var plugin = new PluginEntity
-        {
-            Id = pluginId,
-            Name = "Test Plugin",
-            Description = "Test",
-            IsActive = true,
-            IsSubscriptionBased = false,
-            CreatedAt = DateTime.UtcNow
-        };
-        await unitOfWork.Plugins.CreateAsync(plugin, CancellationToken.None);
-        
-        var userPlugin = new UserPluginEntity
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            PluginId = pluginId,
-            PurchasedAt = DateTime.UtcNow,
-            IsActive = true
-        };
-        await unitOfWork.UserPlugins.CreateAsync(userPlugin, CancellationToken.None);
-        
-        // Base cost is 10
-        var costConfig = new CostConfigurationEntity
-        {
-            Id = Guid.NewGuid(),
-            CostType = "plugin_usage",
-            ResourceId = pluginId,
-            CreditCost = 10,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        };
-        await unitOfWork.CostConfigurations.CreateAsync(costConfig, CancellationToken.None);
-        await unitOfWork.SaveChangesAsync();
-        
-        // Act - Execute with high quality parameter (should cost 50% more)
-        var command = new ExecutePluginCommand(userId, pluginId, "{\"quality\": \"high\"}");
-        var result = await mediator.Send(command);
-        
-        // Assert
-        result.Success.Should().BeTrue();
-        result.CreditsUsed.Should().Be(15); // 10 * 1.5
-        
-        var subscription = await unitOfWork.Subscriptions.GetByUserIdAsync(userId);
-        subscription!.Credits.Should().Be(985); // 1000 - 15
-    }
-
     [Fact]
     public async Task PurchaseWorkflow_WithCreditLimits_Should_ValidateAndConsume()
     {
