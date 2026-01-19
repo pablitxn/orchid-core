@@ -24,8 +24,8 @@ Generated\ Files/
 packages/
 *.nupkg
 
-## Ignore local configuration files
-*.local.json
+## Ignore local secret overrides (use User Secrets instead)
+appsettings.local.override.json
 
 ## Additional ignores (if using JetBrains Rider, etc.)
 .idea/

@@ -23,23 +23,34 @@ using WebApi.Hubs;
 using WebApi.Middleware;
 using Infrastructure.Services;
 using WebApi;
+using WebApi.Services;
+using Serilog;
+using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 var env = builder.Environment;
 
-// ─── Load optional local settings (not committed to git) ─────────────────────
-builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+// ─── Load optional local settings (overrides for local development) ──────────
+builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
 
 #region Logging Configuration
 
-// ─── Logging ──────────────────────────────────────────────────────────────────
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
+// ─── Serilog with Correlation ID ──────────────────────────────────────────────
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.AspNetCore.SignalR", LogEventLevel.Debug)
+    .MinimumLevel.Override("Microsoft.AspNetCore.Http.Connections", LogEventLevel.Debug)
+    .MinimumLevel.Override("System", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .Enrich.WithCorrelationId()
+    .WriteTo.Console(
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
 
-var logger = LoggerFactory.Create(cfg => cfg.AddConsole())
-    .CreateLogger("Startup");
-logger.LogInformation("Starting application setup…");
+builder.Host.UseSerilog();
+
+Log.Information("Starting application setup...");
 
 #endregion
 
@@ -53,7 +64,7 @@ builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(GetWorkflowByIdHandler).Assembly);
     cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
 });
-logger.LogInformation("MediatR handlers registered");
+Log.Information("MediatR handlers registered");
 
 
 #endregion
@@ -62,11 +73,11 @@ logger.LogInformation("MediatR handlers registered");
 
 // ─── Infrastructure (DB, repos, etc.) ─────────────────────────────────────────
 await builder.Services.AddInfrastructure(builder.Configuration);
-logger.LogInformation("Infrastructure services registered");
+Log.Information("Infrastructure services registered");
 
 // ─── Telemetry Services (including Langfuse for AI operations) ─────────────────
 builder.Services.AddTelemetryServices(builder.Configuration);
-logger.LogInformation("Telemetry services registered");
+Log.Information("Telemetry services registered");
 
 // ─── Semantic Kernel ───────────────────────────────────────────────────────────
 builder.Services.AddSemanticKernel(builder.Configuration);
@@ -74,7 +85,7 @@ builder.Services.AddSemanticKernelPlugins();
 
 // ─── WebApi Adapters (SignalR adapters for notifications) ─────────────────────
 builder.Services.AddWebApiAdapters();
-logger.LogInformation("WebApi adapters registered");
+Log.Information("WebApi adapters registered");
 
 #endregion
 
@@ -98,10 +109,13 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Playground Dotnet API", Version = "v1" });
 });
-logger.LogInformation("Swagger configured");
+Log.Information("Swagger configured");
 
 // ─── HTTP Context accessor ────────────────────────────────────────────────────
 builder.Services.AddHttpContextAccessor();
+
+// ─── Correlation ID accessor for distributed tracing ─────────────────────────
+builder.Services.AddScoped<ICorrelationIdAccessor, CorrelationIdAccessor>();
 
 #endregion
 
@@ -189,7 +203,7 @@ builder.Services.AddCors(options =>
         }
     });
 });
-logger.LogInformation("CORS policy added");
+Log.Information("CORS policy added");
 
 #endregion
 
@@ -362,6 +376,9 @@ if (app.Environment.IsDevelopment())
 
 #region Request Pipeline Configuration
 
+// ─── Correlation ID (must be first to capture all logs) ───────────────────────
+app.UseCorrelationId();
+
 // ─── Global Exception Handler ─────────────────────────────────────────────────
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
@@ -441,8 +458,16 @@ if (!app.Environment.IsEnvironment("Testing"))
 
 #endregion
 
-logger.LogInformation("Application configuration complete — running.");
-app.Run();
+Log.Information("Application configuration complete - running.");
+
+try
+{
+    app.Run();
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
 // Make Program accessible to tests
 public partial class Program { }
