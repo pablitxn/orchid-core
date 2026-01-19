@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using Infrastructure.Ai.SemanticKernel.Plugins;
+using Infrastructure.Http;
 using Application.Interfaces;
 
 namespace Infrastructure.Ai.SemanticKernel;
@@ -30,7 +31,16 @@ public static class SemanticKernelServiceCollectionExtensions
         // ─── 3. Baseline infrastructure needed by plugins ────────────────
         services.AddMemoryCache();
         services.AddDistributedMemoryCache(); // no-op if already added
-        services.AddHttpClient();
+
+        // Register the correlation ID handler for HTTP requests
+        services.AddTransient<CorrelationIdDelegatingHandler>();
+
+        // Configure default HttpClient with correlation ID propagation
+        services.AddHttpClient()
+            .ConfigureHttpClientDefaults(builder =>
+            {
+                builder.AddHttpMessageHandler<CorrelationIdDelegatingHandler>();
+            });
 
         // ─── 4. Kernel per request/connection ────────────────────────────
         services.AddScoped<Kernel>(sp =>

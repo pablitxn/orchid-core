@@ -26,6 +26,7 @@ using WebApi;
 using WebApi.Services;
 using Serilog;
 using Serilog.Events;
+using Infrastructure.Messaging.RabbitMq;
 
 var builder = WebApplication.CreateBuilder(args);
 var env = builder.Environment;
@@ -101,7 +102,11 @@ builder.Services.AddControllers()
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    // Add correlation ID filter for distributed tracing across hub invocations
+    options.AddFilter<CorrelationIdHubFilter>();
+});
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 
 // ─── Swagger / OpenAPI ────────────────────────────────────────────────────────
@@ -140,7 +145,7 @@ builder.Services.AddMassTransit(x =>
 {
     // Register consumers
     x.AddConsumer<Infrastructure.Messaging.Consumers.CreditNotificationHandler>();
-    
+
     x.UsingRabbitMq((context, cfg) =>
     {
         var host = builder.Configuration["RabbitMq:Host"] ?? "localhost";
@@ -152,7 +157,10 @@ builder.Services.AddMassTransit(x =>
             h.Username(username);
             h.Password(password);
         });
-        
+
+        // Add correlation ID filters for distributed tracing
+        cfg.UseCorrelationIdFilters(context);
+
         // Configure endpoints
         cfg.ConfigureEndpoints(context);
     });
