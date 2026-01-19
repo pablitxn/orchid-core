@@ -23,4 +23,28 @@ public interface IChatCompletionPort
     /// <returns>The completion result as a string.</returns>
     Task<string> CompleteWithAgentAsync(IEnumerable<ChatMessage> messages, Guid agentId,
         Guid? userId = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    ///     Streams the AI-generated response token by token for the given conversation messages.
+    /// </summary>
+    /// <param name="messages">The conversation history, including the latest user message.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>An async enumerable of response tokens/chunks.</returns>
+    IAsyncEnumerable<string> CompleteStreamingAsync(
+        IEnumerable<ChatMessage> messages,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    ///     Streams the AI-generated response token by token with agent-specific plugins.
+    /// </summary>
+    /// <param name="messages">The conversation history, including the latest user message.</param>
+    /// <param name="agentId">The ID of the agent whose plugins should be used.</param>
+    /// <param name="userId">Optional user ID for credit tracking.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>An async enumerable of response tokens/chunks.</returns>
+    IAsyncEnumerable<string> CompleteWithAgentStreamingAsync(
+        IEnumerable<ChatMessage> messages,
+        Guid agentId,
+        Guid? userId = null,
+        CancellationToken cancellationToken = default);
 }

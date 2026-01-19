@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text;
 using Application.Interfaces;
 using Application.UseCases.Agent.VerifyAgentAccess;
 using Application.UseCases.Subscription.ConsumeCredits;
@@ -246,6 +247,209 @@ public sealed class ChatHub(
 
         // Send the AI response back to the caller
         await Clients.Caller.SendAsync("ReceiveMessage", "bot", response);
+        // Broadcast the AI completion as an activity
+        await BroadcastActivity(sessionId, "assistant_message", new { sessionId, message = response });
+    }
+
+    /// <summary>
+    ///     Receives a message from a client for a specific session, streams the AI response token by token.
+    ///     This is the streaming variant of SendMessage - the frontend receives tokens via ReceiveToken events.
+    /// </summary>
+    /// <param name="sessionId">The chat session identifier.</param>
+    /// <param name="message">The user's message content.</param>
+    /// <param name="byTokens">If true, credits are calculated based on token count.</param>
+    /// <param name="agentId">Optional agent ID to override the session's default agent.</param>
+    /// <param name="teamId">Optional team ID for team-based chat context.</param>
+    public async Task SendMessageStreaming(string sessionId, string message, bool byTokens = false, Guid? agentId = null, Guid? teamId = null)
+    {
+        // Validate inputs
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["InvalidSessionId"]);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["MessageCannotBeEmpty"]);
+            return;
+        }
+
+        const int maxMessageLength = 10000;
+        if (message.Length > maxMessageLength)
+        {
+            await Clients.Caller.SendAsync("ReceiveMessage", "bot",
+                string.Format(_localizer["MessageTooLong"], maxMessageLength));
+            return;
+        }
+
+        var userIdStr = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdStr, out var userId))
+        {
+            await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["UserNotRecognized"]);
+            return;
+        }
+
+        // Check rate limit - 10 messages per minute per user
+        var rateLimitKey = $"chat_rate:{userId}";
+        var rateLimitResult = await _rateLimitService.CheckAsync(rateLimitKey, 10, TimeSpan.FromMinutes(1), Context.ConnectionAborted);
+
+        if (!rateLimitResult.IsAllowed)
+        {
+            await Clients.Caller.SendAsync("ReceiveMessage", "bot",
+                string.Format(_localizer["RateLimitExceeded"], rateLimitResult.RetryAfter.TotalSeconds));
+            return;
+        }
+
+        var credits = _creditConfig.MinimumCreditsPerMessage;
+        if (byTokens)
+        {
+            var tokens = _tokenCounter.CountTokens(message);
+            credits = Math.Max(_creditConfig.MinimumCreditsPerMessage,
+                (int)Math.Ceiling((double)tokens / _creditConfig.TokensPerCredit));
+        }
+
+        try
+        {
+            await _mediator.Send(new ConsumeCreditsCommand(userId, credits, "message", sessionId), Context.ConnectionAborted);
+        }
+        catch (SubscriptionNotFoundException)
+        {
+            await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["SubscriptionNotFound"]);
+            return;
+        }
+        catch (InsufficientCreditsException)
+        {
+            await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["InsufficientCredits"]);
+            return;
+        }
+
+        // Track the message cost for detailed consumption history
+        var messageId = Guid.NewGuid();
+        await _creditTrackingService.TrackMessageCostAsync(
+            userId,
+            messageId,
+            $"Streaming chat message in session {sessionId}",
+            credits,
+            Context.ConnectionAborted);
+
+        // Acquire distributed lock for this session to prevent race conditions
+        var lockKey = $"chat_session:{sessionId}";
+        await using var sessionLock = await _distributedLock.WaitAsync(
+            lockKey,
+            TimeSpan.FromSeconds(30),
+            TimeSpan.FromSeconds(10),
+            Context.ConnectionAborted);
+
+        // Get the chat session to retrieve the agent ID (needed for thread creation)
+        var chatSession = await _chatSessionRepository.GetBySessionIdAsync(sessionId, Context.ConnectionAborted);
+        if (chatSession == null)
+        {
+            await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["SessionNotFound"]);
+            return;
+        }
+
+        // Verify session ownership
+        if (chatSession.UserId != userId)
+        {
+            await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["AccessDenied"]);
+            return;
+        }
+
+        // Use passed agentId if provided, otherwise fall back to session's agentId
+        var effectiveAgentId = agentId ?? chatSession.AgentId;
+
+        if (!effectiveAgentId.HasValue)
+        {
+            await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["NoAgentSelected"]);
+            return;
+        }
+
+        // Verify user has access to the agent and its plugins
+        var accessResult = await _mediator.Send(
+            new VerifyAgentAccessQuery(userId, effectiveAgentId.Value),
+            Context.ConnectionAborted);
+
+        if (!accessResult.HasAccess)
+        {
+            var errorMessage = accessResult.Reason ?? _localizer["AgentAccessDenied"];
+            if (accessResult.MissingPlugins?.Count > 0)
+            {
+                errorMessage += $" {_localizer["MissingPlugins"]}: {accessResult.MissingPlugins.Count}";
+            }
+
+            await Clients.Caller.SendAsync("ReceiveMessage", "bot", errorMessage);
+            return;
+        }
+
+        // Get or create thread for this session (handles Redis migration automatically)
+        await _threadManager.GetOrCreateThreadAsync(sessionId, effectiveAgentId.Value, Context.ConnectionAborted);
+
+        // Add user message to thread
+        await _threadManager.AddMessageAsync(sessionId, "user", message, Context.ConnectionAborted);
+
+        // Broadcast the user's message as an activity
+        await BroadcastActivity(sessionId, "user_message", new { sessionId, message });
+
+        // Get conversation history for LLM (only user/assistant/system messages)
+        var history = await _threadManager.GetHistoryAsync(sessionId, Context.ConnectionAborted);
+        var llmHistory = history.Where(m => m.Role is "user" or "assistant" or "system").ToList();
+
+        // Signal that streaming is starting
+        await Clients.Caller.SendAsync("StreamStart", sessionId, Context.ConnectionAborted);
+
+        // Stream the AI response
+        var fullResponse = new StringBuilder();
+        var streamErrored = false;
+
+        try
+        {
+            await foreach (var token in _chatCompletion.CompleteWithAgentStreamingAsync(
+                               llmHistory, effectiveAgentId.Value, userId, Context.ConnectionAborted))
+            {
+                fullResponse.Append(token);
+                await Clients.Caller.SendAsync("ReceiveToken", token, Context.ConnectionAborted);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // User disconnected or cancelled - this is expected behavior
+            streamErrored = true;
+            if (fullResponse.Length > 0)
+            {
+                // Save partial response
+                await _threadManager.AddMessageAsync(sessionId, "assistant",
+                    fullResponse + " [interrupted]", Context.ConnectionAborted);
+            }
+            return;
+        }
+        catch (Exception ex)
+        {
+            streamErrored = true;
+            var errorResponse = string.Format(_localizer["AiError"], ex.Message);
+
+            // If we have a partial response, append error notice
+            if (fullResponse.Length > 0)
+            {
+                await _threadManager.AddMessageAsync(sessionId, "assistant",
+                    fullResponse + $" [{errorResponse}]", CancellationToken.None);
+            }
+
+            // Notify client of the error
+            await Clients.Caller.SendAsync("StreamError", errorResponse, CancellationToken.None);
+            return;
+        }
+
+        // Signal that streaming has completed
+        await Clients.Caller.SendAsync("StreamEnd", sessionId, Context.ConnectionAborted);
+
+        // Add AI response to thread
+        var response = fullResponse.ToString();
+        await _threadManager.AddMessageAsync(sessionId, "assistant", response, Context.ConnectionAborted);
+
+        // Send the complete message for compatibility with non-streaming clients
+        await Clients.Caller.SendAsync("ReceiveMessage", "bot", response);
+
         // Broadcast the AI completion as an activity
         await BroadcastActivity(sessionId, "assistant_message", new { sessionId, message = response });
     }
