@@ -20,6 +20,11 @@ public class AgentEntity
 
     public string? Language { get; set; }
 
+    /// <summary>
+    /// Optional model override for this agent. If null, the default model is used.
+    /// </summary>
+    public string? Model { get; set; }
+
     public Guid[] PluginIds { get; set; } = [];
 
     // Ownership and visibility

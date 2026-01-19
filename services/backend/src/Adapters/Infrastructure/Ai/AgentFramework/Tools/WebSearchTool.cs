@@ -5,8 +5,10 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Application.Interfaces;
+using Infrastructure.Ai.AgentFramework.Abstractions;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using AppChatMessage = Application.Interfaces.ChatMessage;
 
 namespace Infrastructure.Ai.AgentFramework.Tools;
 
@@ -14,7 +16,7 @@ namespace Infrastructure.Ai.AgentFramework.Tools;
 /// Web search tool for Agent Framework.
 /// Provides web search, content fetching, and text processing capabilities.
 /// </summary>
-public sealed class WebSearchTool
+public sealed class WebSearchTool : ITool
 {
     private readonly IActivityPublisher _activity;
     private readonly IChatCompletionPort _chat;
@@ -23,6 +25,13 @@ public sealed class WebSearchTool
     private readonly ILogger<WebSearchTool> _logger;
     private readonly ISearchProvider _search;
     private readonly IVectorStorePort _vectorStore;
+
+    // ITool implementation
+    public string SystemName => "web_search";
+    public string DisplayName => "Web Search";
+    public string Description => "Provides web search, content fetching, and text processing capabilities.";
+    public int CreditCost => 2;
+    public bool RequiresSubscription => false;
 
     public WebSearchTool(
         ILogger<WebSearchTool> logger,
@@ -142,10 +151,10 @@ public sealed class WebSearchTool
         CancellationToken ct = default)
     {
         _logger.LogInformation("SummarizeContent (len={Length})", content.Length);
-        var messages = new[]
+        var messages = new AppChatMessage[]
         {
-            new ChatMessage("system", "Summarize the following text in 3 sentences:"),
-            new ChatMessage("user", content)
+            new("system", "Summarize the following text in 3 sentences:"),
+            new("user", content)
         };
         var summary = await _chat.CompleteAsync(messages, ct);
         await _activity.PublishAsync("tool_invocation",
@@ -205,11 +214,26 @@ public sealed class WebSearchTool
     {
         return new List<AIFunction>
         {
-            AIFunctionFactory.Create(SearchWebAsync, this),
-            AIFunctionFactory.Create(FetchContentAsync, this),
-            AIFunctionFactory.Create(CleanContent, this),
-            AIFunctionFactory.Create(SummarizeContentAsync, this),
-            AIFunctionFactory.Create(UpsertToVectorAsync, this)
+            AIFunctionFactory.Create(
+                (string query, int topK, string? siteFilter, CancellationToken ct) => SearchWebAsync(query, topK, siteFilter, ct),
+                "SearchWeb",
+                "Search the web for information using a search query."),
+            AIFunctionFactory.Create(
+                (string url, CancellationToken ct) => FetchContentAsync(url, ct),
+                "FetchContent",
+                "Fetch the raw HTML content from a URL."),
+            AIFunctionFactory.Create(
+                (string html) => CleanContent(html),
+                "CleanContent",
+                "Clean HTML content by removing tags and normalizing whitespace."),
+            AIFunctionFactory.Create(
+                (string content, CancellationToken ct) => SummarizeContentAsync(content, ct),
+                "SummarizeContent",
+                "Summarize text content into a concise summary using AI."),
+            AIFunctionFactory.Create(
+                (string url, string text, CancellationToken ct) => UpsertToVectorAsync(url, text, ct),
+                "UpsertToVector",
+                "Store text content from a URL in the vector database.")
         };
     }
 }
