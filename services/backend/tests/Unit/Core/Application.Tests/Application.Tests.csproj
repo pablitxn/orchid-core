@@ -28,10 +28,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Folder Include="UseCases\User\CreateUser\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\..\..\..\src\Adapters\Infrastructure\Infrastructure.csproj" />
       <ProjectReference Include="..\..\..\..\src\Core\Application\Application.csproj" />
     </ItemGroup>
