@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using Application.Interfaces;
+using Infrastructure.Ai.AgentFramework.Middleware;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -164,6 +165,11 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
                 metadata: new { adapter = "AgentFramework", model = modelId, agentId, agentName = agentEntity.Name },
                 cancellationToken: cancellationToken);
         }
+
+        // Establish telemetry context for tool invocations
+        using var telemetryScope = !string.IsNullOrEmpty(traceId)
+            ? TelemetryContext.BeginScope(traceId, sessionId, userId?.ToString())
+            : TelemetryContext.BeginDisabledScope();
 
         try
         {
@@ -369,6 +375,11 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
         var fullResponse = new StringBuilder();
         var startTime = DateTime.UtcNow;
 
+        // Establish telemetry context for tool invocations (scope is manually managed for streaming)
+        var telemetryScope = !string.IsNullOrEmpty(traceId)
+            ? TelemetryContext.BeginScope(traceId, sessionId, userId?.ToString())
+            : TelemetryContext.BeginDisabledScope();
+
         try
         {
             // Load agent configuration and tools
@@ -452,6 +463,9 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
         }
         finally
         {
+            // Dispose telemetry scope
+            telemetryScope.Dispose();
+
             // If we exit early (cancellation/error) without completing telemetry, clean up
             if (_telemetry != null && traceId != null && fullResponse.Length == 0)
             {
