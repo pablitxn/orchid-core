@@ -43,22 +43,20 @@ public static class InfrastructureServiceCollectionExtensions
 
         // ─── DbContext with pgvector support ─────────────────────────────────────────
         // 1. Register your DbContext with pgvector support
-        services.AddDbContext<ApplicationDbContext>(options =>
+        services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
         {
             options.UseNpgsql(
                 connectionString,
                 npgsqlOptions => npgsqlOptions.UseVector() // enable EF Core pgvector mapping
             );
 
-            // SECURITY: Enable detailed errors and sensitive data logging ONLY in Development
-            // In production, this must be disabled to prevent exposure of sensitive data in logs
-            var isDevelopment = environment?.IsDevelopment() ?? false;
-            if (isDevelopment)
+            // Enable sensitive data logging and detailed errors ONLY in Development
+            // Security: This prevents leaking sensitive data (like SQL parameters) in production logs
+            var env = environment ?? serviceProvider.GetService<IHostEnvironment>();
+            if (env?.IsDevelopment() == true)
             {
-                options.EnableDetailedErrors();
-                // WARNING: EnableSensitiveDataLogging exposes parameter values in logs
-                // This is intentionally restricted to development environment only
                 options.EnableSensitiveDataLogging();
+                options.EnableDetailedErrors();
             }
         }, ServiceLifetime.Scoped);
 
