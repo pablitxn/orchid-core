@@ -1,6 +1,7 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using OpenAI;
 using Application.Interfaces;
 using Infrastructure.Ai.AgentFramework.Abstractions;
@@ -67,7 +68,15 @@ public static class AgentFrameworkServiceCollectionExtensions
         services.AddScoped<IToolRegistry, Services.ToolRegistry>();
 
         // ─── 7. Tool loader for dynamic agent tools ───────────────────────
-        services.AddScoped<IAgentToolLoader, Services.AgentToolLoader>();
+        // Use factory to inject optional telemetry client for tool invocation tracking
+        services.AddScoped<IAgentToolLoader>(sp => new Services.AgentToolLoader(
+            sp.GetRequiredService<IPluginRepository>(),
+            sp.GetRequiredService<IToolRegistry>(),
+            sp.GetRequiredService<ILogger<Services.AgentToolLoader>>(),
+            sp.GetService<IEnhancedTelemetryClient>(), // Optional telemetry client
+            enableSafeWrapping: true,
+            enableTelemetryWrapping: true
+        ));
 
         // ─── 8. Thread manager for conversation state ────────────────────
         // Singleton: maintains in-memory thread state across requests

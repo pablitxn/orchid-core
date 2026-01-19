@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Application.Interfaces;
 using Infrastructure.Ai.AgentFramework.Abstractions;
+using Infrastructure.Ai.AgentFramework.Middleware;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
@@ -10,24 +11,31 @@ namespace Infrastructure.Ai.AgentFramework.Services;
 /// Service responsible for dynamically loading tools based on agent configuration.
 /// Uses IToolRegistry for tool resolution instead of hardcoded switch statements.
 /// All loaded functions are wrapped with error handling to prevent tool failures from crashing conversations.
+/// Optionally wraps functions with telemetry tracking when IEnhancedTelemetryClient is provided.
 /// </summary>
 public class AgentToolLoader : IAgentToolLoader
 {
     private readonly IPluginRepository _pluginRepository;
     private readonly IToolRegistry _toolRegistry;
     private readonly ILogger<AgentToolLoader> _logger;
+    private readonly IEnhancedTelemetryClient? _telemetryClient;
     private readonly bool _enableSafeWrapping;
+    private readonly bool _enableTelemetryWrapping;
 
     public AgentToolLoader(
         IPluginRepository pluginRepository,
         IToolRegistry toolRegistry,
         ILogger<AgentToolLoader> logger,
-        bool enableSafeWrapping = true)
+        IEnhancedTelemetryClient? telemetryClient = null,
+        bool enableSafeWrapping = true,
+        bool enableTelemetryWrapping = true)
     {
         _pluginRepository = pluginRepository ?? throw new ArgumentNullException(nameof(pluginRepository));
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _telemetryClient = telemetryClient;
         _enableSafeWrapping = enableSafeWrapping;
+        _enableTelemetryWrapping = enableTelemetryWrapping && telemetryClient != null;
     }
 
     public async Task<IReadOnlyList<AIFunction>> LoadAgentToolsAsync(
@@ -95,17 +103,30 @@ public class AgentToolLoader : IAgentToolLoader
                     stopwatch.ElapsedMilliseconds);
             }
 
-            // Wrap all tools with error handling to prevent tool failures from crashing conversations
+            // Apply wrappers in order: Telemetry -> Safe (so telemetry captures errors before they're converted)
+            var wrappedTools = loadedTools.AsEnumerable();
+
+            // First wrap with telemetry tracking (innermost wrapper)
+            if (_enableTelemetryWrapping && _telemetryClient != null && loadedTools.Count > 0)
+            {
+                _logger.LogDebug(
+                    "Wrapping {ToolCount} functions with telemetry tracking for agent {AgentId}",
+                    loadedTools.Count,
+                    agentId);
+                wrappedTools = TelemetryAIFunctionWrapper.WrapAll(wrappedTools, _telemetryClient, _logger);
+            }
+
+            // Then wrap with safe error handling (outermost wrapper)
             if (_enableSafeWrapping && loadedTools.Count > 0)
             {
                 _logger.LogDebug(
                     "Wrapping {ToolCount} functions with safe error handling for agent {AgentId}",
                     loadedTools.Count,
                     agentId);
-                return SafeAIFunctionWrapper.WrapAll(loadedTools, _logger);
+                wrappedTools = SafeAIFunctionWrapper.WrapAll(wrappedTools, _logger);
             }
 
-            return loadedTools;
+            return wrappedTools.ToList();
         }
         catch (Exception ex)
         {
