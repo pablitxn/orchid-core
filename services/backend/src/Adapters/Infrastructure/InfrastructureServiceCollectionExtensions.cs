@@ -30,7 +30,8 @@ public static class InfrastructureServiceCollectionExtensions
 {
     public static Task<IServiceCollection> AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration
+        IConfiguration configuration,
+        IHostEnvironment? environment = null
     )
     {
         // ─── 1. Validate configuration ─────────────────────────────────────────────
@@ -49,11 +50,16 @@ public static class InfrastructureServiceCollectionExtensions
                 npgsqlOptions => npgsqlOptions.UseVector() // enable EF Core pgvector mapping
             );
 
-            // Enable thread safety checking in development
-#if DEBUG
-            options.EnableSensitiveDataLogging();
-            options.EnableDetailedErrors();
-#endif
+            // SECURITY: Enable detailed errors and sensitive data logging ONLY in Development
+            // In production, this must be disabled to prevent exposure of sensitive data in logs
+            var isDevelopment = environment?.IsDevelopment() ?? false;
+            if (isDevelopment)
+            {
+                options.EnableDetailedErrors();
+                // WARNING: EnableSensitiveDataLogging exposes parameter values in logs
+                // This is intentionally restricted to development environment only
+                options.EnableSensitiveDataLogging();
+            }
         }, ServiceLifetime.Scoped);
 
         #endregion
