@@ -15,6 +15,7 @@ namespace WebApi.Hubs;
 public sealed class ChatHub(
     IChatCompletionPort chatCompletion,
     ICacheStore cache,
+    IAgentThreadManager threadManager,
     IMediator mediator,
     ITokenCounter tokenCounter,
     IChatSessionRepository chatSessionRepository,
@@ -26,6 +27,9 @@ public sealed class ChatHub(
 {
     private readonly ICacheStore _cache =
         cache ?? throw new ArgumentNullException(nameof(cache));
+
+    private readonly IAgentThreadManager _threadManager =
+        threadManager ?? throw new ArgumentNullException(nameof(threadManager));
 
     private readonly IChatCompletionPort _chatCompletion =
         chatCompletion ?? throw new ArgumentNullException(nameof(chatCompletion));
@@ -44,10 +48,10 @@ public sealed class ChatHub(
 
     private readonly CreditSystemConfiguration _creditConfig =
         creditConfig?.Value ?? throw new ArgumentNullException(nameof(creditConfig));
-        
-    private readonly IDistributedLockService _distributedLock = 
+
+    private readonly IDistributedLockService _distributedLock =
         distributedLock ?? throw new ArgumentNullException(nameof(distributedLock));
-        
+
     private readonly IRateLimitService _rateLimitService =
         rateLimitService ?? throw new ArgumentNullException(nameof(rateLimitService));
 
@@ -162,27 +166,12 @@ public sealed class ChatHub(
         // Acquire distributed lock for this session to prevent race conditions
         var lockKey = $"chat_session:{sessionId}";
         await using var sessionLock = await _distributedLock.WaitAsync(
-            lockKey, 
-            TimeSpan.FromSeconds(30), 
-            TimeSpan.FromSeconds(10), 
+            lockKey,
+            TimeSpan.FromSeconds(30),
+            TimeSpan.FromSeconds(10),
             Context.ConnectionAborted);
 
-        // Key for storing conversation history, separated by session ID
-        var key = $"chat_history:{sessionId}";
-        // Retrieve existing history from cache
-
-        var history = await _cache.GetAsync<List<ChatMessage>>(key) ?? [];
-
-        // Append the new user message
-        history.Add(new ChatMessage("user", message));
-
-        // Broadcast the user's message as an activity and persist it
-        await BroadcastActivity(sessionId, "user_message", new { sessionId, message });
-
-        // Filter out activity messages before sending to LLM
-        var llmHistory = history.Where(m => m.Role is "user" or "assistant" or "system").ToList();
-
-        // Get the chat session to retrieve the agent ID
+        // Get the chat session to retrieve the agent ID (needed for thread creation)
         var chatSession = await _chatSessionRepository.GetBySessionIdAsync(sessionId, Context.ConnectionAborted);
         if (chatSession == null)
         {
@@ -223,6 +212,19 @@ public sealed class ChatHub(
             return;
         }
 
+        // Get or create thread for this session (handles Redis migration automatically)
+        await _threadManager.GetOrCreateThreadAsync(sessionId, effectiveAgentId.Value, Context.ConnectionAborted);
+
+        // Add user message to thread
+        await _threadManager.AddMessageAsync(sessionId, "user", message, Context.ConnectionAborted);
+
+        // Broadcast the user's message as an activity
+        await BroadcastActivity(sessionId, "user_message", new { sessionId, message });
+
+        // Get conversation history for LLM (only user/assistant/system messages)
+        var history = await _threadManager.GetHistoryAsync(sessionId, Context.ConnectionAborted);
+        var llmHistory = history.Where(m => m.Role is "user" or "assistant" or "system").ToList();
+
         // Invoke the AI completion port with filtered history and agent ID
         // TODO: Implement team-based chat context when teamId is provided
         string response;
@@ -239,11 +241,8 @@ public sealed class ChatHub(
             response = string.Format(_localizer["AiError"], ex.Message);
         }
 
-        // Append AI response to history
-        history.Add(new ChatMessage("assistant", response));
-
-        // Store updated history with a sliding expiration
-        await _cache.SetAsync(key, history, TimeSpan.FromDays(1));
+        // Add AI response to thread
+        await _threadManager.AddMessageAsync(sessionId, "assistant", response, Context.ConnectionAborted);
 
         // Send the AI response back to the caller
         await Clients.Caller.SendAsync("ReceiveMessage", "bot", response);
@@ -251,13 +250,14 @@ public sealed class ChatHub(
         await BroadcastActivity(sessionId, "assistant_message", new { sessionId, message = response });
     }
 
-    /// <summary>Returns the cached conversation for the given session.</summary>
+    /// <summary>Returns the conversation history for the given session.</summary>
     public async Task<IReadOnlyList<ChatMessage>> GetHistory(string sessionId)
     {
-        var chatKey = $"chat_history:{sessionId}";
-        var activityKey = $"activity_history:{sessionId}";
+        // Get chat history from thread manager (handles Redis migration)
+        var chatHistory = await _threadManager.GetHistoryAsync(sessionId);
 
-        var chatHistory = await _cache.GetAsync<List<ChatMessage>>(chatKey) ?? new List<ChatMessage>();
+        // Get activity history from cache (still uses Redis for activities)
+        var activityKey = $"activity_history:{sessionId}";
         var activityHistory = await _cache.GetAsync<List<Activity>>(activityKey) ?? new List<Activity>();
 
         // Convert activities to ChatMessages for frontend compatibility

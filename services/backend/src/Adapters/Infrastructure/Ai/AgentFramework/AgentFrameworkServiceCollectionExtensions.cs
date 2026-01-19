@@ -65,7 +65,11 @@ public static class AgentFrameworkServiceCollectionExtensions
         // ─── 6. Tool loader for dynamic agent tools ───────────────────────
         services.AddScoped<IAgentToolLoader, Services.AgentToolLoader>();
 
-        // ─── 7. Chat adapter ➜ IChatCompletionPort forwarding ───────────
+        // ─── 7. Thread manager for conversation state ────────────────────
+        // Singleton: maintains in-memory thread state across requests
+        services.AddSingleton<IAgentThreadManager, Services.AgentThreadManager>();
+
+        // ─── 8. Chat adapter ➜ IChatCompletionPort forwarding ───────────
         services.AddScoped<AgentFrameworkChatCompletionAdapter>();
         services.AddScoped<IChatCompletionPort>(sp =>
             sp.GetRequiredService<AgentFrameworkChatCompletionAdapter>());
