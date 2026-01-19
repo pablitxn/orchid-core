@@ -23,14 +23,9 @@ public class UserRepository(ApplicationDbContext db) : IUserRepository
         return newUser;
     }
 
-    public Task<UserEntity?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<UserEntity?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException();
-    }
-
-    public async Task<UserEntity?> GetByIdAsync(Guid id)
-    {
-        return await _db.Users.FindAsync(id);
+        return await _db.Users.FindAsync(id, cancellationToken);
     }
 
     public async Task UpdateAsync(UserEntity user)

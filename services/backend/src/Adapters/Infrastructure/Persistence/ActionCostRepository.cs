@@ -93,6 +93,19 @@ public sealed class ActionCostRepository(ApplicationDbContext context, ILogger<A
             })
             .FirstOrDefaultAsync(cancellationToken)!;
     }
+
+    public async Task<ActionCostEntity> CreateAsync(ActionCostEntity cost, CancellationToken cancellationToken = default)
+    {
+        _context.ActionCosts.Add(cost);
+        await _context.SaveChangesAsync(cancellationToken);
+        return cost;
+    }
+
+    public async Task UpdateAsync(ActionCostEntity cost, CancellationToken cancellationToken = default)
+    {
+        _context.ActionCosts.Update(cost);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
 }
 
 /// <summary>
