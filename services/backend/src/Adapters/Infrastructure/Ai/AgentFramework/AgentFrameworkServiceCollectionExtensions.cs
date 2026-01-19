@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenAI;
 using Application.Interfaces;
+using Infrastructure.Ai.AgentFramework.Abstractions;
 using Infrastructure.Http;
 
 namespace Infrastructure.Ai.AgentFramework;
@@ -62,14 +63,17 @@ public static class AgentFrameworkServiceCollectionExtensions
             sp.GetRequiredService<OpenAIClient>(),
             defaultModel));
 
-        // ─── 6. Tool loader for dynamic agent tools ───────────────────────
+        // ─── 6. Tool registry for tool discovery ───────────────────────────
+        services.AddScoped<IToolRegistry, Services.ToolRegistry>();
+
+        // ─── 7. Tool loader for dynamic agent tools ───────────────────────
         services.AddScoped<IAgentToolLoader, Services.AgentToolLoader>();
 
-        // ─── 7. Thread manager for conversation state ────────────────────
+        // ─── 8. Thread manager for conversation state ────────────────────
         // Singleton: maintains in-memory thread state across requests
         services.AddSingleton<IAgentThreadManager, Services.AgentThreadManager>();
 
-        // ─── 8. Chat adapter ➜ IChatCompletionPort forwarding ───────────
+        // ─── 9. Chat adapter ➜ IChatCompletionPort forwarding ───────────
         services.AddScoped<AgentFrameworkChatCompletionAdapter>();
         services.AddScoped<IChatCompletionPort>(sp =>
             sp.GetRequiredService<AgentFrameworkChatCompletionAdapter>());
