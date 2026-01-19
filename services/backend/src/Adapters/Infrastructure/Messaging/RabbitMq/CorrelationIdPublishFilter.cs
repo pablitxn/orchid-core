@@ -1,6 +1,7 @@
 using Application.Interfaces;
 using MassTransit;
-using Serilog.Context;
+using Microsoft.Extensions.Logging;
+using SerilogContext = Serilog.Context.LogContext;
 
 namespace Infrastructure.Messaging.RabbitMq;
 
@@ -88,8 +89,8 @@ public class CorrelationIdConsumeFilter<T> : IFilter<ConsumeContext<T>> where T 
             correlationId,
             typeof(T).Name);
 
-        // Push to Serilog LogContext
-        using (LogContext.PushProperty("CorrelationId", correlationId))
+        // Push to Serilog LogContext (use alias to avoid ambiguity with MassTransit.LogContext)
+        using (SerilogContext.PushProperty("CorrelationId", correlationId))
         {
             await next.Send(context);
         }
@@ -104,9 +105,9 @@ public static class CorrelationIdFilterExtensions
     /// <summary>
     ///     Adds correlation ID propagation filters to MassTransit.
     /// </summary>
-    public static void UseCorrelationIdFilters(this IBusFactoryConfigurator configurator, IServiceProvider serviceProvider)
+    public static void UseCorrelationIdFilters(this IBusFactoryConfigurator configurator, IRegistrationContext context)
     {
-        configurator.UsePublishFilter(typeof(CorrelationIdPublishFilter<>), serviceProvider);
-        configurator.UseConsumeFilter(typeof(CorrelationIdConsumeFilter<>), serviceProvider);
+        configurator.UsePublishFilter(typeof(CorrelationIdPublishFilter<>), context);
+        configurator.UseConsumeFilter(typeof(CorrelationIdConsumeFilter<>), context);
     }
 }

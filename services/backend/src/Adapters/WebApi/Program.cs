@@ -102,11 +102,7 @@ builder.Services.AddControllers()
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSignalR(options =>
-{
-    // Add correlation ID filter for distributed tracing across hub invocations
-    options.AddFilter<CorrelationIdHubFilter>();
-});
+builder.Services.AddSignalR();
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 
 // ─── Swagger / OpenAPI ────────────────────────────────────────────────────────
