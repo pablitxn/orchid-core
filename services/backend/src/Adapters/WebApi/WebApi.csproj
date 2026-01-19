@@ -11,45 +11,43 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0"/>
-        <PackageReference Include="AspNetCore.HealthChecks.RabbitMQ" Version="9.0.0"/>
-        <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0"/>
-        <PackageReference Include="AspNetCore.HealthChecks.System" Version="9.0.0"/>
-        <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0"/>
-        <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1"/>
-        <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.2"/>
-        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.2"/>
+        <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
+        <PackageReference Include="AspNetCore.HealthChecks.RabbitMQ" Version="9.0.0" />
+        <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
+        <PackageReference Include="AspNetCore.HealthChecks.System" Version="9.0.0" />
+        <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
+        <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.2" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.2" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.2">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
         <!-- Align Semantic Kernel package versions across the solution -->
-        <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.54.0"/>
-        <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="7.3.1"/>
-        <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="7.3.1"/>
+        <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.54.0" />
+        <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+        <PackageReference Include="Serilog.Enrichers.CorrelationId" Version="3.0.1" />
+        <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+        <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="7.3.1" />
+        <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="7.3.1" />
         <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="7.3.1">
             <TreatAsUsed>true</TreatAsUsed>
         </PackageReference>
-        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.10.0"/>
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.10.0" />
         <!-- Add RabbitMQ transport for MassTransit -->
-        <PackageReference Include="MassTransit.RabbitMQ" Version="8.4.0"/>
+        <PackageReference Include="MassTransit.RabbitMQ" Version="8.4.0" />
         <!-- Redis distributed cache support -->
-        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="7.0.5"/>
+        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="7.0.5" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\Adapters\Infrastructure\Infrastructure.csproj"/>
+        <ProjectReference Include="..\..\Adapters\Infrastructure\Infrastructure.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-        <None Update="appsettings.Testing.json">
+        <None Update="appsettings.testing.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
     </ItemGroup>
-
-    <PropertyGroup>
-        <UserSecretsId>e7a3a9b3-4d4e-4c2d-8b1e-2d1a6a3e5f67</UserSecretsId>
-        <UserSecretsId>RITpCyWNDagTOtLwxtOQnOTBjyZCxqRQlgBjDFUR</UserSecretsId>
-    </PropertyGroup>
 
 </Project>

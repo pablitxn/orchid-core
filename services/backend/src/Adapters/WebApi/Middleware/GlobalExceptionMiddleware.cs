@@ -28,15 +28,19 @@ public class GlobalExceptionMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unhandled exception occurred");
-            await HandleExceptionAsync(context, ex);
+            // Get correlation ID from context items (set by CorrelationIdMiddleware)
+            var correlationId = context.Items[CorrelationIdMiddleware.CorrelationIdItemKey]?.ToString()
+                                ?? context.TraceIdentifier;
+
+            _logger.LogError(ex, "An unhandled exception occurred. CorrelationId: {CorrelationId}", correlationId);
+            await HandleExceptionAsync(context, ex, correlationId);
         }
     }
 
-    private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private async Task HandleExceptionAsync(HttpContext context, Exception exception, string correlationId)
     {
         context.Response.ContentType = "application/json";
-        
+
         var problemDetails = exception switch
         {
             InvalidOperationException invalidOp when invalidOp.Message.Contains("Insufficient credits") =>
@@ -45,47 +49,47 @@ public class GlobalExceptionMiddleware
                     "Insufficient Credits",
                     "You don't have enough credits to complete this action.",
                     "INSUFFICIENT_CREDITS"),
-                    
+
             InvalidOperationException invalidOp when invalidOp.Message.Contains("already purchased") =>
                 CreateProblemDetails(
                     HttpStatusCode.Conflict,
                     "Already Purchased",
                     "You have already purchased this item.",
                     "ALREADY_PURCHASED"),
-                    
+
             KeyNotFoundException _ =>
                 CreateProblemDetails(
                     HttpStatusCode.NotFound,
                     "Resource Not Found",
                     "The requested resource was not found.",
                     "NOT_FOUND"),
-                    
+
             UnauthorizedAccessException _ =>
                 CreateProblemDetails(
                     HttpStatusCode.Forbidden,
                     "Forbidden",
                     "You are not authorized to perform this action.",
                     "FORBIDDEN"),
-                    
+
             ArgumentException argEx =>
                 CreateProblemDetails(
                     HttpStatusCode.BadRequest,
                     "Invalid Request",
                     argEx.Message,
                     "BAD_REQUEST"),
-                    
+
             _ => CreateProblemDetails(
-                    HttpStatusCode.InternalServerError,
-                    "Internal Server Error",
-                    _environment.IsDevelopment() 
-                        ? exception.Message 
-                        : "An error occurred while processing your request.",
-                    "INTERNAL_ERROR")
+                HttpStatusCode.InternalServerError,
+                "Internal Server Error",
+                _environment.IsDevelopment()
+                    ? exception.Message
+                    : "An error occurred while processing your request.",
+                "INTERNAL_ERROR")
         };
 
-        // Add trace ID for debugging
-        problemDetails.Extensions["traceId"] = context.TraceIdentifier;
-        
+        // Add correlation ID for distributed tracing
+        problemDetails.Extensions["correlationId"] = correlationId;
+
         // Add stack trace in development
         if (_environment.IsDevelopment() && exception.StackTrace != null)
         {
@@ -93,12 +97,12 @@ public class GlobalExceptionMiddleware
         }
 
         context.Response.StatusCode = problemDetails.Status ?? 500;
-        
+
         var json = JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         });
-        
+
         await context.Response.WriteAsync(json);
     }
 

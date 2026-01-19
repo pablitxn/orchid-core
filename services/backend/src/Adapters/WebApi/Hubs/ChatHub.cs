@@ -6,7 +6,9 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
+using Serilog.Context;
 using WebApi.Configuration;
+using WebApi.Middleware;
 
 namespace WebApi.Hubs;
 
@@ -275,27 +277,70 @@ public sealed class ChatHub(
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        var sessionId = Context.GetHttpContext()
-                            ?.Request.Query["sessionId"].ToString()
-                        ?? "unknown";
+        var correlationId = GetCorrelationId();
 
-        // Notify everyone that this user disconnected
-        await BroadcastActivity(
-            sessionId,
-            "user_disconnected",
-            new { sessionId, user = Context.UserIdentifier }
-        );
+        using (LogContext.PushProperty("CorrelationId", correlationId))
+        {
+            var sessionId = Context.GetHttpContext()
+                                ?.Request.Query["sessionId"].ToString()
+                            ?? "unknown";
 
-        await base.OnDisconnectedAsync(exception);
+            // Notify everyone that this user disconnected
+            await BroadcastActivity(
+                sessionId,
+                "user_disconnected",
+                new { sessionId, user = Context.UserIdentifier }
+            );
+
+            await base.OnDisconnectedAsync(exception);
+        }
     }
 
     public override async Task OnConnectedAsync()
     {
-        var sessionId = Context.GetHttpContext()?.Request.Query["sessionId"].ToString() ?? "unknown";
-        // Send a welcome message to the connecting user
-        await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["Welcome"]);
-        // Broadcast an activity to all users
-        await BroadcastActivity(sessionId, "user_connected", new { sessionId, user = Context.UserIdentifier });
-        await base.OnConnectedAsync();
+        var correlationId = GetCorrelationId();
+
+        // Store correlation ID in connection items for future use
+        Context.Items["CorrelationId"] = correlationId;
+
+        using (LogContext.PushProperty("CorrelationId", correlationId))
+        {
+            var sessionId = Context.GetHttpContext()?.Request.Query["sessionId"].ToString() ?? "unknown";
+            // Send a welcome message to the connecting user
+            await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["Welcome"]);
+            // Broadcast an activity to all users
+            await BroadcastActivity(sessionId, "user_connected", new { sessionId, user = Context.UserIdentifier });
+            await base.OnConnectedAsync();
+        }
+    }
+
+    /// <summary>
+    ///     Gets the correlation ID for the current connection.
+    ///     First tries to get it from connection items (stored during OnConnectedAsync),
+    ///     then from the HTTP context (set by CorrelationIdMiddleware during handshake),
+    ///     and finally generates a new one if not found.
+    /// </summary>
+    private string GetCorrelationId()
+    {
+        // Try to get from connection items (stored during OnConnectedAsync)
+        if (Context.Items.TryGetValue("CorrelationId", out var storedId) &&
+            storedId is string correlationId &&
+            !string.IsNullOrWhiteSpace(correlationId))
+        {
+            return correlationId;
+        }
+
+        // Try to get from HTTP context (set by middleware during handshake)
+        var httpContext = Context.GetHttpContext();
+        if (httpContext != null &&
+            httpContext.Items.TryGetValue(CorrelationIdMiddleware.CorrelationIdItemKey, out var itemId) &&
+            itemId is string existingId &&
+            !string.IsNullOrWhiteSpace(existingId))
+        {
+            return existingId;
+        }
+
+        // Generate a new one as fallback
+        return Guid.NewGuid().ToString("N")[..12];
     }
 }

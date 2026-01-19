@@ -11,7 +11,5 @@ apps/web/.yarnrc.yml
 
 .claude/
 .env
-**/appsettings.Local.json
-**/appsettings.local.json
 secrets.json
 **/secrets*.json
