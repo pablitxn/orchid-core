@@ -2,7 +2,7 @@ using Application.Interfaces;
 using Application.UseCases.ChatSession.DeleteChatSessions;
 using Moq;
 
-namespace Application.Tests.UseCases.ChatSession.DeleteChatSessions;
+namespace Application.Tests.UseCases.ChatSession;
 
 public class DeleteChatSessionsHandlerTests
 {

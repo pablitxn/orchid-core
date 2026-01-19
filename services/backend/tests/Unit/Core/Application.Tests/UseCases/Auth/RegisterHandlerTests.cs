@@ -4,7 +4,7 @@ using Domain.Entities;
 using Domain.Events;
 using Moq;
 
-namespace Application.Tests.UseCases.Auth.Register;
+namespace Application.Tests.UseCases.Auth;
 
 public class RegisterHandlerTests
 {

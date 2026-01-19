@@ -2,7 +2,7 @@ using Application.Interfaces;
 using Application.UseCases.VectorStore.SemanticSearch;
 using Moq;
 
-namespace Application.Tests.UseCases.VectorStore.SemanticSearch;
+namespace Application.Tests.UseCases.VectorStore;
 
 public class SemanticSearchHandlerTests
 {

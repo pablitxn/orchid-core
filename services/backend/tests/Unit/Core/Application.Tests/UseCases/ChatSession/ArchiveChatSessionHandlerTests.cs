@@ -3,7 +3,7 @@ using Application.UseCases.ChatSession.ArchiveChatSession;
 using MediatR;
 using Moq;
 
-namespace Application.Tests.UseCases.ChatSession.ArchiveChatSession;
+namespace Application.Tests.UseCases.ChatSession;
 
 public class ArchiveChatSessionHandlerTests
 {

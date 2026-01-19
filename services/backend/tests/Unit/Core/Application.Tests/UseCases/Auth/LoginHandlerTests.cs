@@ -6,7 +6,7 @@ using Domain.Entities;
 using Microsoft.Extensions.Logging;
 using Moq;
 
-namespace Application.Tests.UseCases.Auth.Login;
+namespace Application.Tests.UseCases.Auth;
 
 public class LoginHandlerTests
 {

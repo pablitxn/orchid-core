@@ -4,7 +4,7 @@ using Core.Application.Interfaces;
 using Domain.Entities;
 using Moq;
 
-namespace Application.Tests.UseCases.MediaCenter.AddAsset;
+namespace Application.Tests.UseCases.MediaCenter;
 
 public class AddMediaCenterAssetHandlerTests
 {

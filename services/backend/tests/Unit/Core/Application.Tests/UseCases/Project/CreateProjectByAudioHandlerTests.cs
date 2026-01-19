@@ -4,7 +4,7 @@ using Domain.Entities;
 using Domain.Events;
 using Moq;
 
-namespace Application.Tests.UseCases.Project.CreateProject;
+namespace Application.Tests.UseCases.Project;
 
 public class CreateProjectByAudioHandlerTests
 {

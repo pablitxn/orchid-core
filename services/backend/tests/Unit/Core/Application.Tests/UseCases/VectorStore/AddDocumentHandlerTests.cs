@@ -2,7 +2,7 @@ using Application.Interfaces;
 using Application.UseCases.VectorStore.AddDocument;
 using Moq;
 
-namespace Application.Tests.UseCases.VectorStore.AddDocument;
+namespace Application.Tests.UseCases.VectorStore;
 
 public class AddDocumentHandlerTests
 {

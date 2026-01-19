@@ -13,7 +13,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Application.Tests.UseCases.Subscription.ConsumeCredits;
+namespace Application.Tests.UseCases.Subscription;
 
 public class ConsumeCreditsHandlerTests
 {

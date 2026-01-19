@@ -3,7 +3,7 @@ using Application.UseCases.User.CreateUser;
 using Domain.Entities;
 using Moq;
 
-namespace Application.Tests.UseCases.User.CreateUser;
+namespace Application.Tests.UseCases.User;
 
 public class CreateUserHandlerTests
 {

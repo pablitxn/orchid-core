@@ -3,7 +3,7 @@ using Application.UseCases.Auth.ResetPassword;
 using Domain.Entities;
 using Moq;
 
-namespace Application.Tests.UseCases.Auth.ResetPassword;
+namespace Application.Tests.UseCases.Auth;
 
 public class ResetPasswordHandlerTests
 {

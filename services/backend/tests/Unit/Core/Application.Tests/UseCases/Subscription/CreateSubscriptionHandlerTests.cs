@@ -4,7 +4,7 @@ using Domain.Entities;
 using Domain.Events;
 using Moq;
 
-namespace Application.Tests.UseCases.Subscription.CreateSubscription;
+namespace Application.Tests.UseCases.Subscription;
 
 public class CreateSubscriptionHandlerTests
 {

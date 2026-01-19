@@ -3,7 +3,7 @@ using Application.UseCases.Subscription.GetSubscription;
 using Domain.Entities;
 using Moq;
 
-namespace Application.Tests.UseCases.Subscription.GetSubscription;
+namespace Application.Tests.UseCases.Subscription;
 
 public class GetSubscriptionHandlerTests
 {

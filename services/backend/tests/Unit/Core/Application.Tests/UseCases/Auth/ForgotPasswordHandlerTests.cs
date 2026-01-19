@@ -3,7 +3,7 @@ using Application.UseCases.Auth.ForgotPassword;
 using Domain.Entities;
 using Moq;
 
-namespace Application.Tests.UseCases.Auth.ForgotPassword;
+namespace Application.Tests.UseCases.Auth;
 
 public class ForgotPasswordHandlerTests
 {

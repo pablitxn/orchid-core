@@ -4,7 +4,7 @@ using Core.Application.Interfaces;
 using Domain.Entities;
 using Moq;
 
-namespace Application.Tests.UseCases.MediaCenter.ListAssets;
+namespace Application.Tests.UseCases.MediaCenter;
 
 public class ListMediaCenterAssetsHandlerTests
 {

@@ -1,45 +1,45 @@
 using Application.Interfaces;
-using Application.UseCases.Subscription.AddCredits;
 using Application.UseCases.Subscription.ConsumeCredits;
+using Application.UseCases.Subscription.UpdateAutoRenew;
 using Domain.Entities;
 using Domain.Events;
 using Moq;
 
-namespace Application.Tests.UseCases.Subscription.AddCredits;
+namespace Application.Tests.UseCases.Subscription;
 
-public class AddCreditsHandlerTests
+public class UpdateAutoRenewHandlerTests
 {
     private readonly Mock<IEventPublisher> _events = new();
-    private readonly AddCreditsHandler _handler;
+    private readonly UpdateAutoRenewHandler _handler;
     private readonly Mock<ISubscriptionRepository> _repo = new();
 
-    public AddCreditsHandlerTests()
+    public UpdateAutoRenewHandlerTests()
     {
-        _handler = new AddCreditsHandler(_repo.Object, _events.Object);
+        _handler = new UpdateAutoRenewHandler(_repo.Object, _events.Object);
     }
 
     [Fact]
-    public async Task Handle_AddsCredits_AndPublishesEvent()
+    public async Task Handle_UpdatesFlag_AndPublishesEvent()
     {
-        var sub = new SubscriptionEntity { Id = Guid.NewGuid(), UserId = Guid.NewGuid(), Credits = 5 };
+        var sub = new SubscriptionEntity { Id = Guid.NewGuid(), UserId = Guid.NewGuid(), AutoRenew = true };
         _repo.Setup(r => r.GetByUserIdAsync(sub.UserId, It.IsAny<CancellationToken>())).ReturnsAsync(sub);
 
-        var cmd = new AddCreditsCommand(sub.UserId, 5);
+        var cmd = new UpdateAutoRenewCommand(sub.UserId, false);
         var result = await _handler.Handle(cmd, CancellationToken.None);
 
         _repo.Verify(r => r.UpdateAsync(It.IsAny<SubscriptionEntity>(), It.IsAny<CancellationToken>()), Times.Once);
-        _events.Verify(e => e.PublishAsync(It.IsAny<CreditsAddedEvent>()), Times.Once);
-        Assert.Equal(10, result.Credits);
+        _events.Verify(e => e.PublishAsync(It.IsAny<SubscriptionUpdatedEvent>()), Times.Once);
+        Assert.False(result.AutoRenew);
     }
 
     [Fact]
-    public async Task Handle_ThrowsSubscriptionNotFoundException_WhenSubscriptionNotFound()
+    public async Task Handle_ThrowsSubscriptionNotFoundException_WhenNotFound()
     {
         var userId = Guid.NewGuid();
         _repo.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((SubscriptionEntity?)null);
 
-        var cmd = new AddCreditsCommand(userId, 5);
+        var cmd = new UpdateAutoRenewCommand(userId, false);
         await Assert.ThrowsAsync<SubscriptionNotFoundException>(() => _handler.Handle(cmd, CancellationToken.None));
     }
 }
