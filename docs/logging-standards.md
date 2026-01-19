@@ -24,10 +24,14 @@ Orchid Core uses **Serilog** for structured logging with built-in support for:
 
 ### Environment Configuration
 
-| Environment | Default Level | Framework Level |
-|-------------|---------------|-----------------|
-| Development | Information | Warning |
-| Production | Warning | Warning |
+The following table shows the default log levels per environment:
+
+| Environment | Application Logs | Framework Logs | Description |
+|-------------|-----------------|----------------|-------------|
+| Development | Information | Warning | Verbose application logs for debugging, minimal framework noise |
+| Production | Information | Warning | Application events visible, framework noise suppressed |
+
+**Note**: Application logs (`Infrastructure.*`, `Application.*`, `WebApi.*`) are kept at `Information` level in both environments to capture important business events. Framework logs (Microsoft.*, System.*, MassTransit) are suppressed to `Warning` to reduce noise.
 
 ### Namespace-Specific Overrides
 
@@ -178,6 +182,11 @@ public class MyHandler(ISafeLogger safeLogger)
 
 1. **Entity Framework Sensitive Data Logging** - Parameter values in SQL logs are hidden
 2. **Detailed Error Messages** - Internal exceptions are not exposed to clients
+
+**Verification**: To verify sensitive data logging is properly disabled in production:
+- Check that `ASPNETCORE_ENVIRONMENT` is set to `Production` (not `Development`)
+- Review startup logs - they should NOT contain "Sensitive data logging is enabled" message
+- SQL query logs should show parameter placeholders (e.g., `@p0`) instead of actual values
 
 ## Configuration Files
 
