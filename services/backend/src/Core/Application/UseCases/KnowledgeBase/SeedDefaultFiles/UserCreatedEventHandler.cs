@@ -9,6 +9,8 @@ namespace Application.UseCases.KnowledgeBase.SeedDefaultFiles;
 public class UserCreatedEventHandler(
     ISubscriptionRepository subscriptionRepository,
     IEventPublisher eventPublisher,
+    IAgentRepository agentRepository,
+    IUserPluginRepository userPluginRepository,
     ILogger<UserCreatedEventHandler> logger)
     : INotificationHandler<UserCreatedEvent>
 {
@@ -22,6 +24,9 @@ public class UserCreatedEventHandler(
 
             // Grant welcome credits
             await GrantWelcomeCredits(notification.UserId, cancellationToken);
+
+            // Assign plugins from public agents so user can use them immediately
+            await AssignPublicAgentPluginsAsync(notification.UserId, cancellationToken);
 
             // Note: Knowledge base seeding from local files is disabled for cloud deployment.
             // Users can upload their own files via the /knowledge-base API endpoint.
@@ -71,6 +76,65 @@ public class UserCreatedEventHandler(
         {
             logger.LogError(ex, "Failed to grant welcome credits to user {UserId}", userId);
             // Don't throw - we don't want to fail user registration if credit granting fails
+        }
+    }
+
+    private async Task AssignPublicAgentPluginsAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            logger.LogInformation("Assigning public agent plugins to user {UserId}", userId);
+
+            // Get all agents and filter for public ones
+            var allAgents = await agentRepository.ListAsync(cancellationToken);
+            var publicAgents = allAgents.Where(a => a.IsPublic && !a.IsDeleted).ToList();
+
+            // Collect unique plugin IDs from public agents
+            var pluginIds = publicAgents
+                .Where(a => a.PluginIds != null && a.PluginIds.Length > 0)
+                .SelectMany(a => a.PluginIds)
+                .Distinct()
+                .ToList();
+
+            if (pluginIds.Count == 0)
+            {
+                logger.LogInformation("No plugins to assign for user {UserId}", userId);
+                return;
+            }
+
+            // Assign each plugin to the user
+            foreach (var pluginId in pluginIds)
+            {
+                // Check if user already has this plugin
+                var existingUserPlugin = await userPluginRepository.GetByUserAndPluginAsync(
+                    userId, pluginId, cancellationToken);
+
+                if (existingUserPlugin != null)
+                {
+                    logger.LogDebug("User {UserId} already has plugin {PluginId}", userId, pluginId);
+                    continue;
+                }
+
+                var userPlugin = new UserPluginEntity
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    PluginId = pluginId,
+                    PurchasedAt = DateTime.UtcNow,
+                    IsActive = true,
+                    ExpiresAt = null // No expiration for default plugins
+                };
+
+                await userPluginRepository.CreateAsync(userPlugin, cancellationToken);
+                logger.LogDebug("Assigned plugin {PluginId} to user {UserId}", pluginId, userId);
+            }
+
+            logger.LogInformation("Successfully assigned {Count} plugins to user {UserId}", pluginIds.Count, userId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to assign public agent plugins to user {UserId}", userId);
+            // Don't throw - we don't want to fail user registration if plugin assignment fails
         }
     }
 }

@@ -172,6 +172,10 @@ public static class InfrastructureServiceCollectionExtensions
         // ─── Plugin seeder (runs on startup) ─────────────────────────────────────────
         services.AddHostedService<Persistence.Seeders.PluginSeeder>();
 
+        // ─── User plugin migration (temporary, remove before production) ─────────────
+        // TODO: Remove this service after all environments are migrated
+        services.AddHostedService<Persistence.Seeders.UserPluginMigrationSeeder>();
+
         #endregion
 
         #region Caching Services
