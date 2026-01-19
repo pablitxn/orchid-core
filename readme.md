@@ -167,7 +167,7 @@ kubectl create secret generic orchid-core-secrets \
   --from-literal=ConnectionStrings__DefaultConnection="Host=postgres;Port=5432;Database=orchid_core;Username=admin;Password=<DB_PASSWORD>" \
   --from-literal=OpenAI__ApiKey="<OPENAI_API_KEY>" \
   --from-literal=OpenAI__Endpoint="https://api.openai.com/v1/chat/completions" \
-  --from-literal=OpenAI__Model="gpt-4o" \
+  --from-literal=OpenAI__Model="gpt-5-nano-2025-08-07" \
   --from-literal=Jwt__Key="<JWT_SECRET_KEY_MIN_32_CHARS>" \
   --from-literal=Jwt__Issuer="orchid-core" \
   --from-literal=Jwt__Audience="orchid-core" \
@@ -344,7 +344,7 @@ spec:
 | `ConnectionStrings__DefaultConnection` | PostgreSQL connection string | - | Yes |
 | `OpenAI__ApiKey` | OpenAI API key | - | Yes |
 | `OpenAI__Endpoint` | OpenAI API endpoint | `https://api.openai.com/v1/chat/completions` | No |
-| `OpenAI__Model` | Model to use | `gpt-4o` | No |
+| `OpenAI__Model` | Model to use | `gpt-5-nano-2025-08-07` | No |
 | `Jwt__Key` | JWT signing key (min 32 chars) | - | Yes |
 | `Jwt__Issuer` | JWT issuer | `playground` | No |
 | `Jwt__Audience` | JWT audience | `playground` | No |

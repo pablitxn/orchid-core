@@ -45,7 +45,7 @@ public sealed class SemanticKernelChatCompletionAdapter : IChatCompletionPort
         _chatService = _kernel.GetRequiredService<IChatCompletionService>();
 
         // Set a default model ID (can be overridden by configuration)
-        _modelId = "gpt-4o";
+        _modelId = "gpt-5-nano-2025-08-07";
 
         // Register telemetry filter if telemetry is available
         if (_telemetry != null)
@@ -114,7 +114,6 @@ public sealed class SemanticKernelChatCompletionAdapter : IChatCompletionPort
             var settings = new OpenAIPromptExecutionSettings
             {
                 ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
-                Temperature = 0.4,
                 MaxTokens = 4096
             };
 
@@ -128,7 +127,7 @@ public sealed class SemanticKernelChatCompletionAdapter : IChatCompletionPort
                     input: new
                     {
                         messages = inputMessages,
-                        settings = new { temperature = settings.Temperature, maxTokens = settings.MaxTokens }
+                        settings = new { maxTokens = settings.MaxTokens }
                     },
                     metadata: new { messageCount = history.Count, sessionId },
                     cancellationToken: cancellationToken

@@ -25,7 +25,7 @@
 ### 2. AI & Chat
 - Real-time chat sessions with AI agents
 - Semantic Kernel integration for LLM orchestration
-- OpenAI GPT-4o as primary model
+- OpenAI gpt-5-nano-2025-08-07 as primary model
 - RAG (Retrieval-Augmented Generation) via pgvector
 - Streaming responses for low latency
 

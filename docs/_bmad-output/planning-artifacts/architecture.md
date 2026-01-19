@@ -131,7 +131,7 @@ Backend API (.NET 9) with Hexagonal Architecture
 | Component | Technology | Purpose |
 |-----------|------------|---------|
 | Orchestration | Semantic Kernel 1.54.0 | LLM orchestration, plugins |
-| LLM Provider | OpenAI GPT-4o | Chat completions |
+| LLM Provider | OpenAI gpt-5-nano-2025-08-07 | Chat completions |
 | Embeddings | OpenAI | Vector embeddings for RAG |
 | Telemetry | Langfuse | LLM tracing, cost tracking |
 
