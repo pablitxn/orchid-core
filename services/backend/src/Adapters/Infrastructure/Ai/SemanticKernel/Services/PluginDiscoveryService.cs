@@ -10,10 +10,7 @@ public class PluginDiscoveryService : IPluginDiscoveryService
     private readonly Dictionary<string, (string name, string description, int defaultPrice, bool isSubscription)>
         _pluginMetadata = new()
         {
-            ["excel"] = ("Excel Processor",
-                "Compress and analyze Excel spreadsheets using Chain of Spreadsheet (CoS) methodology", 20, false),
             ["vector_store"] = ("Vector Store", "Store and search documents using semantic similarity", 15, false),
-            ["math"] = ("Math Engine", "Perform mathematical calculations and statistical analysis", 10, false),
             ["web_search"] = ("Web Search", "Search the web and fetch content from URLs", 25, true)
         };
 
@@ -22,7 +19,7 @@ public class PluginDiscoveryService : IPluginDiscoveryService
         var discoveredPlugins = new List<DiscoveredPlugin>();
 
         // Get the plugins assembly
-        var pluginsAssembly = Assembly.GetAssembly(typeof(Plugins.SpreadsheetPluginV3Refactored));
+        var pluginsAssembly = Assembly.GetAssembly(typeof(Plugins.VectorStorePlugin));
         if (pluginsAssembly == null) return Task.FromResult(discoveredPlugins.AsEnumerable());
 
         // Find all plugin types
@@ -62,9 +59,7 @@ public class PluginDiscoveryService : IPluginDiscoveryService
     {
         return pluginTypeName switch
         {
-            "SpreadsheetPlugin" => "excel",
             "VectorStorePlugin" => "vector_store",
-            "MathEnginePlugin" => "math",
             "WebSearchPlugin" => "web_search",
             _ => null
         };

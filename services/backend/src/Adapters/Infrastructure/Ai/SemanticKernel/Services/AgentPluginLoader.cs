@@ -34,28 +34,12 @@ public class AgentPluginLoader(
                     // Load plugin based on its system name
                     switch (plugin.SystemName?.ToLowerInvariant())
                     {
-                        case "excel":
-                        case "spreadsheet":
-                            var spreadsheetPlugin = serviceProvider.GetRequiredService<SpreadsheetPluginV3Refactored>();
-                            kernel.ImportPluginFromObject(spreadsheetPlugin, "excel");
-                            loadedPlugins.Add("excel");
-                            logger.LogInformation("Loaded Excel/Spreadsheet plugin for agent {AgentId}", agentId);
-                            break;
-
                         case "vector_store":
                         case "vectorstore":
                             var vectorStorePlugin = serviceProvider.GetRequiredService<VectorStorePlugin>();
                             kernel.ImportPluginFromObject(vectorStorePlugin, "vector_store");
                             loadedPlugins.Add("vector_store");
                             logger.LogInformation("Loaded Vector Store plugin for agent {AgentId}", agentId);
-                            break;
-
-                        case "math":
-                        case "mathengine":
-                            var mathPlugin = serviceProvider.GetRequiredService<MathEnginePlugin>();
-                            kernel.ImportPluginFromObject(mathPlugin, "math");
-                            loadedPlugins.Add("math");
-                            logger.LogInformation("Loaded Math Engine plugin for agent {AgentId}", agentId);
                             break;
 
                         case "web_search":

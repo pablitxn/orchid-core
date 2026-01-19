@@ -36,9 +36,7 @@ public static class SemanticKernelServiceCollectionExtensions
         services.AddScoped<Kernel>(sp =>
         {
             var kernel = new Kernel(sp);
-            kernel.ImportPluginFromType<SpreadsheetPluginV3Refactored>("excel");
             kernel.ImportPluginFromType<VectorStorePlugin>("vector_store");
-            kernel.ImportPluginFromType<MathEnginePlugin>("math");
             return kernel;
         });
 
@@ -56,9 +54,7 @@ public static class SemanticKernelServiceCollectionExtensions
     public static IServiceCollection AddSemanticKernelPlugins(this IServiceCollection services)
     {
         return services
-            .AddTransient<SpreadsheetPluginV3Refactored>()
             .AddTransient<VectorStorePlugin>()
-            .AddTransient<MathEnginePlugin>()
             .AddTransient<WebSearchPlugin>();
     }
 

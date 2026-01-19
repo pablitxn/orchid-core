@@ -1,13 +1,10 @@
 using System.Net.Http.Headers;
 using System.Text;
 using Application.Interfaces;
-using Application.Interfaces.Spreadsheet;
-using Application.UseCases.Spreadsheet.Compression;
 using Core.Application.Interfaces;
 using Google.Cloud.Storage.V1;
 using Infrastructure.Ai.SemanticKernel;
 using Infrastructure.Ai.SemanticKernel.Services;
-using Infrastructure.Ai.TableDetection;
 using Infrastructure.Auth;
 using Infrastructure.Cache;
 using Infrastructure.Persistence;
@@ -17,7 +14,6 @@ using Infrastructure.Repositories;
 using Infrastructure.Storage;
 using Infrastructure.Telemetry.Ai.Langfuse;
 using Infrastructure.Telemetry.Ai.NoOpTelemetryClient;
-using Infrastructure.Telemetry.Ai.Spreadsheet;
 using Infrastructure.VectorStore;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -167,34 +163,10 @@ public static class InfrastructureServiceCollectionExtensions
 
         #endregion
 
-        #region Spreadsheet Services
+        #region Document Services
 
-        // ─── Aspose.Cells adapters for spreadsheet operations ────────────────────────
-        services.AddTransient<ISpreadsheetService, AsposeSpreadsheetService>();
-        services.AddTransient<IWorkbookLoader, CellsWorkbookLoader>();
+        // ─── Document text extraction ─────────────────────────────────────────────────
         services.AddTransient<IDocumentTextExtractor, DocumentTextExtractor>();
-
-        // ─── New spreadsheet services ─────────────────────────────────────────────────
-        services.AddTransient<IWorkbookNormalizer, WorkbookNormalizer>();
-        services.AddTransient<IWorkbookSummarizer, WorkbookSummarizer>();
-        services.AddTransient<IFormulaTranslator, FormulaTranslator>();
-        services.AddTransient<IFormulaValidator, FormulaValidator>();
-        services.AddTransient<IFormulaExecutor, FormulaExecutor>();
-
-        // ─── Enhanced Excel processing services ───────────────────────────────────────
-        services.AddTransient<IEnhancedWorkbookLoader, EnhancedAsposeWorkbookLoader>();
-        services.AddTransient<IVanillaSerializer, VanillaMarkdownSerializer>();
-        services.AddTransient<IStructuralAnchorDetector, StructuralAnchorDetector>();
-        services.AddTransient<ISkeletonExtractor, SkeletonExtractor>();
-
-        // ─── Spreadsheet compression services ─────────────────────────────────────────
-        services.AddSpreadsheetCompression();
-
-        // ─── Spreadsheet AI capabilities (table detection, Chain of Spreadsheet) ──────
-        services.AddSpreadsheetAi(configuration);
-
-        // ─── Decoupled spreadsheet services (V3) ─────────────────────────────────────
-        services.AddSpreadsheetServices();
 
         #endregion
 
@@ -312,7 +284,7 @@ public static class InfrastructureServiceCollectionExtensions
         #region Utility Services
 
         // ─── Utility services ─────────────────────────────────────────────────────────
-        services.AddSingleton<ITokenCounter, SimpleTokenCounter>();
+        services.AddSingleton<ITokenCounter, Services.SimpleTokenCounter>();
 
         #endregion
 
@@ -380,10 +352,6 @@ public static class InfrastructureServiceCollectionExtensions
         // ─── Register telemetry pipeline behaviors ───────────────────────────────────
         services.AddTransient(typeof(IPipelineBehavior<,>),
             typeof(LangfuseTelemetryBehavior<,>));
-
-        // Add spreadsheet-specific telemetry behavior
-        services.AddTransient(typeof(IPipelineBehavior<,>),
-            typeof(SpreadsheetTelemetryBehavior<,>));
 
         #endregion
 
