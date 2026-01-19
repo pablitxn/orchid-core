@@ -47,8 +47,8 @@ _logger.LogInformation($"User {userId} created order {orderId} for {amount}");
 private readonly ILogger<MyService> _logger;
 ```
 
-For important logs, use event IDs and keep them centralized in the Application layer (e.g.
-`services/backend/src/Core/Application/Logging/EventIds.cs`) so identifiers stay stable.
+For important logs, use event IDs and keep them centralized in a single `EventIds` class in the
+Application layer so identifiers stay stable.
 
 ```csharp
 // Example event ID usage
@@ -92,7 +92,11 @@ public sealed class PricingService
 ```csharp
 public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, Guid>
 {
+    private readonly IOrderService _service;
     private readonly ILogger<CreateOrderHandler> _logger;
+
+    public CreateOrderHandler(IOrderService service, ILogger<CreateOrderHandler> logger)
+        => (_service, _logger) = (service, logger);
 
     public async Task<Guid> Handle(CreateOrderCommand command, CancellationToken ct)
     {
