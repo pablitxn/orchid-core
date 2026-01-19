@@ -559,4 +559,267 @@ public class AgentFrameworkChatCompletionAdapterTests
             _telemetryMock.Object,
             _loggerMock.Object));
     }
+
+    [Fact]
+    public async Task CompleteWithAgentAsync_Should_WorkWithNoTools()
+    {
+        // Arrange - Agent with no tools configured
+        var agentId = Guid.NewGuid();
+        var messages = new List<AppChatMessage>
+        {
+            new("user", "Hello, simple chat")
+        };
+
+        var agentEntity = new AgentEntity
+        {
+            Id = agentId,
+            Name = "Simple Agent",
+            Model = null
+        };
+
+        _agentRepositoryMock
+            .Setup(r => r.GetByIdAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(agentEntity);
+
+        _toolLoaderMock
+            .Setup(t => t.LoadAgentToolsAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<AIFunction>());
+
+        var mockChatClient = new Mock<IChatClient>();
+        var chatResponse = CreateChatResponse("Hello! I'm a simple assistant.");
+
+        mockChatClient
+            .Setup(c => c.GetResponseAsync(
+                It.IsAny<IEnumerable<Microsoft.Extensions.AI.ChatMessage>>(),
+                It.IsAny<ChatOptions>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(chatResponse);
+
+        _agentFactoryMock
+            .Setup(f => f.GetChatClient(It.IsAny<string>()))
+            .Returns(mockChatClient.Object);
+
+        _telemetryMock
+            .Setup(t => t.StartTraceAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<object>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync("trace-123");
+
+        // Act
+        var result = await _adapter.CompleteWithAgentAsync(messages, agentId, null, CancellationToken.None);
+
+        // Assert
+        result.Should().Be("Hello! I'm a simple assistant.");
+        _toolLoaderMock.Verify(t => t.LoadAgentToolsAsync(agentId, It.IsAny<CancellationToken>()), Times.Once);
+
+        // Verify chat options have empty tools list
+        mockChatClient.Verify(c => c.GetResponseAsync(
+            It.IsAny<IEnumerable<Microsoft.Extensions.AI.ChatMessage>>(),
+            It.Is<ChatOptions>(opts => opts.Tools == null || opts.Tools.Count == 0),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CompleteWithAgentAsync_Should_WorkWithoutToolLoader()
+    {
+        // Arrange - Tool loader not registered in DI
+        var serviceProviderNoTools = new Mock<IServiceProvider>();
+        serviceProviderNoTools
+            .Setup(sp => sp.GetService(typeof(IAgentToolLoader)))
+            .Returns(null);
+
+        var adapterNoTools = new AgentFrameworkChatCompletionAdapter(
+            _chatClientMock.Object,
+            _agentFactoryMock.Object,
+            _agentRepositoryMock.Object,
+            serviceProviderNoTools.Object,
+            _telemetryMock.Object,
+            _loggerMock.Object);
+
+        var agentId = Guid.NewGuid();
+        var messages = new List<AppChatMessage>
+        {
+            new("user", "Hello")
+        };
+
+        var agentEntity = new AgentEntity
+        {
+            Id = agentId,
+            Name = "Fallback Agent",
+            Model = null
+        };
+
+        _agentRepositoryMock
+            .Setup(r => r.GetByIdAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(agentEntity);
+
+        var mockChatClient = new Mock<IChatClient>();
+        var chatResponse = CreateChatResponse("Response without tools");
+
+        mockChatClient
+            .Setup(c => c.GetResponseAsync(
+                It.IsAny<IEnumerable<Microsoft.Extensions.AI.ChatMessage>>(),
+                It.IsAny<ChatOptions>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(chatResponse);
+
+        _agentFactoryMock
+            .Setup(f => f.GetChatClient(It.IsAny<string>()))
+            .Returns(mockChatClient.Object);
+
+        _telemetryMock
+            .Setup(t => t.StartTraceAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<object>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync("trace-123");
+
+        // Act
+        var result = await adapterNoTools.CompleteWithAgentAsync(messages, agentId, null, CancellationToken.None);
+
+        // Assert
+        result.Should().Be("Response without tools");
+
+        // Verify chat options have empty tools list
+        mockChatClient.Verify(c => c.GetResponseAsync(
+            It.IsAny<IEnumerable<Microsoft.Extensions.AI.ChatMessage>>(),
+            It.Is<ChatOptions>(opts => opts.Tools == null || opts.Tools.Count == 0),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CompleteWithAgentAsync_Should_PassToolsToTelemetry()
+    {
+        // Arrange
+        var agentId = Guid.NewGuid();
+        var messages = new List<AppChatMessage>
+        {
+            new("user", "Use tools", Metadata: new Dictionary<string, object> { ["sessionId"] = "session-tools" })
+        };
+
+        var agentEntity = new AgentEntity
+        {
+            Id = agentId,
+            Name = "Telemetry Tool Agent",
+            Model = null
+        };
+
+        var mockTools = new List<AIFunction>
+        {
+            AIFunctionFactory.Create(() => "result", "Tool1"),
+            AIFunctionFactory.Create(() => "result", "Tool2")
+        };
+
+        _agentRepositoryMock
+            .Setup(r => r.GetByIdAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(agentEntity);
+
+        _toolLoaderMock
+            .Setup(t => t.LoadAgentToolsAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(mockTools);
+
+        var mockChatClient = new Mock<IChatClient>();
+        var chatResponse = CreateChatResponse("Response");
+
+        mockChatClient
+            .Setup(c => c.GetResponseAsync(
+                It.IsAny<IEnumerable<Microsoft.Extensions.AI.ChatMessage>>(),
+                It.IsAny<ChatOptions>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(chatResponse);
+
+        _agentFactoryMock
+            .Setup(f => f.GetChatClient(It.IsAny<string>()))
+            .Returns(mockChatClient.Object);
+
+        _telemetryMock
+            .Setup(t => t.StartTraceAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<object>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync("trace-123");
+
+        // Act
+        await _adapter.CompleteWithAgentAsync(messages, agentId, null, CancellationToken.None);
+
+        // Assert - Verify telemetry includes tool information
+        _telemetryMock.Verify(t => t.RecordGenerationAsync(
+            "trace-123",
+            It.IsAny<string>(),
+            It.IsAny<object>(),
+            It.IsAny<object>(),
+            It.Is<object>(meta => meta != null),
+            It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task CompleteWithAgentAsync_Should_OnlyLoadToolsForSpecificAgent()
+    {
+        // Arrange - Two different agents
+        var agent1Id = Guid.NewGuid();
+        var agent2Id = Guid.NewGuid();
+
+        var agent1 = new AgentEntity { Id = agent1Id, Name = "Agent1" };
+        var agent2 = new AgentEntity { Id = agent2Id, Name = "Agent2" };
+
+        var agent1Tools = new List<AIFunction> { AIFunctionFactory.Create(() => "result", "Agent1Tool") };
+        var agent2Tools = new List<AIFunction> { AIFunctionFactory.Create(() => "result", "Agent2Tool") };
+
+        _agentRepositoryMock
+            .Setup(r => r.GetByIdAsync(agent1Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(agent1);
+        _agentRepositoryMock
+            .Setup(r => r.GetByIdAsync(agent2Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(agent2);
+
+        _toolLoaderMock
+            .Setup(t => t.LoadAgentToolsAsync(agent1Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(agent1Tools);
+        _toolLoaderMock
+            .Setup(t => t.LoadAgentToolsAsync(agent2Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(agent2Tools);
+
+        var mockChatClient = new Mock<IChatClient>();
+        mockChatClient
+            .Setup(c => c.GetResponseAsync(
+                It.IsAny<IEnumerable<Microsoft.Extensions.AI.ChatMessage>>(),
+                It.IsAny<ChatOptions>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateChatResponse("Response"));
+
+        _agentFactoryMock
+            .Setup(f => f.GetChatClient(It.IsAny<string>()))
+            .Returns(mockChatClient.Object);
+
+        _telemetryMock
+            .Setup(t => t.StartTraceAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<object>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync("trace-123");
+
+        var messages = new List<AppChatMessage> { new("user", "Test") };
+
+        // Act - Call with agent1
+        await _adapter.CompleteWithAgentAsync(messages, agent1Id, null, CancellationToken.None);
+
+        // Assert - Only agent1 tools were loaded
+        _toolLoaderMock.Verify(t => t.LoadAgentToolsAsync(agent1Id, It.IsAny<CancellationToken>()), Times.Once);
+        _toolLoaderMock.Verify(t => t.LoadAgentToolsAsync(agent2Id, It.IsAny<CancellationToken>()), Times.Never);
+
+        // Verify agent1 tool was passed
+        mockChatClient.Verify(c => c.GetResponseAsync(
+            It.IsAny<IEnumerable<Microsoft.Extensions.AI.ChatMessage>>(),
+            It.Is<ChatOptions>(opts => opts.Tools != null && opts.Tools.Any(t => t.Name == "Agent1Tool")),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
 }
