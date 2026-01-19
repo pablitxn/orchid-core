@@ -26,6 +26,7 @@
         <!-- Microsoft Agent Framework - dependency comes via Infrastructure project -->
         <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
         <PackageReference Include="Serilog.Enrichers.CorrelationId" Version="3.0.1" />
+        <PackageReference Include="Serilog.Enrichers.Environment" Version="2.3.0" />
         <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
         <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="7.3.1" />
         <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="7.3.1" />

@@ -91,6 +91,15 @@ hotfix/<description>
 
 ---
 
+## Logging by Environment
+
+| Environment | Default Level | App Namespaces | Framework Noise | Output |
+|-------------|----------------|----------------|-----------------|--------|
+| Development | Information | Information | Warnings (with targeted Debug overrides) | Console (human-readable) |
+| Production | Warning | Information | Warnings/Errors (EF Core at Error) | Console (structured JSON for Loki/ELK/Datadog) |
+
+---
+
 ## Adding a New Feature
 
 ### Step-by-Step Checklist

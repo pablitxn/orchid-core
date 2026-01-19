@@ -25,7 +25,6 @@ using Infrastructure.Services;
 using WebApi;
 using WebApi.Services;
 using Serilog;
-using Serilog.Events;
 using Infrastructure.Messaging.RabbitMq;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,20 +35,14 @@ builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, relo
 
 #region Logging Configuration
 
-// ─── Serilog with Correlation ID ──────────────────────────────────────────────
+// ─── Serilog Configuration ───────────────────────────────────────────────────
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-    .MinimumLevel.Override("Microsoft.AspNetCore.SignalR", LogEventLevel.Debug)
-    .MinimumLevel.Override("Microsoft.AspNetCore.Http.Connections", LogEventLevel.Debug)
-    .MinimumLevel.Override("System", LogEventLevel.Warning)
-    .Enrich.FromLogContext()
-    .Enrich.WithCorrelationId()
-    .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
+    .ReadFrom.Configuration(builder.Configuration)
     .CreateLogger();
 
-builder.Host.UseSerilog();
+builder.Host.UseSerilog((context, services, loggerConfiguration) => loggerConfiguration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services));
 
 Log.Information("Starting application setup...");
 
