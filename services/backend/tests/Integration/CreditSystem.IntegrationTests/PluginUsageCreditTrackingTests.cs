@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
-namespace CreditTracking.IntegrationTests;
+namespace CreditSystem.IntegrationTests;
 
 public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactory<Program>>
 {
