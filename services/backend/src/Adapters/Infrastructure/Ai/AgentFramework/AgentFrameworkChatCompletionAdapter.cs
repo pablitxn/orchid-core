@@ -4,6 +4,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using AppChatMessage = Application.Interfaces.ChatMessage;
 
 namespace Infrastructure.Ai.AgentFramework;
 
@@ -14,32 +15,36 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
 {
     private readonly IChatClient _chatClient;
     private readonly IAgentFactory _agentFactory;
+    private readonly IAgentRepository _agentRepository;
     private readonly IEnhancedTelemetryClient? _telemetry;
     private readonly ILogger<AgentFrameworkChatCompletionAdapter>? _logger;
-    private readonly string _modelId;
+    private readonly string _defaultModelId;
     private readonly IServiceProvider _serviceProvider;
 
     public AgentFrameworkChatCompletionAdapter(
         IChatClient chatClient,
         IAgentFactory agentFactory,
+        IAgentRepository agentRepository,
         IServiceProvider serviceProvider,
         IEnhancedTelemetryClient? telemetry = null,
         ILogger<AgentFrameworkChatCompletionAdapter>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(chatClient);
         ArgumentNullException.ThrowIfNull(agentFactory);
+        ArgumentNullException.ThrowIfNull(agentRepository);
         ArgumentNullException.ThrowIfNull(serviceProvider);
 
         _chatClient = chatClient;
         _agentFactory = agentFactory;
+        _agentRepository = agentRepository;
         _serviceProvider = serviceProvider;
         _telemetry = telemetry;
         _logger = logger;
-        _modelId = "gpt-5-nano-2025-08-07";
+        _defaultModelId = "gpt-5-nano-2025-08-07";
     }
 
     public async Task<string> CompleteAsync(
-        IEnumerable<ChatMessage> messages,
+        IEnumerable<AppChatMessage> messages,
         CancellationToken cancellationToken = default)
     {
         var messagesList = messages.ToList();
@@ -51,7 +56,7 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
             traceId = await _telemetry.StartTraceAsync(
                 $"Chat Completion - {sessionId}",
                 sessionId,
-                metadata: new { adapter = "AgentFramework", model = _modelId },
+                metadata: new { adapter = "AgentFramework", model = _defaultModelId },
                 cancellationToken: cancellationToken);
         }
 
@@ -75,7 +80,7 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
             {
                 generationId = await _telemetry.RecordGenerationAsync(
                     traceId,
-                    _modelId,
+                    _defaultModelId,
                     input: new { messages = inputMessages },
                     metadata: new { messageCount = chatMessages.Count, sessionId },
                     cancellationToken: cancellationToken);
@@ -91,7 +96,7 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
             {
                 await _telemetry.RecordGenerationAsync(
                     traceId,
-                    _modelId,
+                    _defaultModelId,
                     output: new { content = response },
                     metadata: new { success = true, sessionId },
                     cancellationToken: cancellationToken);
@@ -111,12 +116,12 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
         {
             _logger?.LogError(ex,
                 "Error in chat completion. Model: {Model}, MessageCount: {MessageCount}, Error: {ErrorMessage}",
-                _modelId, messagesList.Count, ex.Message);
+                _defaultModelId, messagesList.Count, ex.Message);
 
             if (_telemetry != null && traceId != null)
             {
                 await _telemetry.RecordEventAsync(traceId, "error",
-                    new { error = ex.Message, type = ex.GetType().Name, model = _modelId },
+                    new { error = ex.Message, type = ex.GetType().Name, model = _defaultModelId },
                     cancellationToken: cancellationToken);
                 await _telemetry.EndTraceAsync(traceId, false,
                     new { error = ex.Message },
@@ -128,7 +133,7 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
     }
 
     public async Task<string> CompleteWithAgentAsync(
-        IEnumerable<ChatMessage> messages,
+        IEnumerable<AppChatMessage> messages,
         Guid agentId,
         Guid? userId = null,
         CancellationToken cancellationToken = default)
@@ -136,13 +141,25 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
         var messagesList = messages.ToList();
         var sessionId = ExtractSessionId(messagesList);
 
+        // Fetch agent entity from database
+        var agentEntity = await _agentRepository.GetByIdAsync(agentId, cancellationToken);
+        if (agentEntity == null)
+        {
+            _logger?.LogWarning("Agent {AgentId} not found in database", agentId);
+            throw new InvalidOperationException($"Agent with ID {agentId} not found.");
+        }
+
+        // Determine model: use agent's configured model or fall back to default
+        var modelId = agentEntity.Model ?? _defaultModelId;
+
         string? traceId = null;
         if (_telemetry != null && !string.IsNullOrEmpty(sessionId))
         {
             traceId = await _telemetry.StartTraceAsync(
                 $"Agent Completion - {agentId}",
                 sessionId,
-                metadata: new { adapter = "AgentFramework", model = _modelId, agentId },
+                userId: userId?.ToString(),
+                metadata: new { adapter = "AgentFramework", model = modelId, agentId, agentName = agentEntity.Name },
                 cancellationToken: cancellationToken);
         }
 
@@ -154,20 +171,20 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
                 ? await toolLoader.LoadAgentToolsAsync(agentId, cancellationToken)
                 : Array.Empty<AIFunction>();
 
-            // Extract system message for agent instructions
+            // Build system message from agent personality if not provided
             var systemMessage = messagesList.FirstOrDefault(m =>
                 m.Role.Equals("system", StringComparison.OrdinalIgnoreCase));
-            var instructions = systemMessage?.Content ?? "You are a helpful assistant.";
 
-            // Create agent with tools
-            var agent = _agentFactory.CreateAgent(
-                instructions: instructions,
-                name: $"Agent-{agentId}",
-                tools: tools.ToList());
+            // Prepare messages for chat completion
+            var effectiveMessages = messagesList.ToList();
+            if (systemMessage == null && !string.IsNullOrEmpty(agentEntity.Personality))
+            {
+                // Prepend personality as system message
+                effectiveMessages.Insert(0, new AppChatMessage("system", agentEntity.Personality));
+            }
 
-            // Convert messages to chat format (excluding system message since it's in instructions)
-            var chatMessages = ConvertToChatMessages(
-                messagesList.Where(m => !m.Role.Equals("system", StringComparison.OrdinalIgnoreCase)));
+            // Convert messages to chat format
+            var chatMessages = ConvertToChatMessages(effectiveMessages);
 
             var inputMessages = messagesList
                 .Where(m => m.Role is "user" or "assistant")
@@ -179,13 +196,33 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
                 await _telemetry.UpdateTraceAsync(traceId,
                     input: new { messages = inputMessages, tools = tools.Select(t => t.Name).ToList() },
                     cancellationToken: cancellationToken);
+
+                await _telemetry.RecordGenerationAsync(traceId, modelId,
+                    input: new { messages = inputMessages },
+                    metadata: new { agentId, agentName = agentEntity.Name, toolCount = tools.Count },
+                    cancellationToken: cancellationToken);
             }
 
-            // Run the agent
-            var response = await agent.RunAsync(chatMessages, cancellationToken);
+            // Get the chat client configured for this model
+            var chatClient = _agentFactory.GetChatClient(modelId);
+
+            // Configure chat options with tools
+            var chatOptions = new ChatOptions
+            {
+                Tools = tools.Cast<AITool>().ToList()
+            };
+
+            // Run the completion with tool support
+            var result = await chatClient.GetResponseAsync(chatMessages, chatOptions, cancellationToken);
+            var response = result.Text ?? string.Empty;
 
             if (_telemetry != null && traceId != null)
             {
+                await _telemetry.RecordGenerationAsync(traceId, modelId,
+                    output: new { content = response },
+                    metadata: new { success = true },
+                    cancellationToken: cancellationToken);
+
                 await _telemetry.UpdateTraceAsync(traceId,
                     output: new { response },
                     cancellationToken: cancellationToken);
@@ -193,8 +230,8 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
             }
 
             _logger?.LogInformation(
-                "Agent {AgentId} completed with {ToolCount} tools available",
-                agentId, tools.Count);
+                "Agent {AgentId} ({AgentName}) completed with {ToolCount} tools available using model {Model}",
+                agentId, agentEntity.Name, tools.Count, modelId);
 
             return response;
         }
@@ -202,12 +239,12 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
         {
             _logger?.LogError(ex,
                 "Error in agent completion. AgentId: {AgentId}, Model: {Model}, Error: {ErrorMessage}",
-                agentId, _modelId, ex.Message);
+                agentId, modelId, ex.Message);
 
             if (_telemetry != null && traceId != null)
             {
                 await _telemetry.RecordEventAsync(traceId, "error",
-                    new { error = ex.Message, type = ex.GetType().Name, agentId },
+                    new { error = ex.Message, type = ex.GetType().Name, agentId, model = modelId },
                     cancellationToken: cancellationToken);
                 await _telemetry.EndTraceAsync(traceId, false,
                     new { error = ex.Message },
@@ -219,7 +256,7 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
     }
 
     private static List<Microsoft.Extensions.AI.ChatMessage> ConvertToChatMessages(
-        IEnumerable<ChatMessage> messages)
+        IEnumerable<AppChatMessage> messages)
     {
         var result = new List<Microsoft.Extensions.AI.ChatMessage>();
 
@@ -239,7 +276,7 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
         return result;
     }
 
-    private static string? ExtractSessionId(IEnumerable<ChatMessage> messages)
+    private static string? ExtractSessionId(IEnumerable<AppChatMessage> messages)
     {
         foreach (var msg in messages)
         {

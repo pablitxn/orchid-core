@@ -196,6 +196,7 @@ public class ApplicationDbContext(
             b.Property(a => a.Personality);
             b.Property(a => a.PersonalityTemplateId);
             b.Property(a => a.Language);
+            b.Property(a => a.Model).HasMaxLength(100);
             b.Property(a => a.PluginIds).HasColumnType("uuid[]");
             b.Property(a => a.UserId);
             b.Property(a => a.IsPublic).IsRequired().HasDefaultValue(false);

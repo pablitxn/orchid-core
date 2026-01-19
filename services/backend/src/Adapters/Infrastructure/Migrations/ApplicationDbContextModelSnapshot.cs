@@ -177,6 +177,10 @@ namespace Infrastructure.Migrations
                     b.Property<string>("Language")
                         .HasColumnType("text");
 
+                    b.Property<string>("Model")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");

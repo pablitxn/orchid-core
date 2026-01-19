@@ -37,10 +37,13 @@ public sealed class AgentFactory : IAgentFactory
     {
         var chatClient = GetChatClient(modelId);
 
+        // Convert AIFunction list to AITool list as required by CreateAIAgent
+        IList<AITool>? aiTools = tools?.Cast<AITool>().ToList();
+
         return chatClient.CreateAIAgent(
             instructions: instructions,
             name: name,
-            tools: tools);
+            tools: aiTools);
     }
 
     /// <inheritdoc />
