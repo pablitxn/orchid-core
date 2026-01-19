@@ -69,13 +69,16 @@ public static class AgentFrameworkServiceCollectionExtensions
 
         // ─── 7. Tool loader for dynamic agent tools ───────────────────────
         // Use factory to inject optional telemetry client for tool invocation tracking
+        // and optional credit tracking service for billing
         services.AddScoped<IAgentToolLoader>(sp => new Services.AgentToolLoader(
             sp.GetRequiredService<IPluginRepository>(),
             sp.GetRequiredService<IToolRegistry>(),
             sp.GetRequiredService<ILogger<Services.AgentToolLoader>>(),
             sp.GetService<IEnhancedTelemetryClient>(), // Optional telemetry client
+            sp.GetService<ICreditTrackingService>(),   // Optional credit tracking service
             enableSafeWrapping: true,
-            enableTelemetryWrapping: true
+            enableTelemetryWrapping: true,
+            enableCreditTracking: true
         ));
 
         // ─── 8. Thread manager for conversation state ────────────────────

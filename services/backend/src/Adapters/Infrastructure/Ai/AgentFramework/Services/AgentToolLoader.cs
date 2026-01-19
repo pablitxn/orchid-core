@@ -12,6 +12,7 @@ namespace Infrastructure.Ai.AgentFramework.Services;
 /// Uses IToolRegistry for tool resolution instead of hardcoded switch statements.
 /// All loaded functions are wrapped with error handling to prevent tool failures from crashing conversations.
 /// Optionally wraps functions with telemetry tracking when IEnhancedTelemetryClient is provided.
+/// Optionally tracks credit consumption when ICreditTrackingService is provided.
 /// </summary>
 public class AgentToolLoader : IAgentToolLoader
 {
@@ -19,23 +20,29 @@ public class AgentToolLoader : IAgentToolLoader
     private readonly IToolRegistry _toolRegistry;
     private readonly ILogger<AgentToolLoader> _logger;
     private readonly IEnhancedTelemetryClient? _telemetryClient;
+    private readonly ICreditTrackingService? _creditTrackingService;
     private readonly bool _enableSafeWrapping;
     private readonly bool _enableTelemetryWrapping;
+    private readonly bool _enableCreditTracking;
 
     public AgentToolLoader(
         IPluginRepository pluginRepository,
         IToolRegistry toolRegistry,
         ILogger<AgentToolLoader> logger,
         IEnhancedTelemetryClient? telemetryClient = null,
+        ICreditTrackingService? creditTrackingService = null,
         bool enableSafeWrapping = true,
-        bool enableTelemetryWrapping = true)
+        bool enableTelemetryWrapping = true,
+        bool enableCreditTracking = true)
     {
         _pluginRepository = pluginRepository ?? throw new ArgumentNullException(nameof(pluginRepository));
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _telemetryClient = telemetryClient;
+        _creditTrackingService = creditTrackingService;
         _enableSafeWrapping = enableSafeWrapping;
         _enableTelemetryWrapping = enableTelemetryWrapping && telemetryClient != null;
+        _enableCreditTracking = enableCreditTracking && creditTrackingService != null;
     }
 
     public async Task<IReadOnlyList<AIFunction>> LoadAgentToolsAsync(
@@ -43,8 +50,9 @@ public class AgentToolLoader : IAgentToolLoader
         CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
-        var loadedTools = new List<AIFunction>();
+        var allWrappedFunctions = new List<AIFunction>();
         var loadedToolNames = new List<string>();
+        var totalFunctionCount = 0;
 
         try
         {
@@ -58,8 +66,12 @@ public class AgentToolLoader : IAgentToolLoader
 
                     if (toolFunctions.Count > 0)
                     {
-                        loadedTools.AddRange(toolFunctions);
+                        // Apply wrappers per-tool so each function knows its tool system name
+                        var wrappedFunctions = WrapToolFunctions(toolFunctions, plugin.SystemName!);
+                        allWrappedFunctions.AddRange(wrappedFunctions);
                         loadedToolNames.Add(plugin.SystemName!);
+                        totalFunctionCount += toolFunctions.Count;
+
                         _logger.LogDebug(
                             "Loaded {FunctionCount} functions for tool '{SystemName}' (agent {AgentId})",
                             toolFunctions.Count,
@@ -90,7 +102,7 @@ public class AgentToolLoader : IAgentToolLoader
             _logger.LogInformation(
                 "Loaded {ToolCount} tool sets ({FunctionCount} functions) for agent {AgentId} in {ElapsedMs}ms: [{Tools}]",
                 loadedToolNames.Count,
-                loadedTools.Count,
+                totalFunctionCount,
                 agentId,
                 stopwatch.ElapsedMilliseconds,
                 string.Join(", ", loadedToolNames));
@@ -103,30 +115,7 @@ public class AgentToolLoader : IAgentToolLoader
                     stopwatch.ElapsedMilliseconds);
             }
 
-            // Apply wrappers in order: Telemetry -> Safe (so telemetry captures errors before they're converted)
-            var wrappedTools = loadedTools.AsEnumerable();
-
-            // First wrap with telemetry tracking (innermost wrapper)
-            if (_enableTelemetryWrapping && _telemetryClient != null && loadedTools.Count > 0)
-            {
-                _logger.LogDebug(
-                    "Wrapping {ToolCount} functions with telemetry tracking for agent {AgentId}",
-                    loadedTools.Count,
-                    agentId);
-                wrappedTools = TelemetryAIFunctionWrapper.WrapAll(wrappedTools, _telemetryClient, _logger);
-            }
-
-            // Then wrap with safe error handling (outermost wrapper)
-            if (_enableSafeWrapping && loadedTools.Count > 0)
-            {
-                _logger.LogDebug(
-                    "Wrapping {ToolCount} functions with safe error handling for agent {AgentId}",
-                    loadedTools.Count,
-                    agentId);
-                wrappedTools = SafeAIFunctionWrapper.WrapAll(wrappedTools, _logger);
-            }
-
-            return wrappedTools.ToList();
+            return allWrappedFunctions;
         }
         catch (Exception ex)
         {
@@ -138,5 +127,43 @@ public class AgentToolLoader : IAgentToolLoader
                 stopwatch.ElapsedMilliseconds);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Wraps tool functions with telemetry and safe error handling.
+    /// Order: innermost (telemetry with credit tracking) -> outermost (safe error handling).
+    /// </summary>
+    private IEnumerable<AIFunction> WrapToolFunctions(IReadOnlyList<AIFunction> functions, string toolSystemName)
+    {
+        IEnumerable<AIFunction> wrappedFunctions = functions;
+
+        // First wrap with telemetry tracking (innermost wrapper) - includes credit tracking
+        if (_enableTelemetryWrapping && _telemetryClient != null)
+        {
+            if (_enableCreditTracking && _creditTrackingService != null)
+            {
+                // Wrap with telemetry AND credit tracking
+                wrappedFunctions = TelemetryAIFunctionWrapper.WrapAllWithCreditTracking(
+                    wrappedFunctions,
+                    _telemetryClient,
+                    _logger,
+                    _creditTrackingService,
+                    _pluginRepository,
+                    toolSystemName);
+            }
+            else
+            {
+                // Wrap with telemetry only
+                wrappedFunctions = TelemetryAIFunctionWrapper.WrapAll(wrappedFunctions, _telemetryClient, _logger);
+            }
+        }
+
+        // Then wrap with safe error handling (outermost wrapper)
+        if (_enableSafeWrapping)
+        {
+            wrappedFunctions = SafeAIFunctionWrapper.WrapAll(wrappedFunctions, _logger);
+        }
+
+        return wrappedFunctions;
     }
 }

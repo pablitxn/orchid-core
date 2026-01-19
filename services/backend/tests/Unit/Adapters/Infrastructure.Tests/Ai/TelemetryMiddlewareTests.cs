@@ -442,3 +442,339 @@ public class TelemetryAIFunctionWrapperTests
             Times.Once);
     }
 }
+
+public class CreditTrackingTests
+{
+    private readonly Mock<IEnhancedTelemetryClient> _telemetryClientMock;
+    private readonly Mock<ICreditTrackingService> _creditTrackingServiceMock;
+    private readonly Mock<IPluginRepository> _pluginRepositoryMock;
+    private readonly Mock<ILogger<CreditTrackingTests>> _loggerMock;
+
+    public CreditTrackingTests()
+    {
+        _telemetryClientMock = new Mock<IEnhancedTelemetryClient>();
+        _creditTrackingServiceMock = new Mock<ICreditTrackingService>();
+        _pluginRepositoryMock = new Mock<IPluginRepository>();
+        _loggerMock = new Mock<ILogger<CreditTrackingTests>>();
+    }
+
+    [Fact]
+    public async Task InvokeAsync_Should_TrackCredits_WhenSuccessful()
+    {
+        // Arrange
+        var traceId = "test-trace-123";
+        var userId = Guid.NewGuid();
+        var pluginId = Guid.NewGuid();
+        var toolSystemName = "web_search";
+
+        var plugin = new Domain.Entities.PluginEntity
+        {
+            Id = pluginId,
+            Name = "Web Search",
+            SystemName = toolSystemName,
+            PriceCredits = 25,
+            IsActive = true
+        };
+
+        _pluginRepositoryMock
+            .Setup(x => x.GetBySystemNameAsync(toolSystemName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(plugin);
+
+        _creditTrackingServiceMock
+            .Setup(x => x.TrackPluginUsageAsync(
+                userId,
+                pluginId,
+                plugin.Name,
+                plugin.PriceCredits,
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Domain.Entities.CreditConsumptionEntity());
+
+        var innerFunction = AIFunctionFactory.Create(() => "result", "SearchWeb");
+        var wrapper = new TelemetryAIFunctionWrapper(
+            innerFunction,
+            _telemetryClientMock.Object,
+            _loggerMock.Object,
+            _creditTrackingServiceMock.Object,
+            _pluginRepositoryMock.Object,
+            toolSystemName);
+
+        // Act
+        using (TelemetryContext.BeginScope(traceId, "session-123", userId.ToString()))
+        {
+            await wrapper.InvokeAsync(new AIFunctionArguments(), CancellationToken.None);
+        }
+
+        // Assert
+        _creditTrackingServiceMock.Verify(
+            x => x.TrackPluginUsageAsync(
+                userId,
+                pluginId,
+                plugin.Name,
+                plugin.PriceCredits,
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_Should_NotTrackCredits_WhenNoUserId()
+    {
+        // Arrange
+        var traceId = "test-trace-123";
+        var toolSystemName = "web_search";
+
+        var innerFunction = AIFunctionFactory.Create(() => "result", "SearchWeb");
+        var wrapper = new TelemetryAIFunctionWrapper(
+            innerFunction,
+            _telemetryClientMock.Object,
+            _loggerMock.Object,
+            _creditTrackingServiceMock.Object,
+            _pluginRepositoryMock.Object,
+            toolSystemName);
+
+        // Act - No userId in scope
+        using (TelemetryContext.BeginScope(traceId, "session-123"))
+        {
+            await wrapper.InvokeAsync(new AIFunctionArguments(), CancellationToken.None);
+        }
+
+        // Assert
+        _creditTrackingServiceMock.Verify(
+            x => x.TrackPluginUsageAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_Should_NotTrackCredits_WhenPluginNotFound()
+    {
+        // Arrange
+        var traceId = "test-trace-123";
+        var userId = Guid.NewGuid();
+        var toolSystemName = "unknown_tool";
+
+        _pluginRepositoryMock
+            .Setup(x => x.GetBySystemNameAsync(toolSystemName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Domain.Entities.PluginEntity?)null);
+
+        var innerFunction = AIFunctionFactory.Create(() => "result", "TestFunction");
+        var wrapper = new TelemetryAIFunctionWrapper(
+            innerFunction,
+            _telemetryClientMock.Object,
+            _loggerMock.Object,
+            _creditTrackingServiceMock.Object,
+            _pluginRepositoryMock.Object,
+            toolSystemName);
+
+        // Act
+        using (TelemetryContext.BeginScope(traceId, "session-123", userId.ToString()))
+        {
+            await wrapper.InvokeAsync(new AIFunctionArguments(), CancellationToken.None);
+        }
+
+        // Assert
+        _creditTrackingServiceMock.Verify(
+            x => x.TrackPluginUsageAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    private static string ThrowInvalidOperationForCredit(string message)
+    {
+        throw new InvalidOperationException(message);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_Should_NotTrackCredits_WhenFunctionFails()
+    {
+        // Arrange
+        var traceId = "test-trace-123";
+        var userId = Guid.NewGuid();
+        var toolSystemName = "web_search";
+
+        var innerFunction = AIFunctionFactory.Create(
+            () => ThrowInvalidOperationForCredit("Function failed"),
+            "SearchWeb");
+
+        var wrapper = new TelemetryAIFunctionWrapper(
+            innerFunction,
+            _telemetryClientMock.Object,
+            _loggerMock.Object,
+            _creditTrackingServiceMock.Object,
+            _pluginRepositoryMock.Object,
+            toolSystemName);
+
+        // Act & Assert
+        using (TelemetryContext.BeginScope(traceId, "session-123", userId.ToString()))
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => wrapper.InvokeAsync(new AIFunctionArguments(), CancellationToken.None).AsTask());
+        }
+
+        // Credit tracking should not be called when function fails
+        _creditTrackingServiceMock.Verify(
+            x => x.TrackPluginUsageAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_Should_ContinueExecution_WhenCreditTrackingFails()
+    {
+        // Arrange
+        var traceId = "test-trace-123";
+        var userId = Guid.NewGuid();
+        var pluginId = Guid.NewGuid();
+        var toolSystemName = "web_search";
+
+        var plugin = new Domain.Entities.PluginEntity
+        {
+            Id = pluginId,
+            Name = "Web Search",
+            SystemName = toolSystemName,
+            PriceCredits = 25,
+            IsActive = true
+        };
+
+        _pluginRepositoryMock
+            .Setup(x => x.GetBySystemNameAsync(toolSystemName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(plugin);
+
+        _creditTrackingServiceMock
+            .Setup(x => x.TrackPluginUsageAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("Credit tracking failure"));
+
+        var innerFunction = AIFunctionFactory.Create(() => "success", "SearchWeb");
+        var wrapper = new TelemetryAIFunctionWrapper(
+            innerFunction,
+            _telemetryClientMock.Object,
+            _loggerMock.Object,
+            _creditTrackingServiceMock.Object,
+            _pluginRepositoryMock.Object,
+            toolSystemName);
+
+        // Act
+        using (TelemetryContext.BeginScope(traceId, "session-123", userId.ToString()))
+        {
+            var result = await wrapper.InvokeAsync(new AIFunctionArguments(), CancellationToken.None);
+
+            // Assert - Function should still succeed even if credit tracking fails
+            result?.ToString().Should().Be("success");
+        }
+    }
+
+    [Fact]
+    public async Task InvokeAsync_Should_UseContextMapping_WhenNoExplicitToolName()
+    {
+        // Arrange
+        var traceId = "test-trace-123";
+        var userId = Guid.NewGuid();
+        var pluginId = Guid.NewGuid();
+        var toolSystemName = "vector_store";
+        var functionName = "SearchDocuments";
+
+        var plugin = new Domain.Entities.PluginEntity
+        {
+            Id = pluginId,
+            Name = "Vector Store",
+            SystemName = toolSystemName,
+            PriceCredits = 15,
+            IsActive = true
+        };
+
+        _pluginRepositoryMock
+            .Setup(x => x.GetBySystemNameAsync(toolSystemName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(plugin);
+
+        _creditTrackingServiceMock
+            .Setup(x => x.TrackPluginUsageAsync(
+                userId,
+                pluginId,
+                plugin.Name,
+                plugin.PriceCredits,
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Domain.Entities.CreditConsumptionEntity());
+
+        var innerFunction = AIFunctionFactory.Create(() => "result", functionName);
+        // No explicit toolSystemName - should use context mapping
+        var wrapper = new TelemetryAIFunctionWrapper(
+            innerFunction,
+            _telemetryClientMock.Object,
+            _loggerMock.Object,
+            _creditTrackingServiceMock.Object,
+            _pluginRepositoryMock.Object,
+            toolSystemName: null);
+
+        // Create function-to-tool mapping
+        var functionToolMapping = new Dictionary<string, string>
+        {
+            [functionName] = toolSystemName
+        };
+
+        // Act
+        using (TelemetryContext.BeginScope(traceId, "session-123", userId.ToString(), functionToolMapping))
+        {
+            await wrapper.InvokeAsync(new AIFunctionArguments(), CancellationToken.None);
+        }
+
+        // Assert
+        _creditTrackingServiceMock.Verify(
+            x => x.TrackPluginUsageAsync(
+                userId,
+                pluginId,
+                plugin.Name,
+                plugin.PriceCredits,
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void WrapAllWithCreditTracking_Should_WrapAllFunctions()
+    {
+        // Arrange
+        var functions = new List<AIFunction>
+        {
+            AIFunctionFactory.Create(() => "result1", "Func1"),
+            AIFunctionFactory.Create(() => "result2", "Func2"),
+            AIFunctionFactory.Create(() => "result3", "Func3")
+        };
+
+        // Act
+        var wrapped = TelemetryAIFunctionWrapper.WrapAllWithCreditTracking(
+            functions,
+            _telemetryClientMock.Object,
+            _loggerMock.Object,
+            _creditTrackingServiceMock.Object,
+            _pluginRepositoryMock.Object,
+            "test_tool");
+
+        // Assert
+        wrapped.Should().HaveCount(3);
+        wrapped.Should().AllSatisfy(f => f.Should().BeOfType<TelemetryAIFunctionWrapper>());
+        wrapped.Select(f => f.Name).Should().BeEquivalentTo(new[] { "Func1", "Func2", "Func3" });
+    }
+}
