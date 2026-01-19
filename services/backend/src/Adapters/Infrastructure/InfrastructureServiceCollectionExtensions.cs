@@ -30,7 +30,8 @@ public static class InfrastructureServiceCollectionExtensions
 {
     public static Task<IServiceCollection> AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration
+        IConfiguration configuration,
+        IHostEnvironment? environment = null
     )
     {
         // ─── 1. Validate configuration ─────────────────────────────────────────────
@@ -42,18 +43,21 @@ public static class InfrastructureServiceCollectionExtensions
 
         // ─── DbContext with pgvector support ─────────────────────────────────────────
         // 1. Register your DbContext with pgvector support
-        services.AddDbContext<ApplicationDbContext>(options =>
+        services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
         {
             options.UseNpgsql(
                 connectionString,
                 npgsqlOptions => npgsqlOptions.UseVector() // enable EF Core pgvector mapping
             );
 
-            // Enable thread safety checking in development
-#if DEBUG
-            options.EnableSensitiveDataLogging();
-            options.EnableDetailedErrors();
-#endif
+            // Enable sensitive data logging and detailed errors ONLY in Development
+            // Security: This prevents leaking sensitive data (like SQL parameters) in production logs
+            var env = environment ?? serviceProvider.GetService<IHostEnvironment>();
+            if (env?.IsDevelopment() == true)
+            {
+                options.EnableSensitiveDataLogging();
+                options.EnableDetailedErrors();
+            }
         }, ServiceLifetime.Scoped);
 
         #endregion

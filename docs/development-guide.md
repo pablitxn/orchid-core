@@ -337,8 +337,25 @@ Follow the [Logging Standards](./logging-standards.md) for log levels, structure
 
 Logs output to console in development. Key namespaces:
 - `Microsoft.AspNetCore.SignalR` - SignalR debugging
-- `Application.*` - Use case logging
+- `Application.*` - Use case logging  
 - `Infrastructure.*` - Adapter logging
+- `WebApi.*` - Controller logging
+
+**Enable Debug Logging:**
+
+Add to `appsettings.local.json`:
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Microsoft.EntityFrameworkCore.Database.Command": "Information",
+      "Microsoft.AspNetCore.SignalR": "Debug"
+    }
+  }
+}
+```
+
+For complete logging guidelines, see [Logging Standards](./logging-standards.md).
 
 ---
 
