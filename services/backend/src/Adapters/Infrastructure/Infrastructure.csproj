@@ -38,10 +38,10 @@
         <!-- HTTP client factory for Langfuse telemetry -->
         <!-- HTTP client factory for Langfuse telemetry -->
         <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.2" />
-        <!-- Semantic Kernel for AI integration -->
-        <!-- Keep Semantic Kernel packages aligned with the version used in the Application layer -->
-        <PackageReference Include="Microsoft.SemanticKernel.Core" Version="1.54.0" />
-        <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.54.0" />
+        <!-- Microsoft Agent Framework for AI integration -->
+        <!-- Pinned preview version - track for GA release -->
+        <PackageReference Include="Microsoft.Agents.AI" Version="1.0.0-preview.260108.1" />
+        <PackageReference Include="Microsoft.Agents.AI.OpenAI" Version="1.0.0-preview.260108.1" />
         <PackageReference Include="Serilog" Version="4.3.0" />
         <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.0" />
         <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.0" />
