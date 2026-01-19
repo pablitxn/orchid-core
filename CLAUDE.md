@@ -99,6 +99,17 @@ Any new code **must** fit one of these slots. If none apply, open an ADR first.
 
 ---
 
+## 5.1 Logging Standards (LLM Rules)
+
+- Follow [docs/logging-standards.md](docs/logging-standards.md).
+- Use structured logging with message templates; avoid string interpolation.
+- Never log secrets, tokens, or PII.
+- Use the correct log level for the situation (Information for business events).
+- Guard expensive log data with `IsEnabled` checks.
+- Use event IDs for important logs when available.
+
+---
+
 ## 6  Testing Matrix
 
 | Layer       | Project Suffix      | Tools                 | Min Coverage    |
@@ -267,4 +278,3 @@ Examples of temporary code that must be tracked:
 ---
 
 *Happy coding, dear LLM agent! Stick to this map and you'll never get lost.*
-

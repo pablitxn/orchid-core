@@ -16,6 +16,7 @@
 | [Data Models](./data-models.md) | Entities, relationships, schema |
 | [Source Tree Analysis](./source-tree-analysis.md) | Directory structure, key files |
 | [Development Guide](./development-guide.md) | Setup, workflow, testing, debugging |
+| [Logging Standards](./logging-standards.md) | Log levels, structure, event IDs |
 
 ---
 
@@ -87,9 +88,10 @@
 
 ### For Developers
 1. Read [Development Guide](./development-guide.md)
-2. Set up local environment with Docker
-3. Apply migrations
-4. Run the API
+2. Review [Logging Standards](./logging-standards.md)
+3. Set up local environment with Docker
+4. Apply migrations
+5. Run the API
 
 ### For AI Agents
 1. Read [Project Overview](./project-overview.md)

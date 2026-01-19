@@ -333,6 +333,8 @@ docker-compose -f docker-compose.dev.yaml down -v
 
 ### Logging
 
+Follow the [Logging Standards](./logging-standards.md) for log levels, structure, and event IDs.
+
 Logs output to console in development. Key namespaces:
 - `Microsoft.AspNetCore.SignalR` - SignalR debugging
 - `Application.*` - Use case logging
