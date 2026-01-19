@@ -1,0 +1,303 @@
+using System.Diagnostics;
+using System.Text.Json;
+using Application.Interfaces;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
+
+namespace Infrastructure.Ai.AgentFramework.Middleware;
+
+/// <summary>
+/// Wraps an AIFunction with telemetry tracking to record all tool invocations.
+/// Records function_invoking, function_invoked, and function_error events.
+/// Uses IEnhancedTelemetryClient for provider-agnostic telemetry recording.
+/// </summary>
+public sealed class TelemetryAIFunctionWrapper : AIFunction
+{
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = false,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    };
+
+    private readonly AIFunction _innerFunction;
+    private readonly IEnhancedTelemetryClient _telemetryClient;
+    private readonly ILogger _logger;
+
+    /// <summary>
+    /// Creates a new TelemetryAIFunctionWrapper that wraps the specified function with telemetry tracking.
+    /// </summary>
+    /// <param name="innerFunction">The function to wrap.</param>
+    /// <param name="telemetryClient">The telemetry client for recording events.</param>
+    /// <param name="logger">Logger for diagnostic output.</param>
+    public TelemetryAIFunctionWrapper(
+        AIFunction innerFunction,
+        IEnhancedTelemetryClient telemetryClient,
+        ILogger logger)
+    {
+        _innerFunction = innerFunction ?? throw new ArgumentNullException(nameof(innerFunction));
+        _telemetryClient = telemetryClient ?? throw new ArgumentNullException(nameof(telemetryClient));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    /// <inheritdoc />
+    public override string Name => _innerFunction.Name;
+
+    /// <inheritdoc />
+    public override string Description => _innerFunction.Description;
+
+    /// <inheritdoc />
+    public override JsonElement JsonSchema => _innerFunction.JsonSchema;
+
+    /// <inheritdoc />
+    public override JsonElement? ReturnJsonSchema => _innerFunction.ReturnJsonSchema;
+
+    /// <inheritdoc />
+    public override JsonSerializerOptions? JsonSerializerOptions => _innerFunction.JsonSerializerOptions;
+
+    /// <summary>
+    /// Invokes the wrapped function with telemetry tracking.
+    /// Records function_invoking before execution, and function_invoked/function_error after.
+    /// </summary>
+    protected override async ValueTask<object?> InvokeCoreAsync(
+        AIFunctionArguments arguments,
+        CancellationToken cancellationToken)
+    {
+        var traceId = TelemetryContext.TraceId;
+        var functionName = _innerFunction.Name;
+
+        // Skip telemetry if no trace context is available
+        if (string.IsNullOrEmpty(traceId) || !TelemetryContext.IsEnabled)
+        {
+            _logger.LogDebug(
+                "Telemetry skipped for function '{FunctionName}': no trace context available",
+                functionName);
+            return await _innerFunction.InvokeAsync(arguments, cancellationToken).ConfigureAwait(false);
+        }
+
+        var argumentsData = ExtractArgumentsData(arguments);
+        var stopwatch = Stopwatch.StartNew();
+
+        // Record function_invoking event BEFORE execution
+        await RecordFunctionInvokingAsync(traceId, functionName, argumentsData, cancellationToken);
+
+        try
+        {
+            var result = await _innerFunction.InvokeAsync(arguments, cancellationToken).ConfigureAwait(false);
+            stopwatch.Stop();
+
+            // Record function_invoked event AFTER successful execution
+            await RecordFunctionInvokedAsync(
+                traceId,
+                functionName,
+                argumentsData,
+                result,
+                stopwatch.ElapsedMilliseconds,
+                cancellationToken);
+
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            stopwatch.Stop();
+            // Cancellation is not an error - just rethrow without recording error event
+            throw;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+
+            // Record function_error event
+            await RecordFunctionErrorAsync(
+                traceId,
+                functionName,
+                argumentsData,
+                ex,
+                stopwatch.ElapsedMilliseconds,
+                cancellationToken);
+
+            throw;
+        }
+    }
+
+    private async Task RecordFunctionInvokingAsync(
+        string traceId,
+        string functionName,
+        object? arguments,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _telemetryClient.RecordEventAsync(
+                traceId,
+                "function_invoking",
+                new
+                {
+                    function = functionName,
+                    arguments,
+                    timestamp = DateTimeOffset.UtcNow,
+                    sessionId = TelemetryContext.SessionId,
+                    userId = TelemetryContext.UserId
+                },
+                cancellationToken);
+
+            _logger.LogDebug(
+                "Recorded function_invoking event for '{FunctionName}' in trace {TraceId}",
+                functionName,
+                traceId);
+        }
+        catch (Exception ex)
+        {
+            // Telemetry failures should not break the function execution
+            _logger.LogWarning(
+                ex,
+                "Failed to record function_invoking event for '{FunctionName}'",
+                functionName);
+        }
+    }
+
+    private async Task RecordFunctionInvokedAsync(
+        string traceId,
+        string functionName,
+        object? arguments,
+        object? result,
+        long durationMs,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Record detailed tool invocation (creates a span in Langfuse)
+            await _telemetryClient.RecordToolInvocationAsync(
+                traceId,
+                functionName,
+                arguments,
+                SerializeResult(result),
+                cancellationToken);
+
+            // Also record a discrete event for function_invoked
+            await _telemetryClient.RecordEventAsync(
+                traceId,
+                "function_invoked",
+                new
+                {
+                    function = functionName,
+                    durationMs,
+                    success = true,
+                    resultType = result?.GetType().Name ?? "null",
+                    timestamp = DateTimeOffset.UtcNow,
+                    sessionId = TelemetryContext.SessionId
+                },
+                cancellationToken);
+
+            _logger.LogDebug(
+                "Recorded function_invoked event for '{FunctionName}' in trace {TraceId} ({DurationMs}ms)",
+                functionName,
+                traceId,
+                durationMs);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Failed to record function_invoked event for '{FunctionName}'",
+                functionName);
+        }
+    }
+
+    private async Task RecordFunctionErrorAsync(
+        string traceId,
+        string functionName,
+        object? arguments,
+        Exception exception,
+        long durationMs,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _telemetryClient.RecordEventAsync(
+                traceId,
+                "function_error",
+                new
+                {
+                    function = functionName,
+                    arguments,
+                    error = exception.Message,
+                    errorType = exception.GetType().Name,
+                    stackTrace = exception.StackTrace,
+                    durationMs,
+                    timestamp = DateTimeOffset.UtcNow,
+                    sessionId = TelemetryContext.SessionId,
+                    userId = TelemetryContext.UserId
+                },
+                cancellationToken);
+
+            _logger.LogDebug(
+                "Recorded function_error event for '{FunctionName}' in trace {TraceId}: {Error}",
+                functionName,
+                traceId,
+                exception.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Failed to record function_error event for '{FunctionName}'",
+                functionName);
+        }
+    }
+
+    private static object? ExtractArgumentsData(AIFunctionArguments arguments)
+    {
+        try
+        {
+            // Convert AIFunctionArguments to a dictionary for serialization
+            var dict = new Dictionary<string, object?>();
+            foreach (var kvp in arguments)
+            {
+                dict[kvp.Key] = kvp.Value;
+            }
+            return dict.Count > 0 ? dict : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static object? SerializeResult(object? result)
+    {
+        if (result == null) return null;
+
+        try
+        {
+            // If result is already a string (JSON), return as-is
+            if (result is string strResult)
+            {
+                return strResult;
+            }
+
+            // Serialize complex objects to JSON string
+            return JsonSerializer.Serialize(result, JsonOptions);
+        }
+        catch
+        {
+            return result.ToString();
+        }
+    }
+
+    /// <summary>
+    /// Wraps a collection of AIFunctions with telemetry tracking.
+    /// </summary>
+    /// <param name="functions">The functions to wrap.</param>
+    /// <param name="telemetryClient">The telemetry client for recording events.</param>
+    /// <param name="logger">Logger for diagnostic output.</param>
+    /// <returns>Collection of wrapped functions.</returns>
+    public static IReadOnlyList<AIFunction> WrapAll(
+        IEnumerable<AIFunction> functions,
+        IEnhancedTelemetryClient telemetryClient,
+        ILogger logger)
+    {
+        return functions
+            .Select(f => new TelemetryAIFunctionWrapper(f, telemetryClient, logger))
+            .ToList<AIFunction>();
+    }
+}

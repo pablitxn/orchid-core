@@ -333,10 +333,35 @@ docker-compose -f docker-compose.dev.yaml down -v
 
 ### Logging
 
-Logs output to console in development. Key namespaces:
+Logs output to console in development with correlation IDs for distributed tracing.
+
+**Log Format:**
+```
+[HH:mm:ss LVL] [CorrelationId] Message
+[14:32:15 INF] [abc123def456] User login successful for userId: 12345
+```
+
+**Key Namespaces:**
 - `Microsoft.AspNetCore.SignalR` - SignalR debugging
-- `Application.*` - Use case logging
+- `Application.*` - Use case logging  
 - `Infrastructure.*` - Adapter logging
+- `WebApi.*` - Controller logging
+
+**Enable Debug Logging:**
+
+Add to `appsettings.local.json`:
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Microsoft.EntityFrameworkCore.Database.Command": "Information",
+      "Microsoft.AspNetCore.SignalR": "Debug"
+    }
+  }
+}
+```
+
+For complete logging guidelines, see [Logging Standards](./logging-standards.md).
 
 ---
 

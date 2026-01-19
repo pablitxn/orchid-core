@@ -37,12 +37,22 @@ builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, relo
 #region Logging Configuration
 
 // ─── Serilog with Correlation ID ──────────────────────────────────────────────
+// Configure Serilog with environment-appropriate log levels
+// Framework noise is suppressed to Warning level to improve log readability
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
+    // Microsoft framework logging - reduce noise
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-    .MinimumLevel.Override("Microsoft.AspNetCore.SignalR", LogEventLevel.Debug)
-    .MinimumLevel.Override("Microsoft.AspNetCore.Http.Connections", LogEventLevel.Debug)
+    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.AspNetCore.SignalR", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.AspNetCore.Http.Connections", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning)
+    // System and third-party logging
     .MinimumLevel.Override("System", LogEventLevel.Warning)
+    .MinimumLevel.Override("System.Net.Http.HttpClient", LogEventLevel.Warning)
+    .MinimumLevel.Override("MassTransit", LogEventLevel.Warning)
+    // Enrich with correlation ID and context
     .Enrich.FromLogContext()
     .Enrich.WithCorrelationId()
     .WriteTo.Console(
