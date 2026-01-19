@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Application.Interfaces;
 using Domain.Entities;
 using Domain.Enums;
@@ -16,11 +17,39 @@ public class MockChatCompletionPort : IChatCompletionPort
         return Task.FromResult($"Mock AI response to: {lastMessage?.Content ?? "empty"}");
     }
 
-    public Task<string> CompleteWithAgentAsync(IEnumerable<ChatMessage> messages, Guid agentId, 
+    public Task<string> CompleteWithAgentAsync(IEnumerable<ChatMessage> messages, Guid agentId,
         Guid? userId = null, CancellationToken cancellationToken = default)
     {
         var lastMessage = messages.LastOrDefault(m => m.Role == "user");
         return Task.FromResult($"Mock AI response with agent {agentId} to: {lastMessage?.Content ?? "empty"}");
+    }
+
+    public async IAsyncEnumerable<string> CompleteStreamingAsync(
+        IEnumerable<ChatMessage> messages,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var lastMessage = messages.LastOrDefault(m => m.Role == "user");
+        var response = $"Mock AI response to: {lastMessage?.Content ?? "empty"}";
+        foreach (var word in response.Split(' '))
+        {
+            yield return word + " ";
+            await Task.Yield();
+        }
+    }
+
+    public async IAsyncEnumerable<string> CompleteWithAgentStreamingAsync(
+        IEnumerable<ChatMessage> messages,
+        Guid agentId,
+        Guid? userId = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var lastMessage = messages.LastOrDefault(m => m.Role == "user");
+        var response = $"Mock AI response with agent {agentId} to: {lastMessage?.Content ?? "empty"}";
+        foreach (var word in response.Split(' '))
+        {
+            yield return word + " ";
+            await Task.Yield();
+        }
     }
 }
 

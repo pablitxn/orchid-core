@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using Application.Interfaces;
 using Microsoft.Agents.AI;
@@ -252,6 +254,211 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
             }
 
             throw;
+        }
+    }
+
+    public async IAsyncEnumerable<string> CompleteStreamingAsync(
+        IEnumerable<AppChatMessage> messages,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var messagesList = messages.ToList();
+        var sessionId = ExtractSessionId(messagesList);
+
+        string? traceId = null;
+        if (_telemetry != null && !string.IsNullOrEmpty(sessionId))
+        {
+            traceId = await _telemetry.StartTraceAsync(
+                $"Streaming Completion - {sessionId}",
+                sessionId,
+                metadata: new { adapter = "AgentFramework", model = _defaultModelId, streaming = true },
+                cancellationToken: cancellationToken);
+        }
+
+        var fullResponse = new StringBuilder();
+        var startTime = DateTime.UtcNow;
+
+        try
+        {
+            var chatMessages = ConvertToChatMessages(messagesList);
+            var inputMessages = messagesList
+                .Where(m => m.Role is "user" or "assistant" or "system")
+                .Select(m => new { role = m.Role, content = m.Content })
+                .ToList();
+
+            if (_telemetry != null && traceId != null)
+            {
+                await _telemetry.UpdateTraceAsync(traceId,
+                    input: new { messages = inputMessages },
+                    cancellationToken: cancellationToken);
+
+                await _telemetry.RecordGenerationAsync(traceId, _defaultModelId,
+                    input: new { messages = inputMessages },
+                    metadata: new { messageCount = chatMessages.Count, sessionId, streaming = true },
+                    cancellationToken: cancellationToken);
+            }
+
+            await foreach (var update in _chatClient.GetStreamingResponseAsync(
+                               chatMessages,
+                               cancellationToken: cancellationToken))
+            {
+                if (!string.IsNullOrEmpty(update.Text))
+                {
+                    fullResponse.Append(update.Text);
+                    yield return update.Text;
+                }
+            }
+
+            var duration = DateTime.UtcNow - startTime;
+
+            if (_telemetry != null && traceId != null)
+            {
+                await _telemetry.RecordGenerationAsync(traceId, _defaultModelId,
+                    output: new { content = fullResponse.ToString() },
+                    metadata: new { success = true, sessionId, streaming = true, durationMs = duration.TotalMilliseconds },
+                    cancellationToken: cancellationToken);
+
+                await _telemetry.UpdateTraceAsync(traceId,
+                    output: new { response = fullResponse.ToString() },
+                    cancellationToken: cancellationToken);
+                await _telemetry.EndTraceAsync(traceId, true, cancellationToken: cancellationToken);
+            }
+        }
+        finally
+        {
+            // If we exit early (cancellation/error) without completing telemetry, clean up
+            if (_telemetry != null && traceId != null && fullResponse.Length == 0)
+            {
+                await _telemetry.EndTraceAsync(traceId, false,
+                    new { error = "Stream interrupted", partial = fullResponse.ToString() },
+                    cancellationToken: CancellationToken.None);
+            }
+        }
+    }
+
+    public async IAsyncEnumerable<string> CompleteWithAgentStreamingAsync(
+        IEnumerable<AppChatMessage> messages,
+        Guid agentId,
+        Guid? userId = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var messagesList = messages.ToList();
+        var sessionId = ExtractSessionId(messagesList);
+
+        // Fetch agent entity from database
+        var agentEntity = await _agentRepository.GetByIdAsync(agentId, cancellationToken);
+        if (agentEntity == null)
+        {
+            _logger?.LogWarning("Agent {AgentId} not found in database", agentId);
+            throw new InvalidOperationException($"Agent with ID {agentId} not found.");
+        }
+
+        // Determine model: use agent's configured model or fall back to default
+        var modelId = agentEntity.Model ?? _defaultModelId;
+
+        string? traceId = null;
+        if (_telemetry != null && !string.IsNullOrEmpty(sessionId))
+        {
+            traceId = await _telemetry.StartTraceAsync(
+                $"Agent Streaming - {agentId}",
+                sessionId,
+                userId: userId?.ToString(),
+                metadata: new { adapter = "AgentFramework", model = modelId, agentId, agentName = agentEntity.Name, streaming = true },
+                cancellationToken: cancellationToken);
+        }
+
+        var fullResponse = new StringBuilder();
+        var startTime = DateTime.UtcNow;
+
+        try
+        {
+            // Load agent configuration and tools
+            var toolLoader = _serviceProvider.GetService<IAgentToolLoader>();
+            var tools = toolLoader != null
+                ? await toolLoader.LoadAgentToolsAsync(agentId, cancellationToken)
+                : Array.Empty<AIFunction>();
+
+            // Build system message from agent personality if not provided
+            var systemMessage = messagesList.FirstOrDefault(m =>
+                m.Role.Equals("system", StringComparison.OrdinalIgnoreCase));
+
+            // Prepare messages for chat completion
+            var effectiveMessages = messagesList.ToList();
+            if (systemMessage == null && !string.IsNullOrEmpty(agentEntity.Personality))
+            {
+                // Prepend personality as system message
+                effectiveMessages.Insert(0, new AppChatMessage("system", agentEntity.Personality));
+            }
+
+            // Convert messages to chat format
+            var chatMessages = ConvertToChatMessages(effectiveMessages);
+
+            var inputMessages = messagesList
+                .Where(m => m.Role is "user" or "assistant")
+                .Select(m => new { role = m.Role, content = m.Content })
+                .ToList();
+
+            if (_telemetry != null && traceId != null)
+            {
+                await _telemetry.UpdateTraceAsync(traceId,
+                    input: new { messages = inputMessages, tools = tools.Select(t => t.Name).ToList() },
+                    cancellationToken: cancellationToken);
+
+                await _telemetry.RecordGenerationAsync(traceId, modelId,
+                    input: new { messages = inputMessages },
+                    metadata: new { agentId, agentName = agentEntity.Name, toolCount = tools.Count, streaming = true },
+                    cancellationToken: cancellationToken);
+            }
+
+            // Get the chat client configured for this model
+            var chatClient = _agentFactory.GetChatClient(modelId);
+
+            // Configure chat options with tools
+            var chatOptions = new ChatOptions
+            {
+                Tools = tools.Cast<AITool>().ToList()
+            };
+
+            // Stream the response
+            await foreach (var update in chatClient.GetStreamingResponseAsync(
+                               chatMessages,
+                               chatOptions,
+                               cancellationToken))
+            {
+                if (!string.IsNullOrEmpty(update.Text))
+                {
+                    fullResponse.Append(update.Text);
+                    yield return update.Text;
+                }
+            }
+
+            var duration = DateTime.UtcNow - startTime;
+
+            if (_telemetry != null && traceId != null)
+            {
+                await _telemetry.RecordGenerationAsync(traceId, modelId,
+                    output: new { content = fullResponse.ToString() },
+                    metadata: new { success = true, streaming = true, durationMs = duration.TotalMilliseconds },
+                    cancellationToken: cancellationToken);
+
+                await _telemetry.UpdateTraceAsync(traceId,
+                    output: new { response = fullResponse.ToString() },
+                    cancellationToken: cancellationToken);
+                await _telemetry.EndTraceAsync(traceId, true, cancellationToken: cancellationToken);
+            }
+
+            _logger?.LogInformation(
+                "Agent {AgentId} ({AgentName}) streaming completed with {ToolCount} tools using model {Model} in {DurationMs}ms",
+                agentId, agentEntity.Name, tools.Count, modelId, duration.TotalMilliseconds);
+        }
+        finally
+        {
+            // If we exit early (cancellation/error) without completing telemetry, clean up
+            if (_telemetry != null && traceId != null && fullResponse.Length == 0)
+            {
+                await _telemetry.EndTraceAsync(traceId, false,
+                    new { error = "Stream interrupted", partial = fullResponse.ToString() },
+                    cancellationToken: CancellationToken.None);
+            }
         }
     }
 

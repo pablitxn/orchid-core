@@ -81,23 +81,22 @@ public class StreamingIntegrationTests : IClassFixture<WebApplicationFactory<Pro
         public Task<string> CompleteWithAgentAsync(IEnumerable<ChatMessage> messages, Guid agentId, Guid? userId = null,
             CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
-        }
-
-        public Task<string> CompleteWithAgentAsync(IEnumerable<ChatMessage> messages, Guid agentId,
-            CancellationToken cancellationToken = default,
-            Guid? userId = null)
-        {
             return Task.FromResult("pong");
         }
 
-        public Task<string> CompleteWithAgentAsync(IEnumerable<ChatMessage> messages, Guid agentId,
-            CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<string> CompleteStreamingAsync(
+            IEnumerable<ChatMessage> messages,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            return Task.FromResult("pong");
+            yield return "po";
+            await Task.Yield();
+            yield return "ng";
         }
 
-        public async IAsyncEnumerable<string> StreamAsync(IEnumerable<ChatMessage> messages,
+        public async IAsyncEnumerable<string> CompleteWithAgentStreamingAsync(
+            IEnumerable<ChatMessage> messages,
+            Guid agentId,
+            Guid? userId = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             yield return "po";
