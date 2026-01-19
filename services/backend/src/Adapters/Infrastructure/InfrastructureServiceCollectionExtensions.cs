@@ -3,8 +3,8 @@ using System.Text;
 using Application.Interfaces;
 using Core.Application.Interfaces;
 using Google.Cloud.Storage.V1;
-using Infrastructure.Ai.SemanticKernel;
-using Infrastructure.Ai.SemanticKernel.Services;
+using Infrastructure.Ai.AgentFramework;
+using Infrastructure.Ai.AgentFramework.Services;
 using Infrastructure.Auth;
 using Infrastructure.Cache;
 using Infrastructure.Persistence;
@@ -34,7 +34,7 @@ public static class InfrastructureServiceCollectionExtensions
     )
     {
         // ─── 1. Validate configuration ─────────────────────────────────────────────
-        services.AddScoped<IChatCompletionPort, SemanticKernelChatCompletionAdapter>();
+        // Chat completion port is registered in AgentFrameworkServiceCollectionExtensions
 
         var connectionString = configuration.GetConnectionString("DefaultConnection")!;
 
@@ -166,8 +166,8 @@ public static class InfrastructureServiceCollectionExtensions
 
         #region Plugin Discovery & Seeding
 
-        // ─── Plugin discovery service ────────────────────────────────────────────────
-        services.AddScoped<IPluginDiscoveryService, Ai.SemanticKernel.Services.PluginDiscoveryService>();
+        // ─── Tool discovery service ─────────────────────────────────────────────────
+        services.AddScoped<IPluginDiscoveryService, ToolDiscoveryService>();
 
         // ─── Plugin seeder (runs on startup) ─────────────────────────────────────────
         services.AddHostedService<Persistence.Seeders.PluginSeeder>();

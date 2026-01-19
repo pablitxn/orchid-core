@@ -5,8 +5,10 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Application.Interfaces;
+using Infrastructure.Ai.AgentFramework.Abstractions;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using AppChatMessage = Application.Interfaces.ChatMessage;
 
 namespace Infrastructure.Ai.AgentFramework.Tools;
 
@@ -14,8 +16,14 @@ namespace Infrastructure.Ai.AgentFramework.Tools;
 /// Web search tool for Agent Framework.
 /// Provides web search, content fetching, and text processing capabilities.
 /// </summary>
-public sealed class WebSearchTool
+public sealed class WebSearchTool : ITool
 {
+    public string SystemName => "web_search";
+    public string DisplayName => "Web Search";
+    public string Description => "Search the web, fetch content, and process text for AI analysis";
+    public int CreditCost => 25;
+    public bool RequiresSubscription => true;
+
     private readonly IActivityPublisher _activity;
     private readonly IChatCompletionPort _chat;
     private readonly IEmbeddingGeneratorPort _embedder;
@@ -144,8 +152,8 @@ public sealed class WebSearchTool
         _logger.LogInformation("SummarizeContent (len={Length})", content.Length);
         var messages = new[]
         {
-            new ChatMessage("system", "Summarize the following text in 3 sentences:"),
-            new ChatMessage("user", content)
+            new AppChatMessage("system", "Summarize the following text in 3 sentences:"),
+            new AppChatMessage("user", content)
         };
         var summary = await _chat.CompleteAsync(messages, ct);
         await _activity.PublishAsync("tool_invocation",
@@ -203,13 +211,14 @@ public sealed class WebSearchTool
     /// </summary>
     public IReadOnlyList<AIFunction> GetAIFunctions()
     {
+        var type = typeof(WebSearchTool);
         return new List<AIFunction>
         {
-            AIFunctionFactory.Create(SearchWebAsync, this),
-            AIFunctionFactory.Create(FetchContentAsync, this),
-            AIFunctionFactory.Create(CleanContent, this),
-            AIFunctionFactory.Create(SummarizeContentAsync, this),
-            AIFunctionFactory.Create(UpsertToVectorAsync, this)
+            AIFunctionFactory.Create(type.GetMethod(nameof(SearchWebAsync))!, this, null),
+            AIFunctionFactory.Create(type.GetMethod(nameof(FetchContentAsync))!, this, null),
+            AIFunctionFactory.Create(type.GetMethod(nameof(CleanContent))!, this, null),
+            AIFunctionFactory.Create(type.GetMethod(nameof(SummarizeContentAsync))!, this, null),
+            AIFunctionFactory.Create(type.GetMethod(nameof(UpsertToVectorAsync))!, this, null)
         };
     }
 }

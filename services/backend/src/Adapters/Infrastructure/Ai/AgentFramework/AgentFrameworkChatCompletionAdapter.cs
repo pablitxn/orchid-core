@@ -4,6 +4,10 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using AppChatMessage = Application.Interfaces.ChatMessage;
+using AIChatMessage = Microsoft.Extensions.AI.ChatMessage;
+using ChatRole = Microsoft.Extensions.AI.ChatRole;
+using AIFunction = Microsoft.Extensions.AI.AIFunction;
 
 namespace Infrastructure.Ai.AgentFramework;
 
@@ -39,7 +43,7 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
     }
 
     public async Task<string> CompleteAsync(
-        IEnumerable<ChatMessage> messages,
+        IEnumerable<AppChatMessage> messages,
         CancellationToken cancellationToken = default)
     {
         var messagesList = messages.ToList();
@@ -128,7 +132,7 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
     }
 
     public async Task<string> CompleteWithAgentAsync(
-        IEnumerable<ChatMessage> messages,
+        IEnumerable<AppChatMessage> messages,
         Guid agentId,
         Guid? userId = null,
         CancellationToken cancellationToken = default)
@@ -154,20 +158,8 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
                 ? await toolLoader.LoadAgentToolsAsync(agentId, cancellationToken)
                 : Array.Empty<AIFunction>();
 
-            // Extract system message for agent instructions
-            var systemMessage = messagesList.FirstOrDefault(m =>
-                m.Role.Equals("system", StringComparison.OrdinalIgnoreCase));
-            var instructions = systemMessage?.Content ?? "You are a helpful assistant.";
-
-            // Create agent with tools
-            var agent = _agentFactory.CreateAgent(
-                instructions: instructions,
-                name: $"Agent-{agentId}",
-                tools: tools.ToList());
-
-            // Convert messages to chat format (excluding system message since it's in instructions)
-            var chatMessages = ConvertToChatMessages(
-                messagesList.Where(m => !m.Role.Equals("system", StringComparison.OrdinalIgnoreCase)));
+            // Convert all messages to chat format
+            var chatMessages = ConvertToChatMessages(messagesList);
 
             var inputMessages = messagesList
                 .Where(m => m.Role is "user" or "assistant")
@@ -181,8 +173,18 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
                     cancellationToken: cancellationToken);
             }
 
-            // Run the agent
-            var response = await agent.RunAsync(chatMessages, cancellationToken);
+            // Use the chat client with tools for function calling
+            var chatOptions = new ChatOptions
+            {
+                Tools = tools.Select(f => (AITool)f).ToList()
+            };
+
+            var result = await _chatClient.GetResponseAsync(
+                chatMessages,
+                chatOptions,
+                cancellationToken);
+
+            var response = result.Text ?? string.Empty;
 
             if (_telemetry != null && traceId != null)
             {
@@ -218,10 +220,10 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
         }
     }
 
-    private static List<Microsoft.Extensions.AI.ChatMessage> ConvertToChatMessages(
-        IEnumerable<ChatMessage> messages)
+    private static List<AIChatMessage> ConvertToChatMessages(
+        IEnumerable<AppChatMessage> messages)
     {
-        var result = new List<Microsoft.Extensions.AI.ChatMessage>();
+        var result = new List<AIChatMessage>();
 
         foreach (var msg in messages)
         {
@@ -233,13 +235,13 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
                 _ => ChatRole.User
             };
 
-            result.Add(new Microsoft.Extensions.AI.ChatMessage(role, msg.Content));
+            result.Add(new AIChatMessage(role, msg.Content));
         }
 
         return result;
     }
 
-    private static string? ExtractSessionId(IEnumerable<ChatMessage> messages)
+    private static string? ExtractSessionId(IEnumerable<AppChatMessage> messages)
     {
         foreach (var msg in messages)
         {

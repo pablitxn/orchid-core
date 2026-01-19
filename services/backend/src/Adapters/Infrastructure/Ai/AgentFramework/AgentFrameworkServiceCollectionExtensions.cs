@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenAI;
 using Application.Interfaces;
+using Infrastructure.Ai.AgentFramework.Abstractions;
 using Infrastructure.Http;
 
 namespace Infrastructure.Ai.AgentFramework;
@@ -78,8 +79,13 @@ public static class AgentFrameworkServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddAgentFrameworkTools(this IServiceCollection services)
     {
-        return services
-            .AddTransient<Tools.VectorStoreTool>()
-            .AddTransient<Tools.WebSearchTool>();
+        // Register individual tools
+        services.AddTransient<Tools.VectorStoreTool>();
+        services.AddTransient<Tools.WebSearchTool>();
+
+        // Register the tool registry for centralized tool management
+        services.AddScoped<IToolRegistry, Services.ToolRegistry>();
+
+        return services;
     }
 }

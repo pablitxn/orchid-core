@@ -3,6 +3,7 @@ using System.Text.Json;
 using Application.Interfaces;
 using Application.UseCases.VectorStore.AddDocument;
 using Application.UseCases.VectorStore.SemanticSearch;
+using Infrastructure.Ai.AgentFramework.Abstractions;
 using MediatR;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
@@ -13,8 +14,14 @@ namespace Infrastructure.Ai.AgentFramework.Tools;
 /// Vector store tool for Agent Framework.
 /// Provides semantic search and document storage capabilities.
 /// </summary>
-public sealed class VectorStoreTool
+public sealed class VectorStoreTool : ITool
 {
+    public string SystemName => "vector_store";
+    public string DisplayName => "Vector Store";
+    public string Description => "Semantic search and document storage for AI-powered retrieval";
+    public int CreditCost => 15;
+    public bool RequiresSubscription => false;
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IActivityPublisher _activity;
@@ -99,8 +106,14 @@ public sealed class VectorStoreTool
     {
         return new List<AIFunction>
         {
-            AIFunctionFactory.Create(AddDocumentAsync, this),
-            AIFunctionFactory.Create(SearchAsync, this)
+            AIFunctionFactory.Create(
+                typeof(VectorStoreTool).GetMethod(nameof(AddDocumentAsync))!,
+                this,
+                null),
+            AIFunctionFactory.Create(
+                typeof(VectorStoreTool).GetMethod(nameof(SearchAsync))!,
+                this,
+                null)
         };
     }
 }

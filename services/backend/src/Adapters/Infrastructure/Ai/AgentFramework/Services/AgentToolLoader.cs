@@ -1,27 +1,27 @@
 using Application.Interfaces;
-using Infrastructure.Ai.AgentFramework.Tools;
+using Infrastructure.Ai.AgentFramework.Abstractions;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Ai.AgentFramework.Services;
 
 /// <summary>
 /// Service responsible for dynamically loading tools based on agent configuration.
+/// Uses the ToolRegistry for centralized tool resolution.
 /// </summary>
 public class AgentToolLoader : IAgentToolLoader
 {
     private readonly IPluginRepository _pluginRepository;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IToolRegistry _toolRegistry;
     private readonly ILogger<AgentToolLoader> _logger;
 
     public AgentToolLoader(
         IPluginRepository pluginRepository,
-        IServiceProvider serviceProvider,
+        IToolRegistry toolRegistry,
         ILogger<AgentToolLoader> logger)
     {
         _pluginRepository = pluginRepository ?? throw new ArgumentNullException(nameof(pluginRepository));
-        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -40,30 +40,23 @@ public class AgentToolLoader : IAgentToolLoader
             {
                 try
                 {
-                    switch (plugin.SystemName?.ToLowerInvariant())
+                    var tool = _toolRegistry.GetToolBySystemName(plugin.SystemName!);
+
+                    if (tool != null)
                     {
-                        case "vector_store":
-                        case "vectorstore":
-                            var vectorStoreTool = _serviceProvider.GetRequiredService<VectorStoreTool>();
-                            loadedTools.AddRange(vectorStoreTool.GetAIFunctions());
-                            loadedToolNames.Add("vector_store");
-                            _logger.LogInformation("Loaded Vector Store tools for agent {AgentId}", agentId);
-                            break;
-
-                        case "web_search":
-                        case "websearch":
-                            var webSearchTool = _serviceProvider.GetRequiredService<WebSearchTool>();
-                            loadedTools.AddRange(webSearchTool.GetAIFunctions());
-                            loadedToolNames.Add("web_search");
-                            _logger.LogInformation("Loaded Web Search tools for agent {AgentId}", agentId);
-                            break;
-
-                        default:
-                            _logger.LogWarning(
-                                "Unknown plugin system name '{SystemName}' for plugin {PluginId}",
-                                plugin.SystemName,
-                                plugin.Id);
-                            break;
+                        loadedTools.AddRange(tool.GetAIFunctions());
+                        loadedToolNames.Add(tool.SystemName);
+                        _logger.LogInformation(
+                            "Loaded {ToolName} tools for agent {AgentId}",
+                            tool.DisplayName,
+                            agentId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "Unknown plugin system name '{SystemName}' for plugin {PluginId}",
+                            plugin.SystemName,
+                            plugin.Id);
                     }
                 }
                 catch (Exception ex)

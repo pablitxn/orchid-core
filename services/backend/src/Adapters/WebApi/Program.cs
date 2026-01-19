@@ -4,7 +4,7 @@ using Application.UseCases.User.CreateUser;
 using Application.UseCases.User.GetUser;
 using HealthChecks.UI.Client;
 using Infrastructure;
-using Infrastructure.Ai.SemanticKernel;
+using Infrastructure.Ai.AgentFramework;
 using Infrastructure.Messaging;
 using Infrastructure.Persistence;
 using MassTransit;
@@ -80,9 +80,9 @@ Log.Information("Infrastructure services registered");
 builder.Services.AddTelemetryServices(builder.Configuration);
 Log.Information("Telemetry services registered");
 
-// ─── Semantic Kernel ───────────────────────────────────────────────────────────
-builder.Services.AddSemanticKernel(builder.Configuration);
-builder.Services.AddSemanticKernelPlugins();
+// ─── Agent Framework (AI) ──────────────────────────────────────────────────────
+builder.Services.AddAgentFramework(builder.Configuration);
+builder.Services.AddAgentFrameworkTools();
 
 // ─── WebApi Adapters (SignalR adapters for notifications) ─────────────────────
 builder.Services.AddWebApiAdapters();
