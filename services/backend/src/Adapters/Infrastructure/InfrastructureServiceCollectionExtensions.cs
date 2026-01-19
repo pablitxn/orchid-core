@@ -69,7 +69,6 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<IAudioFileRepository, AudioFileRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
-        services.AddScoped<ISheetChunkRepository, SheetChunkRepository>();
         services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
         services.AddScoped<ISubscriptionPlanRepository, SubscriptionPlanRepository>();
         services.AddScoped<IActionCostRepository, ActionCostRepository>();
