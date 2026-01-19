@@ -481,6 +481,84 @@ Returns health status of the application and dependencies.
 
 ---
 
+## SignalR Chat Hub (`/chatHub`)
+
+Real-time bidirectional communication for chat functionality.
+
+### Connection
+```
+ws://localhost:5210/chatHub?sessionId=<session_id>&access_token=<jwt_token>
+```
+
+**Query Parameters:**
+- `sessionId` (required): The chat session identifier
+- `access_token` (required): JWT authentication token
+
+### Client → Server Methods
+
+#### SendMessage
+Sends a message to the AI agent and receives a streaming response.
+
+```typescript
+invoke('SendMessage', sessionId: string, message: string, byTokens?: boolean, agentId?: string, teamId?: string)
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `sessionId` | string | Yes | Chat session identifier |
+| `message` | string | Yes | User message content (max 10,000 chars) |
+| `byTokens` | boolean | No | Calculate credits by token count (default: false) |
+| `agentId` | GUID | No | Override session's default agent |
+| `teamId` | GUID | No | Team context for team-based chat |
+
+**Errors:**
+- Invalid session ID
+- Empty message
+- Message too long (>10,000 chars)
+- User not authenticated
+- Rate limit exceeded (10 msg/min)
+- Insufficient credits
+- Session not found
+- Access denied (wrong user)
+- No agent selected
+- Agent access denied
+
+#### GetHistory
+Retrieves the conversation history for a session.
+
+```typescript
+invoke('GetHistory', sessionId: string): Promise<ChatMessage[]>
+```
+
+### Server → Client Events
+
+#### ReceiveMessage
+Receives a message from the bot.
+
+```typescript
+on('ReceiveMessage', (sender: 'bot' | 'user', message: string) => void)
+```
+
+#### ReceiveActivity
+Receives activity events (tool invocations, status updates, etc.).
+
+```typescript
+on('ReceiveActivity', (activity: { type: string, payload?: object }) => void)
+```
+
+**Activity Types:**
+- `user_message` - User sent a message
+- `assistant_message` - AI response completed
+- `user_connected` - User joined the session
+- `user_disconnected` - User left the session
+- `tool_invocation` - AI tool/plugin was invoked
+
+### Rate Limits
+- 10 messages per minute per user
+- Configurable via `CreditSystemConfiguration`
+
+---
+
 ## Error Response Format
 
 ```json

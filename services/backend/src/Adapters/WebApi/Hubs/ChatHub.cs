@@ -79,7 +79,12 @@ public sealed class ChatHub(
     /// <summary>
     ///     Receives a message from a client for a specific session, sends it to the AI service, and returns the AI response.
     /// </summary>
-    public async Task SendMessage(string sessionId, string message, bool byTokens = false)
+    /// <param name="sessionId">The chat session identifier.</param>
+    /// <param name="message">The user's message content.</param>
+    /// <param name="byTokens">If true, credits are calculated based on token count.</param>
+    /// <param name="agentId">Optional agent ID to override the session's default agent.</param>
+    /// <param name="teamId">Optional team ID for team-based chat context.</param>
+    public async Task SendMessage(string sessionId, string message, bool byTokens = false, Guid? agentId = null, Guid? teamId = null)
     {
         // Validate inputs
         if (string.IsNullOrWhiteSpace(sessionId))
@@ -190,7 +195,10 @@ public sealed class ChatHub(
             return;
         }
 
-        if (!chatSession.AgentId.HasValue)
+        // Use passed agentId if provided, otherwise fall back to session's agentId
+        var effectiveAgentId = agentId ?? chatSession.AgentId;
+
+        if (!effectiveAgentId.HasValue)
         {
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["NoAgentSelected"]);
             return;
@@ -198,7 +206,7 @@ public sealed class ChatHub(
 
         // Verify user has access to the agent and its plugins
         var accessResult = await _mediator.Send(
-            new VerifyAgentAccessQuery(userId, chatSession.AgentId.Value),
+            new VerifyAgentAccessQuery(userId, effectiveAgentId.Value),
             Context.ConnectionAborted);
 
         if (!accessResult.HasAccess)
@@ -214,10 +222,11 @@ public sealed class ChatHub(
         }
 
         // Invoke the AI completion port with filtered history and agent ID
+        // TODO: Implement team-based chat context when teamId is provided
         string response;
         try
         {
-            response = await _chatCompletion.CompleteWithAgentAsync(llmHistory, chatSession.AgentId.Value, userId, Context.ConnectionAborted);
+            response = await _chatCompletion.CompleteWithAgentAsync(llmHistory, effectiveAgentId.Value, userId, Context.ConnectionAborted);
         }
         catch (TaskCanceledException)
         {
