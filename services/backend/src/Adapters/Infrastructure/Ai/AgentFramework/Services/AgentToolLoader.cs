@@ -9,21 +9,25 @@ namespace Infrastructure.Ai.AgentFramework.Services;
 /// <summary>
 /// Service responsible for dynamically loading tools based on agent configuration.
 /// Uses IToolRegistry for tool resolution instead of hardcoded switch statements.
+/// All loaded functions are wrapped with error handling to prevent tool failures from crashing conversations.
 /// </summary>
 public class AgentToolLoader : IAgentToolLoader
 {
     private readonly IPluginRepository _pluginRepository;
     private readonly IToolRegistry _toolRegistry;
     private readonly ILogger<AgentToolLoader> _logger;
+    private readonly bool _enableSafeWrapping;
 
     public AgentToolLoader(
         IPluginRepository pluginRepository,
         IToolRegistry toolRegistry,
-        ILogger<AgentToolLoader> logger)
+        ILogger<AgentToolLoader> logger,
+        bool enableSafeWrapping = true)
     {
         _pluginRepository = pluginRepository ?? throw new ArgumentNullException(nameof(pluginRepository));
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _enableSafeWrapping = enableSafeWrapping;
     }
 
     public async Task<IReadOnlyList<AIFunction>> LoadAgentToolsAsync(
@@ -89,6 +93,16 @@ public class AgentToolLoader : IAgentToolLoader
                     "Tool loading exceeded performance target (50ms) for agent {AgentId}: {ElapsedMs}ms",
                     agentId,
                     stopwatch.ElapsedMilliseconds);
+            }
+
+            // Wrap all tools with error handling to prevent tool failures from crashing conversations
+            if (_enableSafeWrapping && loadedTools.Count > 0)
+            {
+                _logger.LogDebug(
+                    "Wrapping {ToolCount} functions with safe error handling for agent {AgentId}",
+                    loadedTools.Count,
+                    agentId);
+                return SafeAIFunctionWrapper.WrapAll(loadedTools, _logger);
             }
 
             return loadedTools;

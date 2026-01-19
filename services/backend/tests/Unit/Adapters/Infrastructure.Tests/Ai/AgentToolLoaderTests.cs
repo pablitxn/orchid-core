@@ -414,4 +414,166 @@ public class AgentToolLoaderTests
     }
 
     #endregion
+
+    #region Safe Wrapping Tests
+
+    [Fact]
+    public async Task LoadAgentToolsAsync_Should_WrapFunctionsWithSafeWrapper_ByDefault()
+    {
+        // Arrange
+        var agentId = Guid.NewGuid();
+        var plugins = new List<PluginEntity>
+        {
+            new() { Id = Guid.NewGuid(), SystemName = "vector_store", IsActive = true, Name = "Vector Store" }
+        };
+
+        var originalFunction = AIFunctionFactory.Create(() => "result", "OriginalFunc");
+
+        _pluginRepositoryMock
+            .Setup(r => r.ListByAgentAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(plugins);
+
+        _toolRegistryMock
+            .Setup(r => r.GetAIFunctionsBySystemName("vector_store"))
+            .Returns(new List<AIFunction> { originalFunction });
+
+        // Act
+        var result = await _loader.LoadAgentToolsAsync(agentId, CancellationToken.None);
+
+        // Assert
+        result.Should().HaveCount(1);
+        result[0].Should().BeOfType<SafeAIFunctionWrapper>();
+        result[0].Name.Should().Be("OriginalFunc");
+    }
+
+    [Fact]
+    public async Task LoadAgentToolsAsync_Should_NotWrapEmptyList()
+    {
+        // Arrange
+        var agentId = Guid.NewGuid();
+
+        _pluginRepositoryMock
+            .Setup(r => r.ListByAgentAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<PluginEntity>());
+
+        // Act
+        var result = await _loader.LoadAgentToolsAsync(agentId, CancellationToken.None);
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task LoadAgentToolsAsync_Should_NotWrap_When_SafeWrappingDisabled()
+    {
+        // Arrange
+        var loaderWithoutWrapping = new AgentToolLoader(
+            _pluginRepositoryMock.Object,
+            _toolRegistryMock.Object,
+            _loggerMock.Object,
+            enableSafeWrapping: false);
+
+        var agentId = Guid.NewGuid();
+        var plugins = new List<PluginEntity>
+        {
+            new() { Id = Guid.NewGuid(), SystemName = "vector_store", IsActive = true, Name = "Vector Store" }
+        };
+
+        var originalFunction = AIFunctionFactory.Create(() => "result", "OriginalFunc");
+
+        _pluginRepositoryMock
+            .Setup(r => r.ListByAgentAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(plugins);
+
+        _toolRegistryMock
+            .Setup(r => r.GetAIFunctionsBySystemName("vector_store"))
+            .Returns(new List<AIFunction> { originalFunction });
+
+        // Act
+        var result = await loaderWithoutWrapping.LoadAgentToolsAsync(agentId, CancellationToken.None);
+
+        // Assert
+        result.Should().HaveCount(1);
+        result[0].Should().NotBeOfType<SafeAIFunctionWrapper>();
+    }
+
+    [Fact]
+    public async Task LoadAgentToolsAsync_WrappedFunction_ShouldNotCrash_When_OriginalThrows()
+    {
+        // Arrange
+        var agentId = Guid.NewGuid();
+        var plugins = new List<PluginEntity>
+        {
+            new() { Id = Guid.NewGuid(), SystemName = "failing_tool", IsActive = true, Name = "Failing Tool" }
+        };
+
+        var failingFunction = AIFunctionFactory.Create(
+            () => ThrowInvalidOperation("Tool execution failed"),
+            "FailingFunc");
+
+        _pluginRepositoryMock
+            .Setup(r => r.ListByAgentAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(plugins);
+
+        _toolRegistryMock
+            .Setup(r => r.GetAIFunctionsBySystemName("failing_tool"))
+            .Returns(new List<AIFunction> { failingFunction });
+
+        // Act
+        var result = await _loader.LoadAgentToolsAsync(agentId, CancellationToken.None);
+
+        // Assert - The wrapped function should not throw when invoked
+        result.Should().HaveCount(1);
+        var wrappedFunc = result[0];
+
+        // Invoke the wrapped function - should return error JSON instead of throwing
+        var invokeResult = await wrappedFunc.InvokeAsync(new AIFunctionArguments(), CancellationToken.None);
+        invokeResult.Should().NotBeNull();
+        invokeResult!.ToString().Should().Contain("error");
+        invokeResult.ToString().Should().Contain("Tool execution failed");
+    }
+
+    [Fact]
+    public async Task LoadAgentToolsAsync_WrappedFunction_ShouldPreserveFunctionMetadata()
+    {
+        // Arrange
+        var agentId = Guid.NewGuid();
+        var plugins = new List<PluginEntity>
+        {
+            new() { Id = Guid.NewGuid(), SystemName = "test_tool", IsActive = true, Name = "Test Tool" }
+        };
+
+        var originalFunction = AIFunctionFactory.Create(
+            () => "result",
+            "TestFunction",
+            "A test function description");
+
+        _pluginRepositoryMock
+            .Setup(r => r.ListByAgentAsync(agentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(plugins);
+
+        _toolRegistryMock
+            .Setup(r => r.GetAIFunctionsBySystemName("test_tool"))
+            .Returns(new List<AIFunction> { originalFunction });
+
+        // Act
+        var result = await _loader.LoadAgentToolsAsync(agentId, CancellationToken.None);
+
+        // Assert
+        result.Should().HaveCount(1);
+        var wrappedFunc = result[0];
+        wrappedFunc.Name.Should().Be("TestFunction");
+        wrappedFunc.Description.Should().Be("A test function description");
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    private static string ThrowInvalidOperation(string message)
+    {
+        throw new InvalidOperationException(message);
+    }
+
+    #endregion
 }
