@@ -14,7 +14,8 @@
         <PackageReference Include="MediatR" Version="14.0.0"/>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" Version="2.3.0"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.2" />
-        <PackageReference Include="Microsoft.SemanticKernel.Core" Version="1.54.0" />
+        <!-- Microsoft Agent Framework - dependency comes via Infrastructure project -->
+        <!-- IAgentPluginLoader interface will be updated in a separate story -->
     </ItemGroup>
 
 </Project>
