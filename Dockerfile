@@ -36,7 +36,8 @@ RUN addgroup -g 1000 appgroup && \
 # Install required dependencies for some native libraries
 RUN apk add --no-cache \
     icu-libs \
-    tzdata
+    tzdata \
+    krb5-libs
 
 # Copy published app
 COPY --from=build /app/publish .
