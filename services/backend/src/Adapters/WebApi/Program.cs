@@ -43,11 +43,14 @@ builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, relo
 var sentryDsn = builder.Configuration["Sentry:Dsn"];
 if (!string.IsNullOrEmpty(sentryDsn))
 {
+    // Read debug setting from config, defaulting to false to avoid log spam
+    var sentryDebug = builder.Configuration.GetValue<bool>("Sentry:Debug", false);
+
     builder.Logging.AddSentry(o =>
     {
         o.Dsn = sentryDsn;
         o.Environment = env.EnvironmentName;
-        o.Debug = env.IsDevelopment();
+        o.Debug = sentryDebug;
         o.AutoSessionTracking = true;
         o.TracesSampleRate = env.IsDevelopment() ? 1.0 : 0.1;
         o.ProfilesSampleRate = env.IsDevelopment() ? 1.0 : 0.1;
