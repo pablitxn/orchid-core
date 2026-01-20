@@ -77,7 +77,7 @@ public static class TelemetryOperationClassifier
 
         // Check namespace for AI-specific operations
         if (requestNamespace.Contains("AI", StringComparison.OrdinalIgnoreCase) ||
-            requestNamespace.Contains("SemanticKernel", StringComparison.OrdinalIgnoreCase) ||
+            requestNamespace.Contains("AgentFramework", StringComparison.OrdinalIgnoreCase) ||
             requestNamespace.Contains("Embedding", StringComparison.OrdinalIgnoreCase) ||
             requestNamespace.Contains("Completion", StringComparison.OrdinalIgnoreCase) ||
             requestNamespace.Contains("LLM", StringComparison.OrdinalIgnoreCase))

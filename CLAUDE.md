@@ -1,6 +1,6 @@
 # Orchid Labs Core – LLM Agent Context Guide
 
-*Version 1.1 – 2025-01-19*
+*Version 1.2 – 2025-01-20*
 
 ---
 
@@ -132,33 +132,79 @@ Any new code **must** fit one of these slots. If none apply, open an ADR first.
 
 ---
 
-## 8  AI & Semantic Kernel Rules
+## 8  AI & Agent Framework Rules
 
-1. Kernel instances are resolved from DI via `AddSemanticKernel` (see `SemanticKernelServiceCollectionExtensions`). Do *
-   *not** instantiate `Kernel` manually.
-2. Register plugins in `Adapters.Infrastructure.Ai.SemanticKernel.Plugins`.
+1. AI services are resolved from DI via `AddAgentFramework` (see `AgentFrameworkServiceCollectionExtensions`). Do **not** instantiate `IChatClient` or `OpenAIClient` manually.
+2. Register tools in `Adapters/Infrastructure/Ai/AgentFramework/Tools/`.
 3. Long-running AI calls require **cancellation tokens**.
 4. Stream outputs when size > 50 tokens to reduce latency.
 
-## 8.1 Tool Invocation Activity Logging
+### 8.1 Creating New Tools
 
-When registering new plugins or tooling functions, ensure that each exposed method emits an activity event so the
-frontend can render the call, its parameters, and the result. Follow these steps:
+Tools implement the `ITool` interface and provide AI-callable functions:
 
-- In your plugin class (e.g. under `Infrastructure.Ai.SemanticKernel.Plugins`), annotate the method with
-  `[KernelFunction("your_tool_name")]`.
-- After computing the result (typically serialized to JSON), call the helper:
-  ```csharp
-  PublishTool("your_tool_name", new { /* parameter1, parameter2, ... */ }, resultJson);
-  ```
-  The `PublishTool` implementation uses
-  `IActivityPublisher.PublishAsync("tool_invocation", new { tool, parameters, result })` under the hood.
-- Ensure that your `parameters` object and `result` are serializable to JSON; strings or POCOs are supported.
-- No frontend changes are required once the generic ActivityMessage component is in place: it will detect
-  `payload.tool`, render the tool name, parameters, and result automatically.
+```csharp
+// Adapters/Infrastructure/Ai/AgentFramework/Tools/MyTool.cs
+public sealed class MyTool : ITool
+{
+    public string SystemName => "my_tool";
+    public string DisplayName => "My Tool";
+    public string Description => "Does something useful.";
+    public int CreditCost => 1;
+    public bool RequiresSubscription => false;
 
-This pattern enables any new tooling (not just Excel plugins) to surface invocation details in the chat UI without
-additional customization.
+    [Description("Describe what this function does for the AI")]
+    public async Task<string> DoSomethingAsync(
+        [Description("Parameter description")] string input,
+        CancellationToken ct = default)
+    {
+        // Implementation here
+        var result = /* ... */;
+
+        // Emit activity for frontend
+        await _activity.PublishAsync("tool_invocation",
+            new { tool = "my_tool", parameters = new { input }, result }, ct);
+
+        return result;
+    }
+
+    public IReadOnlyList<AIFunction> GetAIFunctions()
+    {
+        return new List<AIFunction>
+        {
+            AIFunctionFactory.Create(
+                (string input, CancellationToken ct) => DoSomethingAsync(input, ct),
+                "DoSomething",
+                "Describe what this function does.")
+        };
+    }
+}
+```
+
+### 8.2 Registering Tools
+
+Register new tools in `AgentFrameworkServiceCollectionExtensions.AddAgentFrameworkTools()`:
+
+```csharp
+public static IServiceCollection AddAgentFrameworkTools(this IServiceCollection services)
+{
+    return services
+        .AddTransient<Tools.VectorStoreTool>()
+        .AddTransient<Tools.WebSearchTool>()
+        .AddTransient<Tools.MyTool>(); // Add your tool here
+}
+```
+
+### 8.3 Tool Invocation Activity Logging
+
+Each tool method should emit an activity event so the frontend can render the call:
+
+```csharp
+await _activity.PublishAsync("tool_invocation",
+    new { tool = "tool_name", parameters = new { /* params */ }, result = jsonResult }, ct);
+```
+
+The generic ActivityMessage component will detect `payload.tool` and render the tool name, parameters, and result automatically.
 
 ---
 
