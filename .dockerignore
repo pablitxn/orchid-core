@@ -29,8 +29,8 @@
 .env
 .env.*
 *.local
-appsettings.Development.json
-appsettings.Local.json
+appsettings.development.json
+appsettings.local.json
 
 # Docker
 **/Dockerfile*
