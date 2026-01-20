@@ -496,6 +496,15 @@ app.MapHealthChecks("/health", new HealthCheckOptions
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 });
 
+// ─── Sentry Test Endpoint (Development only) ─────────────────────────────────
+if (app.Environment.IsDevelopment())
+{
+    app.MapGet("/sentry-test", () =>
+    {
+        throw new InvalidOperationException("Sentry test exception - this is intentional!");
+    });
+}
+
 #endregion
 
 #region Database Initialization
