@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
@@ -13,7 +14,10 @@ public class HealthCheckTests : IClassFixture<WebApplicationFactory<Program>>
 
     public HealthCheckTests(WebApplicationFactory<Program> factory)
     {
-        _factory = factory;
+        _factory = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Environment", "Testing");
+        });
         _client = _factory.CreateClient();
     }
 
@@ -47,7 +51,7 @@ public class HealthCheckTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.True(resultsDict.ContainsKey("postgres"), "Missing postgres health check");
         Assert.True(resultsDict.ContainsKey("redis"), "Missing redis health check");
         Assert.True(resultsDict.ContainsKey("memory"), "Missing memory health check");
-        Assert.True(resultsDict.ContainsKey("disk"), "Missing disk health check");
+        Assert.True(resultsDict.ContainsKey("seeding"), "Missing seeding health check");
         Assert.True(resultsDict.ContainsKey("self"), "Missing self health check");
         
         // Check if Langfuse health check is present (may not be if not configured)

@@ -180,6 +180,11 @@ public static class InfrastructureServiceCollectionExtensions
         // TODO: Remove this service after all environments are migrated
         services.AddHostedService<Persistence.Seeders.UserPluginMigrationSeeder>();
 
+        // ─── Database seeding (runs in background on startup) ───────────────────────
+        services.AddSingleton<ISeedingStatusService, Persistence.Seeders.SeedingStatusService>();
+        services.AddSingleton<Persistence.Seeders.SeedingHealthCheck>();
+        services.AddHostedService<Persistence.Seeders.DatabaseSeedingService>();
+
         #endregion
 
         #region Caching Services

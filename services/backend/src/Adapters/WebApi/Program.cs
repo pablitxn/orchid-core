@@ -288,6 +288,11 @@ builder.Services.AddHealthChecks()
     // ─── Self probe ─────────────────────────────
     .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"])
 
+    // ─── Database Seeding ─────────────────────────
+    .AddCheck<Infrastructure.Persistence.Seeders.SeedingHealthCheck>(
+        "seeding",
+        tags: ["seeding", "startup"])
+
     // ─── Telemetry ───────────────────────────────
     .AddLangfuseHealthCheck(builder.Configuration);
 
@@ -524,20 +529,7 @@ app.MapGet("/sentry-test", () =>
 
 #endregion
 
-#region Database Initialization
-
-if (!app.Environment.IsEnvironment("Testing"))
-{
-    Log.Information("Running database seeding...");
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-    var fileStorage = scope.ServiceProvider.GetRequiredService<IFileStorageService>();
-    await DatabaseSeeder.SeedAsync(db, hasher, fileStorage, scope.ServiceProvider);
-    Log.Information("Database seeding completed");
-}
-
-#endregion
+// Database seeding now runs in background via DatabaseSeedingService
 
 Log.Information("Application startup complete");
 
