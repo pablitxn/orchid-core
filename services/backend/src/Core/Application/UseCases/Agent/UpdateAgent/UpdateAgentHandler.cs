@@ -55,6 +55,9 @@ public sealed class UpdateAgentHandler(
         if (request.Language is not null)
             agent.Language = request.Language;
 
+        if (request.Model is not null)
+            agent.Model = request.Model;
+
         if (request.PluginIds is not null)
             agent.PluginIds = request.PluginIds;
 
@@ -85,6 +88,7 @@ public sealed class UpdateAgentHandler(
             Personality = agent.Personality,
             PersonalityTemplateId = agent.PersonalityTemplateId,
             Language = agent.Language,
+            Model = agent.Model,
             UserId = agent.UserId,
             IsPublic = agent.IsPublic,
             CreatedAt = agent.CreatedAt,

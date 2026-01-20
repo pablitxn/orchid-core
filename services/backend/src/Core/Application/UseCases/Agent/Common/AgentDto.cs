@@ -10,6 +10,7 @@ public record AgentDto
     public string? Personality { get; init; }
     public Guid? PersonalityTemplateId { get; init; }
     public string? Language { get; init; }
+    public string? Model { get; init; }
     public Guid? UserId { get; init; }
     public bool IsPublic { get; init; }
     public DateTime CreatedAt { get; init; }

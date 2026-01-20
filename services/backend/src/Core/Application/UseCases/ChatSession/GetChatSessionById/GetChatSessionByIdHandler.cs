@@ -39,7 +39,7 @@ public class GetChatSessionByIdHandler(IChatSessionRepository repo, IPluginRepos
                 session.Agent.Name,
                 session.Agent.Description,
                 null, // Prompt is not available in AgentEntity
-                "gpt-4", // Default model since it's not in AgentEntity
+                session.Agent.Model ?? "gpt-4", // Use agent's model or default
                 true, // Default IsActive since it's not in AgentEntity
                 session.Agent.IsPublic,
                 session.Agent.UserId ?? Guid.Empty,

@@ -10,6 +10,7 @@ public class CreateAgentCommand(
     string? personality,
     Guid? personalityTemplateId,
     string? language,
+    string? model,
     Guid[]? pluginIds,
     Guid? userId = null,
     bool isPublic = false) : IRequest<AgentDto>
@@ -20,6 +21,7 @@ public class CreateAgentCommand(
     public string? Personality { get; set; } = personality;
     public Guid? PersonalityTemplateId { get; set; } = personalityTemplateId;
     public string? Language { get; set; } = language;
+    public string? Model { get; set; } = model;
     public Guid[] PluginIds { get; set; } = pluginIds ?? [];
     public Guid? UserId { get; set; } = userId;
     public bool IsPublic { get; set; } = isPublic;

@@ -30,6 +30,7 @@ public class CreateAgentHandlerTests
             "Friendly personality",
             null,
             "en",
+            null, // model
             [],
             userId,
             true
@@ -70,6 +71,7 @@ public class CreateAgentHandlerTests
             null,
             null,
             null,
+            null, // model
             null,
             userId
         );
@@ -103,6 +105,7 @@ public class CreateAgentHandlerTests
             null,
             null,
             null,
+            null, // model
             null,
             null, // no user ID
             true  // public
@@ -138,6 +141,7 @@ public class CreateAgentHandlerTests
             null,
             null,
             null,
+            null, // model
             [pluginId],
             Guid.NewGuid(),
             true

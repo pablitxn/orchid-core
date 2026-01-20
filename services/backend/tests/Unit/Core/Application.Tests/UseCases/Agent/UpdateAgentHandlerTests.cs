@@ -70,6 +70,7 @@ public class UpdateAgentHandlerTests
             null,
             null,
             null,
+            null, // model
             null,
             null);
 
@@ -103,6 +104,7 @@ public class UpdateAgentHandlerTests
             null,
             null,
             null,
+            null, // model
             null,
             null);
 
@@ -141,6 +143,7 @@ public class UpdateAgentHandlerTests
             null,
             null,
             null,
+            null, // model
             null,
             null);
 
@@ -179,6 +182,7 @@ public class UpdateAgentHandlerTests
             null,
             null,
             null,
+            null, // model
             null,
             null);
 
@@ -236,6 +240,7 @@ public class UpdateAgentHandlerTests
             null,
             null,
             null,
+            null, // model
             null,
             null);
 
@@ -293,6 +298,7 @@ public class UpdateAgentHandlerTests
             null,
             null,
             null,
+            null, // model
             null,
             true); // Make public
 
@@ -354,6 +360,7 @@ public class UpdateAgentHandlerTests
             null,
             null,
             null,
+            null, // model
             new[] { pluginId },
             null);
 
@@ -411,6 +418,7 @@ public class UpdateAgentHandlerTests
             null,
             null,
             null,
+            null, // model
             null,
             null);
 
@@ -464,6 +472,7 @@ public class UpdateAgentHandlerTests
             null,
             null,
             null,
+            null, // model
             null,
             null);
 
@@ -518,6 +527,7 @@ public class UpdateAgentHandlerTests
             null,
             null,
             null,
+            null, // model
             null,
             null);
 

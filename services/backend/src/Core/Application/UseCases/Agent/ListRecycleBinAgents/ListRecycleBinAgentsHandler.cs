@@ -28,6 +28,7 @@ public sealed class ListRecycleBinAgentsHandler(
             Personality = agent.Personality,
             PersonalityTemplateId = agent.PersonalityTemplateId,
             Language = agent.Language,
+            Model = agent.Model,
             UserId = agent.UserId,
             IsPublic = agent.IsPublic,
             CreatedAt = agent.CreatedAt,

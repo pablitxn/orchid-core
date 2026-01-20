@@ -23,6 +23,7 @@ public class CreateAgentRequest
     public string? Personality { get; set; }
     public Guid? PersonalityTemplateId { get; set; }
     public string? Language { get; set; }
+    public string? Model { get; set; }
     public Guid[]? PluginIds { get; set; }
     public bool IsPublic { get; set; } = false;
 }
@@ -35,6 +36,7 @@ public class UpdateAgentRequest
     public string? Personality { get; set; }
     public Guid? PersonalityTemplateId { get; set; }
     public string? Language { get; set; }
+    public string? Model { get; set; }
     public Guid[]? PluginIds { get; set; }
     public bool? IsPublic { get; set; }
 }
@@ -104,6 +106,7 @@ public class AgentsController(IMediator mediator) : ControllerBase
             request.Personality,
             request.PersonalityTemplateId,
             request.Language,
+            request.Model,
             request.PluginIds,
             userGuid,
             request.IsPublic
@@ -132,6 +135,7 @@ public class AgentsController(IMediator mediator) : ControllerBase
             request.Personality,
             request.PersonalityTemplateId,
             request.Language,
+            request.Model,
             request.PluginIds,
             request.IsPublic
         );

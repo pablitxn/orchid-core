@@ -12,6 +12,7 @@ public sealed record UpdateAgentCommand(
     string? Personality,
     Guid? PersonalityTemplateId,
     string? Language,
+    string? Model,
     Guid[]? PluginIds,
     bool? IsPublic
 ) : IRequest<AgentDto>;
