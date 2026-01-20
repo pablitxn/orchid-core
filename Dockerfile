@@ -8,9 +8,6 @@ COPY services/backend/src/Core/Domain/Domain.csproj ./services/backend/src/Core/
 COPY services/backend/src/Core/Application/Application.csproj ./services/backend/src/Core/Application/
 COPY services/backend/src/Adapters/Infrastructure/Infrastructure.csproj ./services/backend/src/Adapters/Infrastructure/
 COPY services/backend/src/Adapters/WebApi/WebApi.csproj ./services/backend/src/Adapters/WebApi/
-COPY services/backend/src/Adapters/Workers/Workers.csproj ./services/backend/src/Adapters/Workers/
-COPY services/backend/src/Adapters/Workers/AudioProcessing/AudioProcessing.csproj ./services/backend/src/Adapters/Workers/AudioProcessing/
-COPY services/backend/src/Adapters/CLI/SpreadsheetCLI/SpreadsheetCLI.csproj ./services/backend/src/Adapters/CLI/SpreadsheetCLI/
 
 # Restore dependencies
 WORKDIR /src/services/backend
