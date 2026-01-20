@@ -98,6 +98,12 @@ Log.Information("Starting application setup...");
 // ─── MediatR (CQRS) ───────────────────────────────────────────────────────────
 builder.Services.AddMediatR(cfg =>
 {
+    var licenseKey = builder.Configuration["MediatR:LicenseKey"];
+    if (!string.IsNullOrEmpty(licenseKey))
+    {
+        cfg.LicenseKey = licenseKey;
+    }
+
     cfg.RegisterServicesFromAssembly(typeof(CreateUserCommandHandler).Assembly);
     cfg.RegisterServicesFromAssembly(typeof(GetUserHandler).Assembly);
     cfg.RegisterServicesFromAssembly(typeof(GetWorkflowByIdHandler).Assembly);
