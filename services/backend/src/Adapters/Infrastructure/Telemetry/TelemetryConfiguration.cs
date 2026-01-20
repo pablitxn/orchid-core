@@ -63,6 +63,9 @@ public static class TelemetryConfiguration
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // Bind LangfuseSettings for IOptions<LangfuseSettings> (used by LangfuseHealthCheck)
+        services.Configure<LangfuseSettings>(configuration.GetSection("Langfuse"));
+
         var publicKey = configuration["Langfuse:PublicKey"];
         var secretKey = configuration["Langfuse:SecretKey"];
         var baseUrl = configuration["Langfuse:BaseUrl"] ?? "https://cloud.langfuse.com";
