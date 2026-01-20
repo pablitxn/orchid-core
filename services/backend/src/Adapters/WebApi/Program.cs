@@ -499,10 +499,15 @@ app.MapHub<NotificationHub>("/notificationHub");
 app.MapHub<CreditHub>("/hubs/credits");
 // app.MapHub<HuddleHub>("/huddleHub").RequireCors("MyPolicy");
 
-// ─── Health Check Endpoint ────────────────────────────────────────────────────
+// ─── Health Check Endpoints ───────────────────────────────────────────────────
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("live")
 });
 
 // ─── Sentry Test Endpoint ─────────────────────────────────────────────────────
