@@ -496,14 +496,12 @@ app.MapHealthChecks("/health", new HealthCheckOptions
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 });
 
-// ─── Sentry Test Endpoint (Development only) ─────────────────────────────────
-if (app.Environment.IsDevelopment())
+// ─── Sentry Test Endpoint ─────────────────────────────────────────────────────
+// TODO: Remove before production - temporary endpoint for Sentry verification
+app.MapGet("/sentry-test", () =>
 {
-    app.MapGet("/sentry-test", () =>
-    {
-        throw new InvalidOperationException("Sentry test exception - this is intentional!");
-    });
-}
+    throw new InvalidOperationException("Sentry test exception - this is intentional!");
+});
 
 #endregion
 
