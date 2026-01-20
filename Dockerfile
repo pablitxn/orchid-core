@@ -43,7 +43,8 @@ RUN apk add --no-cache \
 COPY --from=build /app/publish .
 
 # Set environment variables
-ENV ASPNETCORE_URLS=http://+:8080
+# Use ASPNETCORE_HTTP_PORTS instead of ASPNETCORE_URLS to avoid override warning
+ENV ASPNETCORE_HTTP_PORTS=8080
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 ENV TZ=UTC
 

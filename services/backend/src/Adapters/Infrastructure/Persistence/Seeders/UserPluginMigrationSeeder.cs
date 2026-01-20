@@ -50,7 +50,7 @@ public class UserPluginMigrationSeeder : IHostedService
                 .Distinct()
                 .ToList();
 
-            _logger.LogInformation("Found {Count} plugins from {AgentCount} public agents to migrate",
+            _logger.LogInformation("Found {PluginCount} unique plugins from {AgentCount} public agents",
                 pluginIds.Count, publicAgents.Count);
 
             // Get all users
@@ -101,7 +101,7 @@ public class UserPluginMigrationSeeder : IHostedService
             }
             else
             {
-                _logger.LogInformation("User plugin migration completed. No plugins needed to be assigned.");
+                _logger.LogInformation("User plugin migration completed. All users already have required plugins");
             }
         }
         catch (Exception ex)

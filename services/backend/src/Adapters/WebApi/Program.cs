@@ -26,6 +26,7 @@ using WebApi;
 using WebApi.Services;
 using Serilog;
 using Serilog.Events;
+using Serilog.Templates;
 using Infrastructure.Messaging.RabbitMq;
 using Sentry.Profiling;
 
@@ -80,11 +81,13 @@ Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Override("System", LogEventLevel.Warning)
     .MinimumLevel.Override("System.Net.Http.HttpClient", LogEventLevel.Warning)
     .MinimumLevel.Override("MassTransit", LogEventLevel.Warning)
+    // Suppress noisy Data Protection warnings (expected in containerized environments)
+    .MinimumLevel.Override("Microsoft.AspNetCore.DataProtection", LogEventLevel.Error)
     // Enrich with correlation ID and context
     .Enrich.FromLogContext()
     .Enrich.WithCorrelationId()
-    .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.Console(new ExpressionTemplate(
+        "[{@t:HH:mm:ss} {@l:u3}]{#if CorrelationId is not null} [{CorrelationId}]{#end} {@m}\n{@x}"))
     .CreateLogger();
 
 builder.Host.UseSerilog();
@@ -421,7 +424,9 @@ builder.Services.Configure<WebApi.Configuration.CreditSystemConfiguration>(
 #endregion
 
 // ─── Build the pipeline ───────────────────────────────────────────────────────
+Log.Information("Building application pipeline...");
 var app = builder.Build();
+Log.Information("Application pipeline built");
 
 #region Development-specific Middleware
 
@@ -523,16 +528,18 @@ app.MapGet("/sentry-test", () =>
 
 if (!app.Environment.IsEnvironment("Testing"))
 {
+    Log.Information("Running database seeding...");
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
     var fileStorage = scope.ServiceProvider.GetRequiredService<IFileStorageService>();
     await DatabaseSeeder.SeedAsync(db, hasher, fileStorage, scope.ServiceProvider);
+    Log.Information("Database seeding completed");
 }
 
 #endregion
 
-Log.Information("Application configuration complete - running.");
+Log.Information("Application startup complete");
 
 try
 {
