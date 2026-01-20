@@ -26,8 +26,7 @@ public class PluginSeeder : IHostedService
 
         try
         {
-            // Ensure database is migrated
-            await dbContext.Database.MigrateAsync(cancellationToken);
+            // Note: Migrations are handled separately via --migrate-only flag (init container)
 
             // Discover plugins from Semantic Kernel
             var discoveredPlugins = await discoveryService.DiscoverPluginsAsync(cancellationToken);

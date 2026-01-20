@@ -12,7 +12,8 @@ public static class DatabaseSeeder
 {
     public static async Task SeedAsync(ApplicationDbContext db, IPasswordHasher hasher, IFileStorageService? fileStorage = null, IServiceProvider? serviceProvider = null)
     {
-        await db.Database.MigrateAsync();
+        // Note: Migrations are handled separately via --migrate-only flag (init container)
+        // or EnsureCreated for development. Do not call MigrateAsync() here.
 
         if (!await db.Roles.AnyAsync())
         {

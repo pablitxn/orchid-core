@@ -4,6 +4,7 @@ using Application.UseCases.User.CreateUser;
 using Application.UseCases.User.GetUser;
 using HealthChecks.UI.Client;
 using Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Infrastructure.Ai.AgentFramework;
 using Infrastructure.Messaging;
 using Infrastructure.Persistence;
@@ -32,6 +33,61 @@ using Sentry.Profiling;
 
 var builder = WebApplication.CreateBuilder(args);
 var env = builder.Environment;
+
+// ─── Migration-only mode for init containers ─────────────────────────────────
+// When --migrate-only is passed, run migrations and exit immediately.
+// This is intended for Kubernetes init containers to ensure DB is migrated
+// before the main application starts.
+if (args.Contains("--migrate-only"))
+{
+    Log.Logger = new LoggerConfiguration()
+        .MinimumLevel.Information()
+        .WriteTo.Console()
+        .CreateLogger();
+
+    Log.Information("Running in migration-only mode...");
+
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        Log.Fatal("Connection string 'DefaultConnection' is not configured");
+        return 1;
+    }
+
+    try
+    {
+        var optionsBuilder = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ApplicationDbContext>();
+        optionsBuilder.UseNpgsql(connectionString, npgsqlOptions => npgsqlOptions.UseVector());
+
+        await using var dbContext = new ApplicationDbContext(optionsBuilder.Options);
+
+        var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+        var pendingList = pendingMigrations.ToList();
+
+        if (pendingList.Count == 0)
+        {
+            Log.Information("No pending migrations found");
+        }
+        else
+        {
+            Log.Information("Applying {Count} pending migrations: {Migrations}",
+                pendingList.Count, string.Join(", ", pendingList));
+            await dbContext.Database.MigrateAsync();
+            Log.Information("Migrations applied successfully");
+        }
+
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Log.Fatal(ex, "Migration failed");
+        return 1;
+    }
+    finally
+    {
+        await Log.CloseAndFlushAsync();
+    }
+}
 
 // ─── Load optional local settings (overrides for local development) ──────────
 builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
@@ -536,6 +592,12 @@ Log.Information("Application startup complete");
 try
 {
     app.Run();
+    return 0;
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+    return 1;
 }
 finally
 {
