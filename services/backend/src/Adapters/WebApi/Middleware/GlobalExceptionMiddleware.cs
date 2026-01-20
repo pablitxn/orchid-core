@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Sentry;
 
 namespace WebApi.Middleware;
 
@@ -31,6 +32,18 @@ public class GlobalExceptionMiddleware
             // Get correlation ID from context items (set by CorrelationIdMiddleware)
             var correlationId = context.Items[CorrelationIdMiddleware.CorrelationIdItemKey]?.ToString()
                                 ?? context.TraceIdentifier;
+
+            // Only capture unexpected 5xx errors to Sentry (not expected 4xx client errors)
+            if (!IsExpectedClientError(ex))
+            {
+                SentrySdk.ConfigureScope(scope =>
+                {
+                    scope.SetTag("correlation_id", correlationId);
+                    scope.SetExtra("request_path", context.Request.Path.ToString());
+                    scope.SetExtra("request_method", context.Request.Method);
+                });
+                SentrySdk.CaptureException(ex);
+            }
 
             _logger.LogError(ex, "An unhandled exception occurred. CorrelationId: {CorrelationId}", correlationId);
             await HandleExceptionAsync(context, ex, correlationId);
@@ -120,4 +133,12 @@ public class GlobalExceptionMiddleware
             Extensions = { ["errorCode"] = errorCode }
         };
     }
+
+    private static bool IsExpectedClientError(Exception ex) =>
+        ex is KeyNotFoundException
+            or UnauthorizedAccessException
+            or ArgumentException
+            || (ex is InvalidOperationException invalidOp &&
+                (invalidOp.Message.Contains("Insufficient credits") ||
+                 invalidOp.Message.Contains("already purchased")));
 }

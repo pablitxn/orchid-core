@@ -27,12 +27,37 @@ using WebApi.Services;
 using Serilog;
 using Serilog.Events;
 using Infrastructure.Messaging.RabbitMq;
+using Sentry.Profiling;
 
 var builder = WebApplication.CreateBuilder(args);
 var env = builder.Environment;
 
 // ─── Load optional local settings (overrides for local development) ──────────
 builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
+
+#region Sentry Configuration
+
+// ─── Sentry Error Tracking & Performance Monitoring ──────────────────────────
+// Sentry is configured via appsettings.json (Sentry section)
+// DSN should be set via environment variable SENTRY__DSN or in configuration
+var sentryDsn = builder.Configuration["Sentry:Dsn"];
+if (!string.IsNullOrEmpty(sentryDsn))
+{
+    builder.Logging.AddSentry(o =>
+    {
+        o.Dsn = sentryDsn;
+        o.Environment = env.EnvironmentName;
+        o.Debug = env.IsDevelopment();
+        o.AutoSessionTracking = true;
+        o.TracesSampleRate = env.IsDevelopment() ? 1.0 : 0.1;
+        o.ProfilesSampleRate = env.IsDevelopment() ? 1.0 : 0.1;
+        o.SendDefaultPii = env.IsDevelopment();
+        o.AttachStacktrace = true;
+        o.AddIntegration(new ProfilingIntegration(TimeSpan.FromMilliseconds(500)));
+    });
+}
+
+#endregion
 
 #region Logging Configuration
 
@@ -403,6 +428,9 @@ if (app.Environment.IsDevelopment())
 
 // ─── Correlation ID (must be first to capture all logs) ───────────────────────
 app.UseCorrelationId();
+
+// ─── Sentry Performance Monitoring ────────────────────────────────────────────
+app.UseSentryTracing();
 
 // ─── Global Exception Handler ─────────────────────────────────────────────────
 app.UseMiddleware<GlobalExceptionMiddleware>();

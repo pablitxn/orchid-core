@@ -37,6 +37,9 @@
         <PackageReference Include="MassTransit.RabbitMQ" Version="8.4.0" />
         <!-- Redis distributed cache support -->
         <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="7.0.5" />
+        <!-- Sentry for error tracking and performance monitoring -->
+        <PackageReference Include="Sentry.AspNetCore" Version="6.0.0" />
+        <PackageReference Include="Sentry.Profiling" Version="6.0.0" />
     </ItemGroup>
 
     <ItemGroup>
