@@ -28,7 +28,7 @@ public class PluginSeeder : IHostedService
         {
             // Note: Migrations are handled separately via --migrate-only flag (init container)
 
-            // Discover plugins from Semantic Kernel
+            // Discover plugins from Agent Framework tools
             var discoveredPlugins = await discoveryService.DiscoverPluginsAsync(cancellationToken);
 
             foreach (var discovered in discoveredPlugins)

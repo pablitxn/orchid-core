@@ -28,7 +28,7 @@
 - **PostgreSQL 17** + pgvector for vector search
 - **Redis** for caching and sessions
 - **RabbitMQ** for async messaging
-- **Semantic Kernel** for AI/LLM orchestration
+- **Microsoft Agent Framework** for AI/LLM orchestration
 - **Langfuse** for LLM telemetry
 
 ### Key Features

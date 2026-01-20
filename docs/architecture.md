@@ -87,7 +87,7 @@ External-facing implementations organized by direction (inbound/outbound).
 
 **Infrastructure** - External service implementations
 - **Persistence**: EF Core DbContext, Repositories
-- **Ai**: Semantic Kernel integration, plugins
+- **Ai**: Microsoft Agent Framework integration, tools
 - **Auth**: JWT service, password hashing, rate limiting
 - **Cache**: Redis distributed cache
 - **Messaging**: RabbitMQ via MassTransit
@@ -204,17 +204,18 @@ public sealed class CreateAgentHandler : IRequestHandler<CreateAgentCommand, Age
 
 ```
 ┌─────────────────────────────────────────┐
-│            Semantic Kernel               │
+│       Microsoft Agent Framework          │
 │  ┌─────────────────────────────────────┐│
-│  │          Plugins                     ││
-│  │  - Spreadsheet Plugin                ││
-│  │  - Knowledge Base Plugin             ││
-│  │  - Custom User Plugins               ││
+│  │            Tools                     ││
+│  │  - VectorStoreTool                   ││
+│  │  - WebSearchTool                     ││
+│  │  - Custom User Tools (ITool)         ││
 │  └─────────────────────────────────────┘│
 │  ┌─────────────────────────────────────┐│
-│  │        Connectors                    ││
-│  │  - OpenAI Connector                  ││
-│  │  - pgvector Connector                ││
+│  │         Services                     ││
+│  │  - AgentFactory (model per agent)    ││
+│  │  - ToolRegistry                      ││
+│  │  - AgentThreadManager                ││
 │  └─────────────────────────────────────┘│
 └─────────────────────────────────────────┘
               │

@@ -24,8 +24,8 @@
 
 ### 2. AI & Chat
 - Real-time chat sessions with AI agents
-- Semantic Kernel integration for LLM orchestration
-- OpenAI gpt-5-nano-2025-08-07 as primary model
+- Microsoft Agent Framework for LLM orchestration
+- Configurable model per agent (gpt-5-nano-2025-08-07 default)
 - RAG (Retrieval-Augmented Generation) via pgvector
 - Streaming responses for low latency
 
@@ -70,7 +70,7 @@
 | ORM | Entity Framework Core | 9.0.5 |
 | Cache | Redis | 7+ |
 | Message Broker | RabbitMQ + MassTransit | 3 / 8.4.0 |
-| AI Framework | Semantic Kernel | 1.54.0 |
+| AI Framework | Microsoft Agent Framework | 1.0+ |
 | Real-time | SignalR | - |
 | Telemetry | Langfuse | 3 |
 | API Docs | Swagger/OpenAPI | 7.3.1 |
