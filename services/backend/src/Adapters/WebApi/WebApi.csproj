@@ -41,6 +41,8 @@
         <!-- Sentry for error tracking and performance monitoring -->
         <PackageReference Include="Sentry.AspNetCore" Version="6.0.0" />
         <PackageReference Include="Sentry.Profiling" Version="6.0.0" />
+        <!-- Prometheus metrics -->
+        <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
     </ItemGroup>
 
     <ItemGroup>

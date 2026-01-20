@@ -30,6 +30,7 @@ using Serilog.Events;
 using Serilog.Templates;
 using Infrastructure.Messaging.RabbitMq;
 using Sentry.Profiling;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 var env = builder.Environment;
@@ -507,6 +508,12 @@ app.UseCorrelationId();
 // ─── Sentry Performance Monitoring ────────────────────────────────────────────
 app.UseSentryTracing();
 
+// ─── Prometheus HTTP Metrics ──────────────────────────────────────────────────
+app.UseHttpMetrics(options =>
+{
+    options.AddCustomLabel("host", context => context.Request.Host.Host);
+});
+
 // ─── Global Exception Handler ─────────────────────────────────────────────────
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
@@ -575,6 +582,9 @@ app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("live")
 });
+
+// ─── Prometheus Metrics Endpoint ──────────────────────────────────────────────
+app.MapMetrics();
 
 // ─── Sentry Test Endpoint ─────────────────────────────────────────────────────
 // TODO: Remove before production - temporary endpoint for Sentry verification
