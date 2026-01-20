@@ -6,6 +6,17 @@ on:
     paths:
       - "services/backend/**"
       - "Dockerfile"
+      - ".dockerignore"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy (prod/dev)'
+        required: false
+        default: 'prod'
+        type: choice
+        options:
+          - prod
+          - dev
 
 permissions:
   contents: write
