@@ -12,6 +12,7 @@ using Application.UseCases.Auth.ResetPassword;
 using Application.UseCases.User.CreateUser;
 using Application.UseCases.User.GetUser;
 using Domain.Entities;
+using Infrastructure.Telemetry;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -97,6 +98,9 @@ public class AuthController(
 
         if (!result.IsSuccess)
             return Conflict(new { error = result.ErrorMessage });
+
+        // Record Prometheus metrics for successful user registration
+        ApplicationMetrics.UserRegistrationsTotal.WithLabels("direct").Inc();
 
         return Ok(new { result.User!.Id, result.User.Email, message = "Welcome! You've been granted 1000 free credits!" });
     }
@@ -433,6 +437,9 @@ public class AuthController(
                 ["User"]
             ));
             userFromDb = await _mediator.Send(new GetUserCommand(userInfoResponse.Email));
+
+            // Record Prometheus metrics for successful Google OAuth registration
+            ApplicationMetrics.UserRegistrationsTotal.WithLabels("google").Inc();
         }
 
         // Generate JWT using the centralized token service (not hardcoded secret)

@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using System.Security.Claims;
 using System.Text;
 using Application.Interfaces;
 using Application.UseCases.Agent.VerifyAgentAccess;
 using Application.UseCases.Subscription.ConsumeCredits;
+using Infrastructure.Telemetry;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Localization;
@@ -93,23 +95,37 @@ public sealed class ChatHub(
     /// <param name="teamId">Optional team ID for team-based chat context.</param>
     public async Task SendMessage(string sessionId, string message, bool byTokens = false, Guid? agentId = null, Guid? teamId = null)
     {
+        // Start metrics timer
+        var metricsStopwatch = Stopwatch.StartNew();
+        var metricsAgentId = agentId?.ToString() ?? "unknown";
+
+        void RecordMetrics(string status)
+        {
+            metricsStopwatch.Stop();
+            ApplicationMetrics.ChatMessagesTotal.WithLabels(metricsAgentId, status).Inc();
+            ApplicationMetrics.ChatMessageDuration.WithLabels(metricsAgentId).Observe(metricsStopwatch.Elapsed.TotalSeconds);
+        }
+
         // Validate inputs
         if (string.IsNullOrWhiteSpace(sessionId))
         {
+            RecordMetrics("invalid_session_id");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["InvalidSessionId"]);
             return;
         }
-        
+
         if (string.IsNullOrWhiteSpace(message))
         {
+            RecordMetrics("empty_message");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["MessageCannotBeEmpty"]);
             return;
         }
-        
+
         const int maxMessageLength = 10000;
         if (message.Length > maxMessageLength)
         {
-            await Clients.Caller.SendAsync("ReceiveMessage", "bot", 
+            RecordMetrics("message_too_long");
+            await Clients.Caller.SendAsync("ReceiveMessage", "bot",
                 string.Format(_localizer["MessageTooLong"], maxMessageLength));
             return;
         }
@@ -117,17 +133,19 @@ public sealed class ChatHub(
         var userIdStr = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!Guid.TryParse(userIdStr, out var userId))
         {
+            RecordMetrics("user_not_recognized");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["UserNotRecognized"]);
             return;
         }
-        
+
         // Check rate limit - 10 messages per minute per user
         var rateLimitKey = $"chat_rate:{userId}";
         var rateLimitResult = await _rateLimitService.CheckAsync(rateLimitKey, 10, TimeSpan.FromMinutes(1), Context.ConnectionAborted);
-        
+
         if (!rateLimitResult.IsAllowed)
         {
-            await Clients.Caller.SendAsync("ReceiveMessage", "bot", 
+            RecordMetrics("rate_limit_exceeded");
+            await Clients.Caller.SendAsync("ReceiveMessage", "bot",
                 string.Format(_localizer["RateLimitExceeded"], rateLimitResult.RetryAfter.TotalSeconds));
             return;
         }
@@ -146,11 +164,13 @@ public sealed class ChatHub(
         }
         catch (SubscriptionNotFoundException)
         {
+            RecordMetrics("subscription_not_found");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["SubscriptionNotFound"]);
             return;
         }
         catch (InsufficientCreditsException)
         {
+            RecordMetrics("insufficient_credits");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["InsufficientCredits"]);
             return;
         }
@@ -176,13 +196,15 @@ public sealed class ChatHub(
         var chatSession = await _chatSessionRepository.GetBySessionIdAsync(sessionId, Context.ConnectionAborted);
         if (chatSession == null)
         {
+            RecordMetrics("session_not_found");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["SessionNotFound"]);
             return;
         }
-        
+
         // Verify session ownership
         if (chatSession.UserId != userId)
         {
+            RecordMetrics("access_denied");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["AccessDenied"]);
             return;
         }
@@ -190,8 +212,15 @@ public sealed class ChatHub(
         // Use passed agentId if provided, otherwise fall back to session's agentId
         var effectiveAgentId = agentId ?? chatSession.AgentId;
 
+        // Update metrics agent ID now that we know it
+        if (effectiveAgentId.HasValue)
+        {
+            metricsAgentId = effectiveAgentId.Value.ToString();
+        }
+
         if (!effectiveAgentId.HasValue)
         {
+            RecordMetrics("no_agent_selected");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["NoAgentSelected"]);
             return;
         }
@@ -209,6 +238,7 @@ public sealed class ChatHub(
                 errorMessage += $" {_localizer["MissingPlugins"]}: {accessResult.MissingPlugins.Count}";
             }
 
+            RecordMetrics("agent_access_denied");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", errorMessage);
             return;
         }
@@ -235,15 +265,20 @@ public sealed class ChatHub(
         }
         catch (TaskCanceledException)
         {
+            RecordMetrics("ai_timeout");
             response = _localizer["AiTimeout"];
         }
         catch (Exception ex)
         {
+            RecordMetrics("ai_error");
             response = string.Format(_localizer["AiError"], ex.Message);
         }
 
         // Add AI response to thread
         await _threadManager.AddMessageAsync(sessionId, "assistant", response, Context.ConnectionAborted);
+
+        // Record successful completion metrics
+        RecordMetrics("success");
 
         // Send the AI response back to the caller
         await Clients.Caller.SendAsync("ReceiveMessage", "bot", response);
@@ -262,15 +297,28 @@ public sealed class ChatHub(
     /// <param name="teamId">Optional team ID for team-based chat context.</param>
     public async Task SendMessageStreaming(string sessionId, string message, bool byTokens = false, Guid? agentId = null, Guid? teamId = null)
     {
+        // Start metrics timer
+        var metricsStopwatch = Stopwatch.StartNew();
+        var metricsAgentId = agentId?.ToString() ?? "unknown";
+
+        void RecordStreamingMetrics(string status)
+        {
+            metricsStopwatch.Stop();
+            ApplicationMetrics.ChatMessagesTotal.WithLabels(metricsAgentId, status).Inc();
+            ApplicationMetrics.ChatMessageDuration.WithLabels(metricsAgentId).Observe(metricsStopwatch.Elapsed.TotalSeconds);
+        }
+
         // Validate inputs
         if (string.IsNullOrWhiteSpace(sessionId))
         {
+            RecordStreamingMetrics("invalid_session_id");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["InvalidSessionId"]);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(message))
         {
+            RecordStreamingMetrics("empty_message");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["MessageCannotBeEmpty"]);
             return;
         }
@@ -278,6 +326,7 @@ public sealed class ChatHub(
         const int maxMessageLength = 10000;
         if (message.Length > maxMessageLength)
         {
+            RecordStreamingMetrics("message_too_long");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot",
                 string.Format(_localizer["MessageTooLong"], maxMessageLength));
             return;
@@ -286,6 +335,7 @@ public sealed class ChatHub(
         var userIdStr = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!Guid.TryParse(userIdStr, out var userId))
         {
+            RecordStreamingMetrics("user_not_recognized");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["UserNotRecognized"]);
             return;
         }
@@ -296,6 +346,7 @@ public sealed class ChatHub(
 
         if (!rateLimitResult.IsAllowed)
         {
+            RecordStreamingMetrics("rate_limit_exceeded");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot",
                 string.Format(_localizer["RateLimitExceeded"], rateLimitResult.RetryAfter.TotalSeconds));
             return;
@@ -315,11 +366,13 @@ public sealed class ChatHub(
         }
         catch (SubscriptionNotFoundException)
         {
+            RecordStreamingMetrics("subscription_not_found");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["SubscriptionNotFound"]);
             return;
         }
         catch (InsufficientCreditsException)
         {
+            RecordStreamingMetrics("insufficient_credits");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["InsufficientCredits"]);
             return;
         }
@@ -345,6 +398,7 @@ public sealed class ChatHub(
         var chatSession = await _chatSessionRepository.GetBySessionIdAsync(sessionId, Context.ConnectionAborted);
         if (chatSession == null)
         {
+            RecordStreamingMetrics("session_not_found");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["SessionNotFound"]);
             return;
         }
@@ -352,6 +406,7 @@ public sealed class ChatHub(
         // Verify session ownership
         if (chatSession.UserId != userId)
         {
+            RecordStreamingMetrics("access_denied");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["AccessDenied"]);
             return;
         }
@@ -359,8 +414,15 @@ public sealed class ChatHub(
         // Use passed agentId if provided, otherwise fall back to session's agentId
         var effectiveAgentId = agentId ?? chatSession.AgentId;
 
+        // Update metrics agent ID now that we know it
+        if (effectiveAgentId.HasValue)
+        {
+            metricsAgentId = effectiveAgentId.Value.ToString();
+        }
+
         if (!effectiveAgentId.HasValue)
         {
+            RecordStreamingMetrics("no_agent_selected");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", _localizer["NoAgentSelected"]);
             return;
         }
@@ -378,6 +440,7 @@ public sealed class ChatHub(
                 errorMessage += $" {_localizer["MissingPlugins"]}: {accessResult.MissingPlugins.Count}";
             }
 
+            RecordStreamingMetrics("agent_access_denied");
             await Clients.Caller.SendAsync("ReceiveMessage", "bot", errorMessage);
             return;
         }
@@ -400,7 +463,6 @@ public sealed class ChatHub(
 
         // Stream the AI response
         var fullResponse = new StringBuilder();
-        var streamErrored = false;
 
         try
         {
@@ -414,7 +476,7 @@ public sealed class ChatHub(
         catch (OperationCanceledException)
         {
             // User disconnected or cancelled - this is expected behavior
-            streamErrored = true;
+            RecordStreamingMetrics("cancelled");
             if (fullResponse.Length > 0)
             {
                 // Save partial response
@@ -425,7 +487,7 @@ public sealed class ChatHub(
         }
         catch (Exception ex)
         {
-            streamErrored = true;
+            RecordStreamingMetrics("ai_error");
             var errorResponse = string.Format(_localizer["AiError"], ex.Message);
 
             // If we have a partial response, append error notice
@@ -446,6 +508,9 @@ public sealed class ChatHub(
         // Add AI response to thread
         var response = fullResponse.ToString();
         await _threadManager.AddMessageAsync(sessionId, "assistant", response, Context.ConnectionAborted);
+
+        // Record successful completion metrics
+        RecordStreamingMetrics("success");
 
         // Send the complete message for compatibility with non-streaming clients
         await Clients.Caller.SendAsync("ReceiveMessage", "bot", response);

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using Application.Interfaces;
+using Infrastructure.Telemetry;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
@@ -78,13 +79,33 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
         var traceId = TelemetryContext.TraceId;
         var functionName = _innerFunction.Name;
 
-        // Skip telemetry if no trace context is available
+        // Skip telemetry if no trace context is available (but still record Prometheus metrics)
         if (string.IsNullOrEmpty(traceId) || !TelemetryContext.IsEnabled)
         {
             _logger.LogDebug(
                 "Telemetry skipped for function '{FunctionName}': no trace context available",
                 functionName);
-            return await _innerFunction.InvokeAsync(arguments, cancellationToken).ConfigureAwait(false);
+
+            var noContextStopwatch = Stopwatch.StartNew();
+            try
+            {
+                var noContextResult = await _innerFunction.InvokeAsync(arguments, cancellationToken).ConfigureAwait(false);
+                noContextStopwatch.Stop();
+                ApplicationMetrics.ToolInvocationsTotal.WithLabels(functionName, "success").Inc();
+                ApplicationMetrics.ToolExecutionDuration.WithLabels(functionName).Observe(noContextStopwatch.Elapsed.TotalSeconds);
+                return noContextResult;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                noContextStopwatch.Stop();
+                ApplicationMetrics.ToolInvocationsTotal.WithLabels(functionName, "error").Inc();
+                ApplicationMetrics.ToolExecutionDuration.WithLabels(functionName).Observe(noContextStopwatch.Elapsed.TotalSeconds);
+                throw;
+            }
         }
 
         var argumentsData = ExtractArgumentsData(arguments);
@@ -107,6 +128,10 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
                 stopwatch.ElapsedMilliseconds,
                 cancellationToken);
 
+            // Record Prometheus metrics for successful tool invocation
+            ApplicationMetrics.ToolInvocationsTotal.WithLabels(functionName, "success").Inc();
+            ApplicationMetrics.ToolExecutionDuration.WithLabels(functionName).Observe(stopwatch.Elapsed.TotalSeconds);
+
             // Track credit usage for successful tool invocations
             await TrackCreditUsageAsync(functionName, cancellationToken);
 
@@ -121,6 +146,10 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
         catch (Exception ex)
         {
             stopwatch.Stop();
+
+            // Record Prometheus metrics for failed tool invocation
+            ApplicationMetrics.ToolInvocationsTotal.WithLabels(functionName, "error").Inc();
+            ApplicationMetrics.ToolExecutionDuration.WithLabels(functionName).Observe(stopwatch.Elapsed.TotalSeconds);
 
             // Record function_error event
             await RecordFunctionErrorAsync(
