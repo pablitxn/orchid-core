@@ -37,6 +37,20 @@ using OpenTelemetry.Trace;
 var builder = WebApplication.CreateBuilder(args);
 var env = builder.Environment;
 
+// ─── Configure Kestrel for dual-port setup ─────────────────────────────────────
+// Port 8080: Main API with authentication
+// Port 9090: Management endpoints (metrics, health) without authentication
+// This pattern ensures observability endpoints are accessible to Prometheus/k8s
+// while keeping them isolated from the public internet
+builder.WebHost.ConfigureKestrel(options =>
+{
+    var mainPort = builder.Configuration.GetValue<int>("Ports:Main", 8080);
+    var managementPort = builder.Configuration.GetValue<int>("Ports:Management", 9090);
+
+    options.ListenAnyIP(mainPort);      // Main API port (with auth)
+    options.ListenAnyIP(managementPort); // Management port (no auth)
+});
+
 // ─── Migration-only mode for init containers ─────────────────────────────────
 // When --migrate-only is passed, run migrations and exit immediately.
 // This is intended for Kubernetes init containers to ensure DB is migrated
@@ -592,7 +606,14 @@ app.UseRequestLocalization(localizationOptions);
 app.UseCors("MyPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseMiddleware<AuthorizationMiddleware>();
+
+// Only apply AuthorizationMiddleware on the main API port (8080)
+// Management port (9090) is for internal observability tools (Prometheus, k8s probes)
+var mainPort = app.Configuration.GetValue<int>("Ports:Main", 8080);
+app.UseWhen(
+    context => context.Connection.LocalPort == mainPort,
+    appBuilder => appBuilder.UseMiddleware<AuthorizationMiddleware>()
+);
 
 #endregion
 
@@ -605,19 +626,23 @@ app.MapHub<NotificationHub>("/notificationHub");
 app.MapHub<CreditHub>("/hubs/credits");
 // app.MapHub<HuddleHub>("/huddleHub").RequireCors("MyPolicy");
 
-// ─── Health Check Endpoints ───────────────────────────────────────────────────
+// ─── Management Endpoints (port 9090 only) ────────────────────────────────────
+// These endpoints are restricted to the management port to prevent public exposure
+// Prometheus and k8s probes should target port 9090 internally
+var managementPort = app.Configuration.GetValue<int>("Ports:Management", 9090);
+
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-});
+}).RequireHost($"*:{managementPort}");
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("live")
-});
+}).RequireHost($"*:{managementPort}");
 
 // ─── Prometheus Metrics Endpoint ──────────────────────────────────────────────
-app.MapMetrics();
+app.MapMetrics().RequireHost($"*:{managementPort}");
 
 // ─── Sentry Test Endpoint ─────────────────────────────────────────────────────
 // TODO: Remove before production - temporary endpoint for Sentry verification

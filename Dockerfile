@@ -43,20 +43,23 @@ RUN apk add --no-cache \
 COPY --from=build /app/publish .
 
 # Set environment variables
-# Use ASPNETCORE_HTTP_PORTS instead of ASPNETCORE_URLS to avoid override warning
+# Port 8080: Main API with authentication
+# Port 9090: Management endpoints (metrics, health) without auth - for internal use
 ENV ASPNETCORE_HTTP_PORTS=8080
+ENV Ports__Main=8080
+ENV Ports__Management=9090
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 ENV TZ=UTC
 
-# Expose port
-EXPOSE 8080
+# Expose ports
+EXPOSE 8080 9090
 
 # Switch to non-root user
 USER appuser
 
-# Health check
+# Health check (uses management port 9090 where /health is exposed)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:9090/health || exit 1
 
 # Start the application
 ENTRYPOINT ["dotnet", "WebApi.dll"]
