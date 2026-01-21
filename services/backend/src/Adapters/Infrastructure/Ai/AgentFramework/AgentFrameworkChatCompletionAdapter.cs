@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using Application.Interfaces;
 using Infrastructure.Ai.AgentFramework.Middleware;
+using Infrastructure.Telemetry;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -52,6 +54,7 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
     {
         var messagesList = messages.ToList();
         var sessionId = ExtractSessionId(messagesList);
+        var metricsStopwatch = Stopwatch.StartNew();
 
         string? traceId = null;
         if (_telemetry != null && !string.IsNullOrEmpty(sessionId))
@@ -113,10 +116,20 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
                 await _telemetry.EndTraceAsync(traceId, true, cancellationToken: cancellationToken);
             }
 
+            // Record Prometheus metrics for successful AI operation
+            metricsStopwatch.Stop();
+            ApplicationMetrics.AiOperationsTotal.WithLabels("chat_completion", _defaultModelId, "success").Inc();
+            ApplicationMetrics.AiOperationDuration.WithLabels("chat_completion", _defaultModelId).Observe(metricsStopwatch.Elapsed.TotalSeconds);
+
             return response;
         }
         catch (Exception ex)
         {
+            // Record Prometheus metrics for failed AI operation
+            metricsStopwatch.Stop();
+            ApplicationMetrics.AiOperationsTotal.WithLabels("chat_completion", _defaultModelId, "error").Inc();
+            ApplicationMetrics.AiOperationDuration.WithLabels("chat_completion", _defaultModelId).Observe(metricsStopwatch.Elapsed.TotalSeconds);
+
             _logger?.LogError(ex,
                 "Error in chat completion. Model: {Model}, MessageCount: {MessageCount}, Error: {ErrorMessage}",
                 _defaultModelId, messagesList.Count, ex.Message);
@@ -143,17 +156,22 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
     {
         var messagesList = messages.ToList();
         var sessionId = ExtractSessionId(messagesList);
+        var metricsStopwatch = Stopwatch.StartNew();
+        var metricsModelId = _defaultModelId; // Will be updated once we know the agent's model
 
         // Fetch agent entity from database
         var agentEntity = await _agentRepository.GetByIdAsync(agentId, cancellationToken);
         if (agentEntity == null)
         {
+            metricsStopwatch.Stop();
+            ApplicationMetrics.AiOperationsTotal.WithLabels("agent_completion", metricsModelId, "error").Inc();
             _logger?.LogWarning("Agent {AgentId} not found in database", agentId);
             throw new InvalidOperationException($"Agent with ID {agentId} not found.");
         }
 
         // Determine model: use agent's configured model or fall back to default
         var modelId = agentEntity.Model ?? _defaultModelId;
+        metricsModelId = modelId;
 
         string? traceId = null;
         if (_telemetry != null && !string.IsNullOrEmpty(sessionId))
@@ -241,10 +259,20 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
                 "Agent {AgentId} ({AgentName}) completed with {ToolCount} tools available using model {Model}",
                 agentId, agentEntity.Name, tools.Count, modelId);
 
+            // Record Prometheus metrics for successful AI operation
+            metricsStopwatch.Stop();
+            ApplicationMetrics.AiOperationsTotal.WithLabels("agent_completion", metricsModelId, "success").Inc();
+            ApplicationMetrics.AiOperationDuration.WithLabels("agent_completion", metricsModelId).Observe(metricsStopwatch.Elapsed.TotalSeconds);
+
             return response;
         }
         catch (Exception ex)
         {
+            // Record Prometheus metrics for failed AI operation
+            metricsStopwatch.Stop();
+            ApplicationMetrics.AiOperationsTotal.WithLabels("agent_completion", metricsModelId, "error").Inc();
+            ApplicationMetrics.AiOperationDuration.WithLabels("agent_completion", metricsModelId).Observe(metricsStopwatch.Elapsed.TotalSeconds);
+
             _logger?.LogError(ex,
                 "Error in agent completion. AgentId: {AgentId}, Model: {Model}, Error: {ErrorMessage}",
                 agentId, modelId, ex.Message);
@@ -269,6 +297,8 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
     {
         var messagesList = messages.ToList();
         var sessionId = ExtractSessionId(messagesList);
+        var metricsStopwatch = Stopwatch.StartNew();
+        var metricsRecorded = false;
 
         string? traceId = null;
         if (_telemetry != null && !string.IsNullOrEmpty(sessionId))
@@ -328,9 +358,23 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
                     cancellationToken: cancellationToken);
                 await _telemetry.EndTraceAsync(traceId, true, cancellationToken: cancellationToken);
             }
+
+            // Record Prometheus metrics for successful streaming
+            metricsStopwatch.Stop();
+            ApplicationMetrics.AiOperationsTotal.WithLabels("streaming_completion", _defaultModelId, "success").Inc();
+            ApplicationMetrics.AiOperationDuration.WithLabels("streaming_completion", _defaultModelId).Observe(metricsStopwatch.Elapsed.TotalSeconds);
+            metricsRecorded = true;
         }
         finally
         {
+            // Record metrics if not already recorded (interrupted/error case)
+            if (!metricsRecorded)
+            {
+                metricsStopwatch.Stop();
+                ApplicationMetrics.AiOperationsTotal.WithLabels("streaming_completion", _defaultModelId, "interrupted").Inc();
+                ApplicationMetrics.AiOperationDuration.WithLabels("streaming_completion", _defaultModelId).Observe(metricsStopwatch.Elapsed.TotalSeconds);
+            }
+
             // If we exit early (cancellation/error) without completing telemetry, clean up
             if (_telemetry != null && traceId != null && fullResponse.Length == 0)
             {
@@ -349,17 +393,23 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
     {
         var messagesList = messages.ToList();
         var sessionId = ExtractSessionId(messagesList);
+        var metricsStopwatch = Stopwatch.StartNew();
+        var metricsModelId = _defaultModelId;
+        var metricsRecorded = false;
 
         // Fetch agent entity from database
         var agentEntity = await _agentRepository.GetByIdAsync(agentId, cancellationToken);
         if (agentEntity == null)
         {
+            metricsStopwatch.Stop();
+            ApplicationMetrics.AiOperationsTotal.WithLabels("agent_streaming", metricsModelId, "error").Inc();
             _logger?.LogWarning("Agent {AgentId} not found in database", agentId);
             throw new InvalidOperationException($"Agent with ID {agentId} not found.");
         }
 
         // Determine model: use agent's configured model or fall back to default
         var modelId = agentEntity.Model ?? _defaultModelId;
+        metricsModelId = modelId;
 
         string? traceId = null;
         if (_telemetry != null && !string.IsNullOrEmpty(sessionId))
@@ -460,9 +510,23 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
             _logger?.LogInformation(
                 "Agent {AgentId} ({AgentName}) streaming completed with {ToolCount} tools using model {Model} in {DurationMs}ms",
                 agentId, agentEntity.Name, tools.Count, modelId, duration.TotalMilliseconds);
+
+            // Record Prometheus metrics for successful agent streaming
+            metricsStopwatch.Stop();
+            ApplicationMetrics.AiOperationsTotal.WithLabels("agent_streaming", metricsModelId, "success").Inc();
+            ApplicationMetrics.AiOperationDuration.WithLabels("agent_streaming", metricsModelId).Observe(metricsStopwatch.Elapsed.TotalSeconds);
+            metricsRecorded = true;
         }
         finally
         {
+            // Record metrics if not already recorded (interrupted/error case)
+            if (!metricsRecorded)
+            {
+                metricsStopwatch.Stop();
+                ApplicationMetrics.AiOperationsTotal.WithLabels("agent_streaming", metricsModelId, "interrupted").Inc();
+                ApplicationMetrics.AiOperationDuration.WithLabels("agent_streaming", metricsModelId).Observe(metricsStopwatch.Elapsed.TotalSeconds);
+            }
+
             // Dispose telemetry scope
             telemetryScope.Dispose();
 

@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using Application.Interfaces;
+using Infrastructure.Telemetry;
 using Npgsql;
 using Pgvector;
 
@@ -54,49 +56,69 @@ public sealed class PgVectorStoreAdapter : IVectorStorePort
         int k = 8,
         CancellationToken cancellationToken = default)
     {
-        // Generate embedding for the query
-        var qvec = await _embedder.EmbedAsync(query, cancellationToken);
+        var stopwatch = Stopwatch.StartNew();
 
-        // Perform k-NN search in Postgres using pgvector operator
-        var sql = $"""
-                   SELECT
-                       "Id",
-                       "DocumentId",
-                       "SheetName",
-                       "StartRow",
-                       "EndRow",
-                       "Text",
-                       "Embedding"::real[] AS "Embedding",
-                       "Embedding" <-> @qvec AS score
-                   FROM "SheetChunks"
-                   ORDER BY score
-                   LIMIT {k};
-                   """;
-
-        await using var cmd = _dataSource.CreateCommand(sql);
-        var qParam = cmd.Parameters.AddWithValue("qvec", new Vector(qvec));
-        qParam.DataTypeName = $"vector({qvec.Length})";
-
-        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-        var hits = new List<SearchHit>();
-        while (await reader.ReadAsync(cancellationToken))
+        try
         {
-            var embedding = reader.GetFieldValue<float[]>(reader.GetOrdinal("Embedding"));
-            var chunk = new VectorChunk(
-                reader.GetGuid(reader.GetOrdinal("Id")),
-                reader.GetGuid(reader.GetOrdinal("DocumentId")),
-                reader.GetString(reader.GetOrdinal("SheetName")),
-                reader.GetInt32(reader.GetOrdinal("StartRow")),
-                reader.GetInt32(reader.GetOrdinal("EndRow")),
-                reader.GetString(reader.GetOrdinal("Text")),
-                embedding);
-            var score = reader.GetDouble(reader.GetOrdinal("score"));
-            hits.Add(new SearchHit(chunk, score));
-        }
+            // Generate embedding for the query
+            var qvec = await _embedder.EmbedAsync(query, cancellationToken);
 
-        return hits
-            .OrderBy(h => h.Score)
-            .Take(k)
-            .ToList();
+            // Perform k-NN search in Postgres using pgvector operator
+            var sql = $"""
+                       SELECT
+                           "Id",
+                           "DocumentId",
+                           "SheetName",
+                           "StartRow",
+                           "EndRow",
+                           "Text",
+                           "Embedding"::real[] AS "Embedding",
+                           "Embedding" <-> @qvec AS score
+                       FROM "SheetChunks"
+                       ORDER BY score
+                       LIMIT {k};
+                       """;
+
+            await using var cmd = _dataSource.CreateCommand(sql);
+            var qParam = cmd.Parameters.AddWithValue("qvec", new Vector(qvec));
+            qParam.DataTypeName = $"vector({qvec.Length})";
+
+            await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+            var hits = new List<SearchHit>();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var embedding = reader.GetFieldValue<float[]>(reader.GetOrdinal("Embedding"));
+                var chunk = new VectorChunk(
+                    reader.GetGuid(reader.GetOrdinal("Id")),
+                    reader.GetGuid(reader.GetOrdinal("DocumentId")),
+                    reader.GetString(reader.GetOrdinal("SheetName")),
+                    reader.GetInt32(reader.GetOrdinal("StartRow")),
+                    reader.GetInt32(reader.GetOrdinal("EndRow")),
+                    reader.GetString(reader.GetOrdinal("Text")),
+                    embedding);
+                var score = reader.GetDouble(reader.GetOrdinal("score"));
+                hits.Add(new SearchHit(chunk, score));
+            }
+
+            var results = hits
+                .OrderBy(h => h.Score)
+                .Take(k)
+                .ToList();
+
+            // Record Prometheus metrics for successful vector search
+            stopwatch.Stop();
+            ApplicationMetrics.VectorSearchesTotal.WithLabels("success").Inc();
+            ApplicationMetrics.VectorSearchDuration.Observe(stopwatch.Elapsed.TotalSeconds);
+
+            return results;
+        }
+        catch
+        {
+            // Record Prometheus metrics for failed vector search
+            stopwatch.Stop();
+            ApplicationMetrics.VectorSearchesTotal.WithLabels("error").Inc();
+            ApplicationMetrics.VectorSearchDuration.Observe(stopwatch.Elapsed.TotalSeconds);
+            throw;
+        }
     }
 }

@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Application.Interfaces;
+using Infrastructure.Telemetry;
 using Microsoft.Extensions.Configuration;
 
 namespace Infrastructure.Providers;
@@ -26,13 +27,26 @@ public class OpenAIEmbeddingGenerator : IEmbeddingGeneratorPort
 
     public async Task<float[]> EmbedAsync(string input, CancellationToken cancellationToken = default)
     {
-        var request = new { model = _model, input };
-        var response = await _httpClient.PostAsJsonAsync("embeddings", request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<EmbeddingResponse>(cancellationToken);
-        if (body?.Data == null || body.Data.Count == 0)
-            throw new InvalidOperationException("OpenAI embedding response is empty");
-        return body.Data[0].Embedding.Select(d => (float)d).ToArray();
+        try
+        {
+            var request = new { model = _model, input };
+            var response = await _httpClient.PostAsJsonAsync("embeddings", request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            var body = await response.Content.ReadFromJsonAsync<EmbeddingResponse>(cancellationToken);
+            if (body?.Data == null || body.Data.Count == 0)
+                throw new InvalidOperationException("OpenAI embedding response is empty");
+
+            // Record Prometheus metrics for successful embedding
+            ApplicationMetrics.EmbeddingsTotal.WithLabels("success").Inc();
+
+            return body.Data[0].Embedding.Select(d => (float)d).ToArray();
+        }
+        catch
+        {
+            // Record Prometheus metrics for failed embedding
+            ApplicationMetrics.EmbeddingsTotal.WithLabels("error").Inc();
+            throw;
+        }
     }
 
     private class EmbeddingResponse

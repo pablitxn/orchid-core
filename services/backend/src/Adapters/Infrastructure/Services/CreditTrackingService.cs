@@ -1,5 +1,6 @@
 using Application.Interfaces;
 using Domain.Entities;
+using Infrastructure.Telemetry;
 using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
@@ -48,10 +49,13 @@ public class CreditTrackingService : ICreditTrackingService
         };
 
         await _creditConsumptionRepository.CreateAsync(consumption, cancellationToken);
-        
-        _logger.LogInformation("Tracked plugin usage: User {UserId}, Plugin {PluginName}, Credits {Credits}", 
+
+        // Record Prometheus metrics for credit consumption
+        ApplicationMetrics.CreditsConsumedTotal.WithLabels("plugin", pluginName).Inc(credits);
+
+        _logger.LogInformation("Tracked plugin usage: User {UserId}, Plugin {PluginName}, Credits {Credits}",
             userId, pluginName, credits);
-        
+
         return consumption;
     }
 
@@ -83,10 +87,13 @@ public class CreditTrackingService : ICreditTrackingService
         };
 
         await _creditConsumptionRepository.CreateAsync(consumption, cancellationToken);
-        
-        _logger.LogInformation("Tracked workflow usage: User {UserId}, Workflow {WorkflowName}, Credits {Credits}", 
+
+        // Record Prometheus metrics for credit consumption
+        ApplicationMetrics.CreditsConsumedTotal.WithLabels("workflow", workflowName).Inc(credits);
+
+        _logger.LogInformation("Tracked workflow usage: User {UserId}, Workflow {WorkflowName}, Credits {Credits}",
             userId, workflowName, credits);
-        
+
         return consumption;
     }
 
@@ -116,10 +123,13 @@ public class CreditTrackingService : ICreditTrackingService
         };
 
         await _creditConsumptionRepository.CreateAsync(consumption, cancellationToken);
-        
-        _logger.LogInformation("Tracked message cost: User {UserId}, Message {MessageId}, Credits {Credits}", 
+
+        // Record Prometheus metrics for credit consumption
+        ApplicationMetrics.CreditsConsumedTotal.WithLabels("message", "chat").Inc(credits);
+
+        _logger.LogInformation("Tracked message cost: User {UserId}, Message {MessageId}, Credits {Credits}",
             userId, messageId, credits);
-        
+
         return consumption;
     }
 

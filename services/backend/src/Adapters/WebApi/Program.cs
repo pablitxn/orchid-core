@@ -30,6 +30,9 @@ using Serilog.Events;
 using Serilog.Templates;
 using Infrastructure.Messaging.RabbitMq;
 using Sentry.Profiling;
+using Prometheus;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 var env = builder.Environment;
@@ -182,6 +185,37 @@ Log.Information("Infrastructure services registered");
 // ─── Telemetry Services (including Langfuse for AI operations) ─────────────────
 builder.Services.AddTelemetryServices(builder.Configuration);
 Log.Information("Telemetry services registered");
+
+// ─── OpenTelemetry Distributed Tracing ──────────────────────────────────────────
+var otelEndpoint = builder.Configuration["OpenTelemetry:Endpoint"];
+if (!string.IsNullOrEmpty(otelEndpoint))
+{
+    builder.Services.AddOpenTelemetry()
+        .ConfigureResource(resource => resource
+            .AddService(
+                serviceName: "orchid-core",
+                serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0",
+                serviceInstanceId: Environment.MachineName))
+        .WithTracing(tracing => tracing
+            .AddAspNetCoreInstrumentation(options =>
+            {
+                options.RecordException = true;
+                options.Filter = httpContext =>
+                    !httpContext.Request.Path.StartsWithSegments("/health") &&
+                    !httpContext.Request.Path.StartsWithSegments("/metrics");
+            })
+            .AddHttpClientInstrumentation(options =>
+            {
+                options.RecordException = true;
+            })
+            .AddSource("OrchidCore.AgentFramework")
+            .AddSource("OrchidCore.Chat")
+            .AddOtlpExporter(options =>
+            {
+                options.Endpoint = new Uri(otelEndpoint);
+            }));
+    Log.Information("OpenTelemetry tracing configured with endpoint {Endpoint}", otelEndpoint);
+}
 
 // ─── Agent Framework (AI) ──────────────────────────────────────────────────────
 builder.Services.AddAgentFramework(builder.Configuration);
@@ -507,6 +541,12 @@ app.UseCorrelationId();
 // ─── Sentry Performance Monitoring ────────────────────────────────────────────
 app.UseSentryTracing();
 
+// ─── Prometheus HTTP Metrics ──────────────────────────────────────────────────
+app.UseHttpMetrics(options =>
+{
+    options.AddCustomLabel("host", context => context.Request.Host.Host);
+});
+
 // ─── Global Exception Handler ─────────────────────────────────────────────────
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
@@ -575,6 +615,9 @@ app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("live")
 });
+
+// ─── Prometheus Metrics Endpoint ──────────────────────────────────────────────
+app.MapMetrics();
 
 // ─── Sentry Test Endpoint ─────────────────────────────────────────────────────
 // TODO: Remove before production - temporary endpoint for Sentry verification

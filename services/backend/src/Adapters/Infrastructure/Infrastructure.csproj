@@ -48,6 +48,8 @@
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.10.0" />
         <PackageReference Include="StackExchange.Redis" Version="2.8.37" />
         <PackageReference Include="Google.Cloud.Storage.V1" Version="4.10.0" />
+        <!-- Prometheus metrics for observability -->
+        <PackageReference Include="prometheus-net" Version="8.2.1" />
     </ItemGroup>
 
     <ItemGroup>
