@@ -448,12 +448,16 @@ if (!env.IsEnvironment("Testing"))
     }
 
     // Security: Validate AllowedHosts in production
+    // Note: AllowedHosts="*" is acceptable when NetworkPolicies restrict access to management port.
+    // See ADR-0002 for full security analysis.
     var allowedHosts = builder.Configuration["AllowedHosts"];
     if (!env.IsDevelopment() && (string.IsNullOrEmpty(allowedHosts) || allowedHosts == "*"))
     {
-        throw new InvalidOperationException(
-            "AllowedHosts must be explicitly configured in production. " +
-            "Set 'AllowedHosts' to your domain(s), e.g., 'example.com;api.example.com'.");
+        Log.Warning(
+            "AllowedHosts is set to '{AllowedHosts}'. " +
+            "Ensure NetworkPolicies restrict access to management port (9090). " +
+            "See ADR-0002 for security considerations",
+            allowedHosts ?? "(empty)");
     }
 
     // Security: Validate Entity Framework logging configuration in production

@@ -402,7 +402,28 @@ No duplicar estas métricas manualmente.
 
 ## Troubleshooting
 
-### Métricas no aparecen en Prometheus
+### Prometheus no puede scrapear metricas (Host Filtering)
+
+**Sintoma:** Prometheus targets muestran estado `DOWN` con error "connection refused" o "host header rejected".
+
+**Causa:** ASP.NET Core `HostFilteringMiddleware` rechaza requests con IPs de pod como Host header.
+
+**Solucion:** El proyecto ya maneja esto (ver ADR-0002):
+- `AllowedHosts: "*"` esta permitido en produccion
+- La seguridad esta garantizada por NetworkPolicies en Kubernetes
+- El puerto 9090 solo es accesible dentro del cluster
+
+**Verificar configuracion:**
+```bash
+# Verificar que el pod responde
+kubectl exec -n infrastructure prometheus-... -- \
+  wget -qO- http://<pod-ip>:9090/metrics | head -5
+
+# Verificar NetworkPolicy
+kubectl get networkpolicy -n orchid-core-prod
+```
+
+### Metricas no aparecen en Prometheus
 
 1. **Verificar endpoint local:**
    ```bash
