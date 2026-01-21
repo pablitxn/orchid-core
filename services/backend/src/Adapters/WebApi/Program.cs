@@ -629,20 +629,29 @@ app.MapHub<CreditHub>("/hubs/credits");
 // ─── Management Endpoints (port 9090 only) ────────────────────────────────────
 // These endpoints are restricted to the management port to prevent public exposure
 // Prometheus and k8s probes should target port 9090 internally
+// Note: We use LocalPort (TCP connection port) instead of RequireHost (HTTP Host header)
+// because Prometheus scrapes directly via pod IP without sending Host header with port
 var managementPort = app.Configuration.GetValue<int>("Ports:Management", 9090);
 
-app.MapHealthChecks("/health", new HealthCheckOptions
-{
-    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-}).RequireHost($"*:{managementPort}");
-
-app.MapHealthChecks("/health/live", new HealthCheckOptions
-{
-    Predicate = check => check.Tags.Contains("live")
-}).RequireHost($"*:{managementPort}");
-
-// ─── Prometheus Metrics Endpoint ──────────────────────────────────────────────
-app.MapMetrics().RequireHost($"*:{managementPort}");
+app.MapWhen(
+    context => context.Connection.LocalPort == managementPort,
+    managementApp =>
+    {
+        managementApp.UseRouting();
+        managementApp.UseEndpoints(endpoints =>
+        {
+            endpoints.MapHealthChecks("/health", new HealthCheckOptions
+            {
+                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+            });
+            endpoints.MapHealthChecks("/health/live", new HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("live")
+            });
+            endpoints.MapMetrics();
+        });
+    }
+);
 
 // ─── Sentry Test Endpoint ─────────────────────────────────────────────────────
 // TODO: Remove before production - temporary endpoint for Sentry verification
