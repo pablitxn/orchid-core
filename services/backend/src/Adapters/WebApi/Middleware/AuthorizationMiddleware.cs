@@ -49,13 +49,11 @@ public class AuthorizationMiddleware(RequestDelegate next, ILogger<Authorization
 
         // Check for token in cookie, Authorization header, or query string (for SignalR)
         string? token = null;
-        var tokenSource = "none";
 
         // First try to get token from cookie (most secure)
         if (context.Request.Cookies.TryGetValue("token", out var cookieToken))
         {
             token = cookieToken;
-            tokenSource = "cookie";
         }
         // If no cookie, check Authorization header for Bearer token
         else if (context.Request.Headers.TryGetValue("Authorization", out var authHeader))
@@ -64,7 +62,6 @@ public class AuthorizationMiddleware(RequestDelegate next, ILogger<Authorization
             if (authHeaderValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             {
                 token = authHeaderValue.Substring("Bearer ".Length).Trim();
-                tokenSource = "header";
             }
         }
         // For SignalR connections only, check the access_token query parameter
@@ -77,7 +74,6 @@ public class AuthorizationMiddleware(RequestDelegate next, ILogger<Authorization
             if (isSignalRPath)
             {
                 token = accessToken.ToString();
-                tokenSource = "query";
 
                 // Log security warning in development
                 if (env?.IsDevelopment() == true)

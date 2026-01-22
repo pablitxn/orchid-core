@@ -657,13 +657,6 @@ app.MapWhen(
     }
 );
 
-// ─── Sentry Test Endpoint ─────────────────────────────────────────────────────
-// TODO: Remove before production - temporary endpoint for Sentry verification
-app.MapGet("/sentry-test", () =>
-{
-    throw new InvalidOperationException("Sentry test exception - this is intentional!");
-});
-
 #endregion
 
 // Database seeding now runs in background via DatabaseSeedingService
