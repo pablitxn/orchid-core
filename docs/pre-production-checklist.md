@@ -4,24 +4,28 @@ This document tracks temporary code, migrations, and cleanup tasks that **must b
 
 ---
 
-## Temporary Code to Remove
+## Completed Items
 
-### 1. UserPluginMigrationSeeder
+### ~~1. UserPluginMigrationSeeder~~ ✅
 
-**Added:** 2025-01-19
-**Purpose:** Retroactively assigns public agent plugins to existing users in dev/staging environments.
-**Why temporary:** Only needed for migration of existing environments. New users get plugins automatically via `UserCreatedEventHandler`.
+**Removed:** 2025-01-22 (Issue #9 - Dead Code Elimination)
 
-**Files to remove:**
-- `src/Adapters/Infrastructure/Persistence/Seeders/UserPluginMigrationSeeder.cs` (entire file)
-- `src/Adapters/Infrastructure/InfrastructureServiceCollectionExtensions.cs` lines 175-177:
-  ```csharp
-  // ─── User plugin migration (temporary, remove before production) ─────────────
-  // TODO: Remove this service after all environments are migrated
-  services.AddHostedService<Persistence.Seeders.UserPluginMigrationSeeder>();
-  ```
+---
 
-**Verification:** After removal, ensure new user registration still assigns public agent plugins via `UserCreatedEventHandler.AssignPublicAgentPluginsAsync()`.
+## Orphaned Database Tables (Review Required)
+
+The following database tables are defined in `ApplicationDbContext` but may require review to confirm they are actively used:
+
+| Table | Entity | Status | Notes |
+|-------|--------|--------|-------|
+| `Projects` | `ProjectEntity` | Review | Audio transcription feature - verify if still in use |
+| `AudioFiles` | `AudioFileEntity` | Review | Related to Projects - verify if still in use |
+| `SubscriptionPlans` | `SubscriptionPlanEntity` | Active | Referenced by Subscriptions |
+| `CostConfigurations` | `CostConfigurationEntity` | Review | No explicit configuration in OnModelCreating |
+| `Notifications` | `NotificationEntity` | Review | No explicit configuration in OnModelCreating |
+| `AuditLogs` | `AuditLogEntity` | Active | Used for security audit logging |
+
+**Note:** These tables should NOT be deleted without verifying they are truly unused. The recommendation is to review their usage in the codebase before any removal.
 
 ---
 
