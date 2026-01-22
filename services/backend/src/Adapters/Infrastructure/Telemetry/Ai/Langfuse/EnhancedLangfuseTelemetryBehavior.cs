@@ -152,6 +152,10 @@ public class EnhancedLangfuseTelemetryBehavior<TRequest, TResponse> : IPipelineB
                     prop.Name.Contains("Secret", StringComparison.OrdinalIgnoreCase) ||
                     prop.Name.Contains("Token", StringComparison.OrdinalIgnoreCase) ||
                     prop.Name.Contains("Content", StringComparison.OrdinalIgnoreCase) ||
+                    prop.Name.Contains("ApiKey", StringComparison.OrdinalIgnoreCase) ||
+                    prop.Name.Contains("Credential", StringComparison.OrdinalIgnoreCase) ||
+                    prop.Name.Contains("Authorization", StringComparison.OrdinalIgnoreCase) ||
+                    prop.Name.Contains("PrivateKey", StringComparison.OrdinalIgnoreCase) ||
                     prop.PropertyType == typeof(byte[]))
                 {
                     continue;

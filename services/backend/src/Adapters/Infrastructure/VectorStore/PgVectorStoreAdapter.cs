@@ -64,22 +64,23 @@ public sealed class PgVectorStoreAdapter : IVectorStorePort
             var qvec = await _embedder.EmbedAsync(query, cancellationToken);
 
             // Perform k-NN search in Postgres using pgvector operator
-            var sql = $"""
-                       SELECT
-                           "Id",
-                           "DocumentId",
-                           "SheetName",
-                           "StartRow",
-                           "EndRow",
-                           "Text",
-                           "Embedding"::real[] AS "Embedding",
-                           "Embedding" <-> @qvec AS score
-                       FROM "SheetChunks"
-                       ORDER BY score
-                       LIMIT {k};
-                       """;
+            const string sql = """
+                               SELECT
+                                   "Id",
+                                   "DocumentId",
+                                   "SheetName",
+                                   "StartRow",
+                                   "EndRow",
+                                   "Text",
+                                   "Embedding"::real[] AS "Embedding",
+                                   "Embedding" <-> @qvec AS score
+                               FROM "SheetChunks"
+                               ORDER BY score
+                               LIMIT @limit;
+                               """;
 
             await using var cmd = _dataSource.CreateCommand(sql);
+            cmd.Parameters.AddWithValue("limit", k);
             var qParam = cmd.Parameters.AddWithValue("qvec", new Vector(qvec));
             qParam.DataTypeName = $"vector({qvec.Length})";
 
