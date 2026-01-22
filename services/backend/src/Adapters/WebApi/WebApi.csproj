@@ -44,10 +44,10 @@
         <!-- Prometheus metrics -->
         <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
         <!-- OpenTelemetry for distributed tracing -->
-        <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.10.0" />
-        <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.10.1" />
-        <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.10.0" />
-        <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.10.0" />
+        <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.11.2" />
+        <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.11.1" />
+        <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.11.1" />
+        <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.11.2" />
     </ItemGroup>
 
     <ItemGroup>
