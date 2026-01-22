@@ -9,4 +9,9 @@ public class SubscriptionPlanEntity
     public required decimal Price { get; set; }
     public required int Credits { get; set; }
     public PaymentUnit PaymentUnit { get; set; } = PaymentUnit.PerMessage;
+    
+    /// <summary>
+    /// Gets the display name for this subscription plan.
+    /// </summary>
+    public string Name => PlanEnum.ToString();
 }
