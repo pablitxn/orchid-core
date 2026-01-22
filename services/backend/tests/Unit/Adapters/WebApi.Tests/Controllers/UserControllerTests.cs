@@ -106,8 +106,9 @@ public class UserControllerTests
     {
         // Arrange
         SetupAuthenticatedUser("nonexistent@example.com");
+        // The controller compares to null! so we return default(UserEntity) which is null
         _mediatorMock.Setup(x => x.Send(It.IsAny<GetUserCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((UserEntity)null!);
+            .ReturnsAsync(default(UserEntity));
 
         // Act
         var result = await _controller.GetUser();
@@ -140,15 +141,17 @@ public class UserControllerTests
 
         // Assert
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var value = okResult.Value;
+        okResult.Value.Should().NotBeNull();
 
-        var idProperty = value?.GetType().GetProperty("Id");
-        var emailProperty = value?.GetType().GetProperty("Email");
-        var nameProperty = value?.GetType().GetProperty("Name");
+        // Verify response structure matches expected shape using reflection
+        // (anonymous types require reflection in tests)
+        var responseJson = System.Text.Json.JsonSerializer.Serialize(okResult.Value);
+        var document = System.Text.Json.JsonDocument.Parse(responseJson);
+        var root = document.RootElement;
 
-        idProperty?.GetValue(value).Should().Be(userId);
-        emailProperty?.GetValue(value)?.ToString().Should().Be(email);
-        nameProperty?.GetValue(value)?.ToString().Should().Be(name);
+        root.GetProperty("Id").GetGuid().Should().Be(userId);
+        root.GetProperty("Email").GetString().Should().Be(email);
+        root.GetProperty("Name").GetString().Should().Be(name);
     }
 
     [Fact]
@@ -191,9 +194,14 @@ public class UserControllerTests
 
         // Assert
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var value = okResult.Value;
-        var nameProperty = value?.GetType().GetProperty("Name");
-        nameProperty?.GetValue(value).Should().BeNull();
+        okResult.Value.Should().NotBeNull();
+
+        // Verify Name is null in the response using JSON serialization
+        var responseJson = System.Text.Json.JsonSerializer.Serialize(okResult.Value);
+        var document = System.Text.Json.JsonDocument.Parse(responseJson);
+        var root = document.RootElement;
+
+        root.GetProperty("Name").ValueKind.Should().Be(System.Text.Json.JsonValueKind.Null);
     }
 
     #endregion
