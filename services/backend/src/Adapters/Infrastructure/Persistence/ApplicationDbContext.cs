@@ -62,6 +62,7 @@ public class ApplicationDbContext(
     public DbSet<AuditLogEntity> AuditLogs { get; set; }
     public DbSet<RefreshTokenEntity> RefreshTokens { get; set; }
     public DbSet<AgentRatingEntity> AgentRatings { get; set; }
+    public DbSet<FeatureFlagEntity> FeatureFlags { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -598,6 +599,21 @@ public class ApplicationDbContext(
                 .WithMany()
                 .HasForeignKey(r => r.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FeatureFlagEntity>(b =>
+        {
+            b.ToTable("FeatureFlags");
+            b.HasKey(f => f.Id);
+            b.Property(f => f.Key).IsRequired().HasMaxLength(100);
+            b.Property(f => f.Description).HasMaxLength(500);
+            b.Property(f => f.IsEnabled).IsRequired();
+            b.Property(f => f.AllowedPlans).HasMaxLength(200);
+            b.Property(f => f.RolloutPercentage).IsRequired().HasDefaultValue(100);
+            b.Property(f => f.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(f => f.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(f => f.Key).IsUnique();
+            b.HasIndex(f => f.IsEnabled);
         });
     }
 }

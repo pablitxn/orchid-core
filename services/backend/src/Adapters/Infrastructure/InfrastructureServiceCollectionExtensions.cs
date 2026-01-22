@@ -97,6 +97,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IUserCreditLimitRepository, UserCreditLimitRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+        services.AddScoped<IFeatureFlagRepository, FeatureFlagRepository>();
         
         // ─── Unit of Work pattern ────────────────────────────────────────────────────
         services.AddScoped<IUnitOfWork, UnitOfWork>();
