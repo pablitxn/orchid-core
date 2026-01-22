@@ -19,6 +19,8 @@ Generated\ Files/
 
 ## Ignore test result files
 [Bb]uild[Ll]og.*
+TestResults/
+coverage-results/
 
 ## Ignore NuGet packages folder (if packages are restored on build)
 packages/
