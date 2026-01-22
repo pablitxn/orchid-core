@@ -198,7 +198,7 @@ public class CreditHistoryControllerTests
         var userId = Guid.NewGuid();
         SetupAuthenticatedUser(userId);
 
-        _creditConsumptionRepositoryMock.Setup(r => r.GetByUserIdAsync(userId))
+        _creditConsumptionRepositoryMock.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("Database error"));
 
         // Act
