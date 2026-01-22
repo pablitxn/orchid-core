@@ -27,6 +27,11 @@ public class GlobalExceptionMiddlewareTests
         return new GlobalExceptionMiddleware(next, _loggerMock.Object, _environmentMock.Object);
     }
 
+    /// <summary>
+    /// Extracts and deserializes ProblemDetails from the HTTP response body.
+    /// </summary>
+    /// <param name="context">The HTTP context containing the response with ProblemDetails JSON.</param>
+    /// <returns>The deserialized ProblemDetails object, or null if deserialization fails.</returns>
     private static async Task<ProblemDetails?> GetProblemDetailsFromResponse(HttpContext context)
     {
         context.Response.Body.Seek(0, SeekOrigin.Begin);

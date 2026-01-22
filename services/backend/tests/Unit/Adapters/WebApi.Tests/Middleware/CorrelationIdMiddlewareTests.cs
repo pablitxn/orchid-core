@@ -96,10 +96,8 @@ public class CorrelationIdMiddlewareTests
         var context = new DefaultHttpContext();
         context.Request.Headers[CorrelationIdMiddleware.CorrelationIdHeaderName] = expectedCorrelationId;
 
-        var onStartingCallbackCalled = false;
-        
         var middleware = new CorrelationIdMiddleware(
-            ctx =>
+            _ =>
             {
                 // The OnStarting callback is registered but won't be automatically called in a unit test
                 // We verify the callback mechanism is set up by checking if the header is set

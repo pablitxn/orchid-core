@@ -470,7 +470,7 @@ internal class MockRequestCookieCollection : IRequestCookieCollection
 
     public IEnumerator<KeyValuePair<string, string>> GetEnumerator() => _cookies.GetEnumerator();
 
-    public bool TryGetValue(string key, out string? value)
+    public bool TryGetValue(string key, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? value)
     {
         if (_cookies.TryGetValue(key, out var val))
         {
