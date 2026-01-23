@@ -18,7 +18,17 @@ public class SubscriptionIntegrationTests
     [Fact]
     public async Task Create_Then_Get_Works()
     {
-        var userId = Guid.NewGuid();
+        // First, register a new user to ensure they exist in the database
+        var email = $"sub-test-{Guid.NewGuid()}@example.com";
+        var password = "TestPass1!";
+        var registerRes = await _client.PostAsJsonAsync("/api/auth/register",
+            new { email, password, roles = new[] { "user" } });
+        Assert.Equal(HttpStatusCode.OK, registerRes.StatusCode);
+
+        var registerJson = await registerRes.Content.ReadFromJsonAsync<JsonElement>();
+        var userId = registerJson.GetProperty("id").GetGuid();
+
+        // Now create subscription for the registered user
         var createRes = await _client.PostAsJsonAsync("/api/subscription", new { userId, credits = 10 });
         Assert.Equal(HttpStatusCode.OK, createRes.StatusCode);
 

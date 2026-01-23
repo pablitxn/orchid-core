@@ -129,6 +129,14 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             }
             services.AddSingleton<IEventPublisher, TestEventPublisher>();
 
+            // Replace rate limit service with permissive test implementation
+            var rateLimitDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IRateLimitService));
+            if (rateLimitDescriptor != null)
+            {
+                services.Remove(rateLimitDescriptor);
+            }
+            services.AddSingleton<IRateLimitService, TestRateLimitService>();
+
             // Seed subscription plans at startup
             services.AddHostedService<TestDataSeeder>();
 
@@ -289,6 +297,24 @@ public class TestEventPublisher : IEventPublisher
 {
     public Task PublishAsync<T>(T domainEvent) where T : Domain.Common.IDomainEvent
     {
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>
+/// Test rate limit service that always allows requests (no rate limiting in tests).
+/// </summary>
+public class TestRateLimitService : IRateLimitService
+{
+    public Task<RateLimitResult> CheckAsync(string key, int limit, TimeSpan window, CancellationToken cancellationToken = default)
+    {
+        // Always allow in tests
+        return Task.FromResult(RateLimitResult.Allowed(0, limit, DateTime.UtcNow.Add(window)));
+    }
+
+    public Task RecordRequestAsync(string key, TimeSpan window, CancellationToken cancellationToken = default)
+    {
+        // No-op in tests
         return Task.CompletedTask;
     }
 }

@@ -15,11 +15,29 @@ public class ConsumeCreditsIntegrationTests
         _client = factory.CreateClient();
     }
 
+    private async Task<Guid> CreateUserWithSubscriptionAsync(int credits)
+    {
+        // Register a new user
+        var email = $"consume-test-{Guid.NewGuid()}@example.com";
+        var password = "TestPass1!";
+        var registerRes = await _client.PostAsJsonAsync("/api/auth/register",
+            new { email, password, roles = new[] { "user" } });
+        Assert.Equal(HttpStatusCode.OK, registerRes.StatusCode);
+
+        var registerJson = await registerRes.Content.ReadFromJsonAsync<JsonElement>();
+        var userId = registerJson.GetProperty("id").GetGuid();
+
+        // Create subscription for the user
+        var createRes = await _client.PostAsJsonAsync("/api/subscription", new { userId, credits });
+        Assert.Equal(HttpStatusCode.OK, createRes.StatusCode);
+
+        return userId;
+    }
+
     [Fact]
     public async Task ConsumeCredits_DeductsCredits()
     {
-        var userId = Guid.NewGuid();
-        await _client.PostAsJsonAsync("/api/subscription", new { userId, credits = 5 });
+        var userId = await CreateUserWithSubscriptionAsync(5);
 
         var consumeRes = await _client.PostAsJsonAsync(
             "/api/subscription/consume",
@@ -34,8 +52,7 @@ public class ConsumeCreditsIntegrationTests
     [Fact]
     public async Task ConsumeCredits_InsufficientBalance_ReturnsBadRequest()
     {
-        var userId = Guid.NewGuid();
-        await _client.PostAsJsonAsync("/api/subscription", new { userId, credits = 1 });
+        var userId = await CreateUserWithSubscriptionAsync(1);
 
         var res = await _client.PostAsJsonAsync(
             "/api/subscription/consume",
