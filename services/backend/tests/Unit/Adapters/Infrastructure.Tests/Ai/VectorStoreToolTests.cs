@@ -105,7 +105,7 @@ public class VectorStoreToolTests
         // Arrange
         var documentPath = "/path/to/document.pdf";
         var metadata = "test metadata";
-        var expectedResult = new AddDocumentResult(documentPath, 5, metadata);
+        var expectedResult = new AddDocumentDto(documentPath, 5, metadata);
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<AddDocumentCommand>(), It.IsAny<CancellationToken>()))
@@ -128,7 +128,7 @@ public class VectorStoreToolTests
         // Arrange
         var documentPath = "/path/to/document.pdf";
         var metadata = "test metadata";
-        var expectedResult = new AddDocumentResult(documentPath, 5, metadata);
+        var expectedResult = new AddDocumentDto(documentPath, 5, metadata);
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<AddDocumentCommand>(), It.IsAny<CancellationToken>()))
@@ -151,7 +151,7 @@ public class VectorStoreToolTests
     {
         // Arrange
         var documentPath = "/path/to/document.pdf";
-        var expectedResult = new AddDocumentResult(documentPath, 5, null);
+        var expectedResult = new AddDocumentDto(documentPath, 5, null);
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<AddDocumentCommand>(), It.IsAny<CancellationToken>()))
@@ -172,7 +172,7 @@ public class VectorStoreToolTests
     {
         // Arrange
         var documentPath = "/path/to/document.pdf";
-        var expectedResult = new AddDocumentResult(documentPath, 3, null);
+        var expectedResult = new AddDocumentDto(documentPath, 3, null);
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<AddDocumentCommand>(), It.IsAny<CancellationToken>()))
@@ -198,7 +198,7 @@ public class VectorStoreToolTests
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<AddDocumentCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new AddDocumentResult(documentPath, 1, null));
+            .ReturnsAsync(new AddDocumentDto(documentPath, 1, null));
 
         // Act
         await _tool.AddDocumentAsync(documentPath, ct: cts.Token);
@@ -436,7 +436,7 @@ public class VectorStoreToolTests
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<AddDocumentCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new AddDocumentResult(documentPath, 1, null));
+            .ReturnsAsync(new AddDocumentDto(documentPath, 1, null));
 
         // Act
         await _tool.AddDocumentAsync(documentPath);

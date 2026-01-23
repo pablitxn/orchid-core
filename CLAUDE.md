@@ -110,6 +110,91 @@ Any new code **must** fit one of these slots. If none apply, open an ADR first.
 
 ---
 
+## 5.2 Pattern Consistency (CQRS & Hexagonal)
+
+### 5.2.1 Command/Query Naming
+
+Follow strict CQRS naming conventions:
+- **Commands** (mutations): Use `*Command` suffix → `CreateAgentCommand`, `DeletePluginCommand`
+- **Queries** (reads): Use `*Query` suffix → `GetUserQuery`, `ListAgentsQuery`
+
+**Never** name a read operation as a Command. If it doesn't modify state, it's a Query.
+
+### 5.2.2 DTO Naming Convention
+
+All Data Transfer Objects must use the `*Dto` suffix:
+- **Response DTOs**: `AgentDto`, `UserDto`, `PluginDto`
+- **List DTOs**: `ListAgentsDto`, `ListPublicPluginsDto`
+- **Result DTOs**: `AgentRatingsDto`, `AddDocumentDto`
+
+**Avoid** using `*Result` suffix for DTOs. Reserve "Result" for internal service contracts and enums.
+
+### 5.2.3 Domain Exception Hierarchy
+
+Use domain-specific exceptions from `Domain.Exceptions` instead of generic framework exceptions:
+
+| Instead of...                     | Use...                              |
+|-----------------------------------|-------------------------------------|
+| `InvalidOperationException`       | Specific domain exception           |
+| `ArgumentException`               | `ValidationException`               |
+| `KeyNotFoundException`            | `EntityNotFoundException` subclass  |
+| `UnauthorizedAccessException`     | `UnauthorizedDomainAccessException` |
+
+Available domain exceptions:
+```
+Domain/Exceptions/
+├── EntityNotFoundException.cs      # Base for not-found errors
+├── AgentNotFoundException.cs       # Agent-specific
+├── PluginNotFoundException.cs      # Plugin-specific
+├── UserNotFoundException.cs        # User-specific
+├── SubscriptionNotFoundException.cs
+├── WorkflowNotFoundException.cs
+├── DocumentNotFoundException.cs
+├── ValidationException.cs          # Input validation errors
+├── UnauthorizedDomainAccessException.cs  # Access denied
+├── InsufficientCreditsException.cs
+├── CreditLimitExceededException.cs
+├── AlreadySubscribedException.cs
+├── AlreadyPurchasedException.cs
+├── AgentDeletedException.cs
+├── AgentNotInRecycleBinException.cs
+├── OperationFailedException.cs
+├── EmptyContentException.cs
+└── ActiveSubscriptionRequiredException.cs
+```
+
+### 5.2.4 Handler Return Types
+
+Queries should return DTOs, not entities, to maintain API contract isolation:
+
+```csharp
+// ✓ Correct - Returns DTO
+public record ListAgentsQuery : IRequest<List<AgentDto>>;
+
+// ✗ Avoid - Returns entity directly
+public record ListAgentsQuery : IRequest<List<AgentEntity>>;
+```
+
+### 5.2.5 Exception Usage Example
+
+```csharp
+// ✓ Correct - Domain exceptions
+if (agent == null)
+    throw new AgentNotFoundException(request.AgentId);
+
+if (agent.UserId != request.UserId)
+    throw new UnauthorizedDomainAccessException("Agent", request.AgentId, request.UserId);
+
+if (string.IsNullOrEmpty(content))
+    throw new EmptyContentException();
+
+// ✗ Avoid - Generic exceptions
+throw new InvalidOperationException("Agent not found");
+throw new UnauthorizedAccessException("Access denied");
+```
+
+---
+
 ## 6  Testing Matrix
 
 | Layer       | Project Suffix      | Tools                 | Min Coverage    |

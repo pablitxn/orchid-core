@@ -8,12 +8,12 @@ namespace Application.UseCases.Workflow.ListWorkflows;
 public sealed class ListPublicWorkflowsHandler(
     IWorkflowRepository workflowRepository,
     ILogger<ListPublicWorkflowsHandler> logger
-) : IRequestHandler<ListPublicWorkflowsQuery, ListPublicWorkflowsResult>
+) : IRequestHandler<ListPublicWorkflowsQuery, ListPublicWorkflowsDto>
 {
     private readonly IWorkflowRepository _workflowRepository = workflowRepository;
     private readonly ILogger<ListPublicWorkflowsHandler> _logger = logger;
 
-    public async Task<ListPublicWorkflowsResult> Handle(ListPublicWorkflowsQuery query, CancellationToken cancellationToken)
+    public async Task<ListPublicWorkflowsDto> Handle(ListPublicWorkflowsQuery query, CancellationToken cancellationToken)
     {
         // Get all workflows (in a real implementation, this would be filtered at the database level)
         var allWorkflows = await _workflowRepository.ListAsync(cancellationToken);
@@ -89,7 +89,7 @@ public sealed class ListPublicWorkflowsHandler(
         _logger.LogInformation("Listed {Count} public workflows out of {Total} (page {Page})", 
             paginatedWorkflows.Count, totalCount, query.Page);
         
-        return new ListPublicWorkflowsResult(paginatedResult);
+        return new ListPublicWorkflowsDto(paginatedResult);
     }
     
     private IQueryable<Domain.Entities.WorkflowEntity> ApplySorting(

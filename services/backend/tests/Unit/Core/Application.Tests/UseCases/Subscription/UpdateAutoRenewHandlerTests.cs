@@ -1,8 +1,8 @@
 using Application.Interfaces;
-using Application.UseCases.Subscription.ConsumeCredits;
 using Application.UseCases.Subscription.UpdateAutoRenew;
 using Domain.Entities;
 using Domain.Events;
+using Domain.Exceptions;
 using Moq;
 
 namespace Application.Tests.UseCases.Subscription;

@@ -30,7 +30,7 @@ public class PublicMarketplaceControllerTests
             new(Guid.NewGuid(), "Plugin 2", "Desc 2", 200, true, true, null, DateTime.UtcNow)
         };
 
-        var result = new ListPublicPluginsResult(expectedPlugins);
+        var result = new ListPublicPluginsDto(expectedPlugins);
 
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<ListPublicPluginsQuery>(),
@@ -49,7 +49,7 @@ public class PublicMarketplaceControllerTests
     public async Task ListPlugins_ReturnsOk_WithEmptyList_WhenNoPluginsAvailable()
     {
         // Arrange
-        var emptyList = new ListPublicPluginsResult(new List<PublicPlugin>());
+        var emptyList = new ListPublicPluginsDto(new List<PublicPlugin>());
 
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<ListPublicPluginsQuery>(),
@@ -61,7 +61,7 @@ public class PublicMarketplaceControllerTests
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(actionResult);
-        var result = Assert.IsType<ListPublicPluginsResult>(okResult.Value);
+        var result = Assert.IsType<ListPublicPluginsDto>(okResult.Value);
         Assert.Empty(result.Plugins);
     }
 
@@ -81,7 +81,7 @@ public class PublicMarketplaceControllerTests
 
         var paginatedResult = new Application.Common.Models.PaginatedResult<PublicWorkflow>(
             expectedWorkflows, expectedWorkflows.Count, 1, 20);
-        var result = new ListPublicWorkflowsResult(paginatedResult);
+        var result = new ListPublicWorkflowsDto(paginatedResult);
 
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<ListPublicWorkflowsQuery>(),
@@ -101,7 +101,7 @@ public class PublicMarketplaceControllerTests
     {
         // Arrange
         var emptyPaginated = Application.Common.Models.PaginatedResult<PublicWorkflow>.Empty();
-        var emptyList = new ListPublicWorkflowsResult(emptyPaginated);
+        var emptyList = new ListPublicWorkflowsDto(emptyPaginated);
 
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<ListPublicWorkflowsQuery>(),
@@ -113,7 +113,7 @@ public class PublicMarketplaceControllerTests
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(actionResult);
-        var result = Assert.IsType<ListPublicWorkflowsResult>(okResult.Value);
+        var result = Assert.IsType<ListPublicWorkflowsDto>(okResult.Value);
         Assert.Empty(result.Workflows.Items);
     }
 

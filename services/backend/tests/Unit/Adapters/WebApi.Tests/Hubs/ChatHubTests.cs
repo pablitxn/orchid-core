@@ -3,6 +3,7 @@ using Application.Interfaces;
 using Application.UseCases.Agent.VerifyAgentAccess;
 using Application.UseCases.Subscription.ConsumeCredits;
 using Domain.Entities;
+using Domain.Exceptions;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;

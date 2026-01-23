@@ -7,12 +7,12 @@ namespace Application.UseCases.Agent.GetAgentRatings;
 
 public class GetAgentRatingsHandler(
     IAgentRepository agentRepository,
-    IAgentRatingRepository ratingRepository) : IRequestHandler<GetAgentRatingsQuery, AgentRatingsResultDto>
+    IAgentRatingRepository ratingRepository) : IRequestHandler<GetAgentRatingsQuery, AgentRatingsDto>
 {
     private readonly IAgentRepository _agentRepository = agentRepository;
     private readonly IAgentRatingRepository _ratingRepository = ratingRepository;
 
-    public async Task<AgentRatingsResultDto> Handle(GetAgentRatingsQuery request, CancellationToken cancellationToken)
+    public async Task<AgentRatingsDto> Handle(GetAgentRatingsQuery request, CancellationToken cancellationToken)
     {
         if (request.AgentId == Guid.Empty)
         {
@@ -32,7 +32,7 @@ public class GetAgentRatingsHandler(
         // Get average rating
         var averageRating = await _ratingRepository.GetAverageRatingAsync(request.AgentId, cancellationToken);
 
-        return new AgentRatingsResultDto
+        return new AgentRatingsDto
         {
             AgentId = request.AgentId,
             AverageRating = averageRating,

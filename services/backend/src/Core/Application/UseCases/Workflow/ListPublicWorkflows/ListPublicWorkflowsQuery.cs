@@ -3,7 +3,7 @@ using MediatR;
 
 namespace Application.UseCases.Workflow.ListWorkflows;
 
-public sealed class ListPublicWorkflowsQuery : PaginatedQuery, IRequest<ListPublicWorkflowsResult>
+public sealed class ListPublicWorkflowsQuery : PaginatedQuery, IRequest<ListPublicWorkflowsDto>
 {
     public string? Category { get; set; }
     public string? SearchTerm { get; set; }

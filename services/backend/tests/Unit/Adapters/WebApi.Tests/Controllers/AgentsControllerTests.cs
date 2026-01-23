@@ -832,7 +832,7 @@ public class AgentsControllerTests
     {
         // Arrange
         var agentId = Guid.NewGuid();
-        var expectedRatings = new AgentRatingsResultDto
+        var expectedRatings = new AgentRatingsDto
         {
             AgentId = agentId,
             AverageRating = 4.5,
@@ -854,7 +854,7 @@ public class AgentsControllerTests
 
         // Assert
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var ratings = okResult.Value.Should().BeOfType<AgentRatingsResultDto>().Subject;
+        var ratings = okResult.Value.Should().BeOfType<AgentRatingsDto>().Subject;
         ratings.AgentId.Should().Be(agentId);
         ratings.AverageRating.Should().Be(4.5);
         ratings.TotalRatings.Should().Be(100);
@@ -866,7 +866,7 @@ public class AgentsControllerTests
         // Arrange
         var agentId = Guid.NewGuid();
         _mediatorMock.Setup(m => m.Send(It.IsAny<GetAgentRatingsQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new AgentRatingsResultDto { AgentId = agentId });
+            .ReturnsAsync(new AgentRatingsDto { AgentId = agentId });
 
         // Act
         await _controller.GetAgentRatings(agentId);

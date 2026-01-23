@@ -13,7 +13,7 @@ public class AddDocumentHandler(
     IEmbeddingGeneratorPort embedder,
     IVectorStorePort vectorStore,
     IDocumentRepository documentRepository)
-    : IRequestHandler<AddDocumentCommand, AddDocumentResult>
+    : IRequestHandler<AddDocumentCommand, AddDocumentDto>
 {
     private readonly IDocumentRepository _documents = documentRepository;
     private readonly IEmbeddingGeneratorPort _embedder = embedder;
@@ -21,7 +21,7 @@ public class AddDocumentHandler(
     private readonly IFileStorageService _storage = fileStorage;
     private readonly IVectorStorePort _vectorStore = vectorStore;
 
-    public async Task<AddDocumentResult> Handle(AddDocumentCommand request, CancellationToken cancellationToken)
+    public async Task<AddDocumentDto> Handle(AddDocumentCommand request, CancellationToken cancellationToken)
     {
         await using var stream = await _storage.GetFileAsync(request.DocumentPath, cancellationToken);
         var extension = Path.GetExtension(request.DocumentPath) ?? string.Empty;
@@ -55,6 +55,6 @@ public class AddDocumentHandler(
         await _documents.UpdateEmbeddingAsync(fileId, docEmbedding, cancellationToken);
         await _documents.UpdateIndexingAsync(fileId, paragraphs.Count, cancellationToken);
 
-        return new AddDocumentResult(request.DocumentPath, paragraphs.Count, request.Metadata);
+        return new AddDocumentDto(request.DocumentPath, paragraphs.Count, request.Metadata);
     }
 }

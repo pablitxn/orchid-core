@@ -6,7 +6,7 @@ namespace Application.UseCases.Agent.GetAgentRatings;
 /// <summary>
 /// Query to get all ratings for an agent, including average rating and total count
 /// </summary>
-public class GetAgentRatingsQuery(Guid agentId) : IRequest<AgentRatingsResultDto>
+public class GetAgentRatingsQuery(Guid agentId) : IRequest<AgentRatingsDto>
 {
     public Guid AgentId { get; set; } = agentId;
 }
@@ -14,7 +14,7 @@ public class GetAgentRatingsQuery(Guid agentId) : IRequest<AgentRatingsResultDto
 /// <summary>
 /// Result containing all ratings and summary statistics
 /// </summary>
-public record AgentRatingsResultDto
+public record AgentRatingsDto
 {
     public Guid AgentId { get; init; }
     public double? AverageRating { get; init; }

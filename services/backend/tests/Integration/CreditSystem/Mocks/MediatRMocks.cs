@@ -2,6 +2,7 @@ using Application.UseCases.Agent.VerifyAgentAccess;
 using Application.UseCases.Subscription.ConsumeCredits;
 using Domain.Entities;
 using Domain.Enums;
+using Domain.Exceptions;
 using Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
