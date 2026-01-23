@@ -1,4 +1,5 @@
 using Application.Interfaces;
+using Domain.Exceptions;
 using MediatR;
 
 namespace Application.UseCases.VectorStore.AddDocument;
@@ -28,7 +29,7 @@ public class AddDocumentHandler(
 
         if (string.IsNullOrEmpty(content))
         {
-            throw new InvalidOperationException("Extracted content is empty or null");
+            throw new EmptyContentException();
         }
 
         var docEmbedding = await _embedder.EmbedAsync(content, cancellationToken);

@@ -37,7 +37,7 @@ public class UpdateKnowledgeBaseHandler : IRequestHandler<UpdateKnowledgeBaseCom
         // Ensure user owns this document
         if (item.UserId != request.UserId)
         {
-            throw new UnauthorizedAccessException("You do not have access to this document");
+            throw new UnauthorizedDomainAccessException("KnowledgeBase", request.Id, request.UserId);
         }
 
         // Update fields

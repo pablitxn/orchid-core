@@ -1,3 +1,5 @@
+using Domain.Exceptions;
+
 namespace Application.UseCases.Agent.UpdateAgent;
 
 /// <summary>
@@ -17,37 +19,37 @@ public static class UpdateAgentCommandValidator
             throw new ArgumentNullException(nameof(command));
 
         if (command.AgentId == Guid.Empty)
-            throw new ArgumentException("AgentId cannot be empty.", nameof(command.AgentId));
+            throw new ValidationException("AgentId cannot be empty.", nameof(command.AgentId));
 
         if (command.UserId == Guid.Empty)
-            throw new ArgumentException("UserId cannot be empty.", nameof(command.UserId));
+            throw new ValidationException("UserId cannot be empty.", nameof(command.UserId));
 
         if (command.Name is not null)
         {
             if (string.IsNullOrWhiteSpace(command.Name))
-                throw new ArgumentException("Name cannot be empty when provided.", nameof(command.Name));
+                throw new ValidationException("Name cannot be empty when provided.", nameof(command.Name));
 
             if (command.Name.Length < MinNameLength)
-                throw new ArgumentException($"Name must be at least {MinNameLength} characters.", nameof(command.Name));
+                throw new ValidationException($"Name must be at least {MinNameLength} characters.", nameof(command.Name));
 
             if (command.Name.Length > MaxNameLength)
-                throw new ArgumentException($"Name cannot exceed {MaxNameLength} characters.", nameof(command.Name));
+                throw new ValidationException($"Name cannot exceed {MaxNameLength} characters.", nameof(command.Name));
         }
 
         if (command.Description?.Length > MaxDescriptionLength)
-            throw new ArgumentException($"Description cannot exceed {MaxDescriptionLength} characters.", nameof(command.Description));
+            throw new ValidationException($"Description cannot exceed {MaxDescriptionLength} characters.", nameof(command.Description));
 
         if (command.AvatarUrl is not null && !string.IsNullOrEmpty(command.AvatarUrl))
         {
             if (command.AvatarUrl.Length > MaxAvatarUrlLength)
-                throw new ArgumentException($"AvatarUrl cannot exceed {MaxAvatarUrlLength} characters.", nameof(command.AvatarUrl));
+                throw new ValidationException($"AvatarUrl cannot exceed {MaxAvatarUrlLength} characters.", nameof(command.AvatarUrl));
 
             if (!IsValidUrl(command.AvatarUrl))
-                throw new ArgumentException("AvatarUrl must be a valid URL.", nameof(command.AvatarUrl));
+                throw new ValidationException("AvatarUrl must be a valid URL.", nameof(command.AvatarUrl));
         }
 
         if (command.Language?.Length > MaxLanguageLength)
-            throw new ArgumentException($"Language cannot exceed {MaxLanguageLength} characters.", nameof(command.Language));
+            throw new ValidationException($"Language cannot exceed {MaxLanguageLength} characters.", nameof(command.Language));
     }
 
     private static bool IsValidUrl(string url)

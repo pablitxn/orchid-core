@@ -2,6 +2,7 @@ using Application.Interfaces;
 using Core.Application.Interfaces;
 using Core.Application.UseCases.Dashboard.Common;
 using Core.Application.UseCases.Dashboard.GetSecurityMetrics;
+using Domain.Exceptions;
 using MediatR;
 
 namespace Application.UseCases.Dashboard.GetSecurityMetrics;
@@ -17,7 +18,7 @@ public sealed class GetSecurityMetricsHandler(
             .ConfigureAwait(false);
         if (user == null)
         {
-            throw new InvalidOperationException($"User with ID {request.UserId} not found");
+            throw new UserNotFoundException(request.UserId);
         }
 
         // Get login history
