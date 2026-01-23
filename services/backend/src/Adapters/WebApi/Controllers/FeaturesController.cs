@@ -28,7 +28,7 @@ public class FeaturesController(IMediator mediator, ISubscriptionRepository subs
             var subscription = await subscriptionRepository.GetByUserIdAsync(userGuid, cancellationToken);
             if (subscription?.SubscriptionPlan != null)
             {
-                userPlan = subscription.SubscriptionPlan.Name;
+                userPlan = subscription.SubscriptionPlan.PlanEnum.ToString();
             }
         }
 
@@ -53,7 +53,7 @@ public class FeaturesController(IMediator mediator, ISubscriptionRepository subs
             var subscription = await subscriptionRepository.GetByUserIdAsync(userGuid, cancellationToken);
             if (subscription?.SubscriptionPlan != null)
             {
-                userPlan = subscription.SubscriptionPlan.Name;
+                userPlan = subscription.SubscriptionPlan.PlanEnum.ToString();
             }
         }
 
