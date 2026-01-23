@@ -18,7 +18,7 @@ public class UserController(IMediator mediator) : ControllerBase
         if (string.IsNullOrWhiteSpace(email))
             return Unauthorized();
 
-        var result = await _mediator.Send(new GetUserCommand(email));
+        var result = await _mediator.Send(new GetUserQuery(email));
 
         if (result == null!)
             // todo: fix me

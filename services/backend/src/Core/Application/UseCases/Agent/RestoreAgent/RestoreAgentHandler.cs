@@ -1,4 +1,5 @@
 using Application.Interfaces;
+using Domain.Exceptions;
 using MediatR;
 
 namespace Application.UseCases.Agent.RestoreAgent;
@@ -18,17 +19,17 @@ public sealed class RestoreAgentHandler : IRequestHandler<RestoreAgentCommand, U
 
         if (agent == null)
         {
-            throw new InvalidOperationException($"Agent with ID {command.AgentId} not found.");
+            throw new AgentNotFoundException(command.AgentId);
         }
 
         if (agent.UserId != command.UserId)
         {
-            throw new UnauthorizedAccessException("You don't have permission to restore this agent.");
+            throw new UnauthorizedDomainAccessException("Agent", command.AgentId, command.UserId);
         }
 
         if (!agent.IsInRecycleBin)
         {
-            throw new InvalidOperationException($"Agent with ID {command.AgentId} is not in recycle bin.");
+            throw new AgentNotInRecycleBinException(command.AgentId);
         }
 
         // Restore from recycle bin

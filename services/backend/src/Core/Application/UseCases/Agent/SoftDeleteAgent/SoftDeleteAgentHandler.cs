@@ -1,4 +1,5 @@
 using Application.Interfaces;
+using Domain.Exceptions;
 using MediatR;
 
 namespace Application.UseCases.Agent.SoftDeleteAgent;
@@ -15,16 +16,16 @@ public sealed class SoftDeleteAgentHandler : IRequestHandler<SoftDeleteAgentComm
     public async Task<Unit> Handle(SoftDeleteAgentCommand command, CancellationToken cancellationToken)
     {
         var agent = await _agentRepository.GetByIdAsync(command.AgentId, cancellationToken);
-        
+
         if (agent == null)
         {
-            throw new InvalidOperationException($"Agent with ID {command.AgentId} not found.");
+            throw new AgentNotFoundException(command.AgentId);
         }
 
         // Check if user owns the agent
         if (agent.UserId != command.UserId)
         {
-            throw new UnauthorizedAccessException($"User {command.UserId} is not authorized to delete agent {command.AgentId}.");
+            throw new UnauthorizedDomainAccessException("Agent", command.AgentId, command.UserId);
         }
 
         // Move to recycle bin with 30-day expiration

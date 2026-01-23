@@ -64,7 +64,7 @@ public class GetUserMarketplaceItemsHandler(
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving marketplace items for user {UserId}", request.UserId);
-            throw new InvalidOperationException("Failed to retrieve your marketplace items.", ex);
+            throw new Domain.Exceptions.OperationFailedException("retrieve marketplace items", ex);
         }
     }
 }

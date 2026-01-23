@@ -428,7 +428,7 @@ public class AuthController(
             return BadRequest("Email address not returned by Google. Please ensure your Google account has a verified email.");
 
         // Get or create user
-        var userFromDb = await _mediator.Send(new GetUserCommand(userInfoResponse.Email));
+        var userFromDb = await _mediator.Send(new GetUserQuery(userInfoResponse.Email));
 
         if (userFromDb == null!)
         {
@@ -436,7 +436,7 @@ public class AuthController(
                 userInfoResponse.Email,
                 ["User"]
             ));
-            userFromDb = await _mediator.Send(new GetUserCommand(userInfoResponse.Email));
+            userFromDb = await _mediator.Send(new GetUserQuery(userInfoResponse.Email));
 
             // Record Prometheus metrics for successful Google OAuth registration
             ApplicationMetrics.UserRegistrationsTotal.WithLabels("google").Inc();

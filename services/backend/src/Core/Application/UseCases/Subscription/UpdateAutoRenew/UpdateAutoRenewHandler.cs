@@ -1,6 +1,6 @@
 using Application.Interfaces;
-using Application.UseCases.Subscription.ConsumeCredits;
 using Domain.Entities;
+using Domain.Exceptions;
 using Domain.Events;
 using MediatR;
 

@@ -1,5 +1,6 @@
 using Application.Interfaces;
 using Application.UseCases.Agent.Common;
+using Domain.Exceptions;
 using MediatR;
 
 namespace Application.UseCases.Agent.UpdateAgent;
@@ -23,17 +24,17 @@ public sealed class UpdateAgentHandler(
 
         if (agent is null)
         {
-            throw new KeyNotFoundException($"Agent with ID {request.AgentId} not found");
+            throw new AgentNotFoundException(request.AgentId);
         }
 
         if (agent.UserId != request.UserId)
         {
-            throw new UnauthorizedAccessException("You don't have permission to update this agent");
+            throw new UnauthorizedDomainAccessException("Agent", request.AgentId, request.UserId);
         }
 
         if (agent.IsDeleted)
         {
-            throw new InvalidOperationException("Cannot update a deleted agent");
+            throw new AgentDeletedException(request.AgentId);
         }
 
         // Update only provided fields

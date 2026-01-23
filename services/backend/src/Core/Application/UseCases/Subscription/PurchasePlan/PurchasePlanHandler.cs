@@ -2,6 +2,7 @@ using Application.Interfaces;
 using Domain.Entities;
 using Domain.Enums;
 using Domain.Events;
+using Domain.Exceptions;
 using MediatR;
 
 namespace Application.UseCases.Subscription.PurchasePlan;
@@ -23,7 +24,7 @@ public class PurchasePlanHandler(
 
         if (plan == null)
         {
-            throw new InvalidOperationException($"Subscription plan '{request.PlanEnum}' not found in database.");
+            throw new SubscriptionPlanNotFoundException(request.PlanEnum.ToString());
         }
 
         var isUnlimited = request.PlanEnum == SubscriptionPlanEnum.Unlimited;

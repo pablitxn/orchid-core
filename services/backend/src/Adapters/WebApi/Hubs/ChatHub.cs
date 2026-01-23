@@ -4,6 +4,7 @@ using System.Text;
 using Application.Interfaces;
 using Application.UseCases.Agent.VerifyAgentAccess;
 using Application.UseCases.Subscription.ConsumeCredits;
+using Domain.Exceptions;
 using Infrastructure.Telemetry;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;

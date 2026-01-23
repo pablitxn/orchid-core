@@ -107,7 +107,7 @@ public class UserControllerTests
         // Arrange
         SetupAuthenticatedUser("nonexistent@example.com");
         // The controller compares to null! so we return default(UserEntity) which is null
-        _mediatorMock.Setup(x => x.Send(It.IsAny<GetUserCommand>(), It.IsAny<CancellationToken>()))
+        _mediatorMock.Setup(x => x.Send(It.IsAny<GetUserQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(default(UserEntity));
 
         // Act
@@ -133,7 +133,7 @@ public class UserControllerTests
             Email = email,
             Name = name
         };
-        _mediatorMock.Setup(x => x.Send(It.IsAny<GetUserCommand>(), It.IsAny<CancellationToken>()))
+        _mediatorMock.Setup(x => x.Send(It.IsAny<GetUserQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
 
         // Act
@@ -160,7 +160,7 @@ public class UserControllerTests
         // Arrange
         var email = "specific@example.com";
         SetupAuthenticatedUser(email);
-        _mediatorMock.Setup(x => x.Send(It.IsAny<GetUserCommand>(), It.IsAny<CancellationToken>()))
+        _mediatorMock.Setup(x => x.Send(It.IsAny<GetUserQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new UserEntity { Id = Guid.NewGuid(), Email = email, Name = "Test" });
 
         // Act
@@ -168,7 +168,7 @@ public class UserControllerTests
 
         // Assert
         _mediatorMock.Verify(
-            x => x.Send(It.Is<GetUserCommand>(cmd => cmd.Email == email), It.IsAny<CancellationToken>()),
+            x => x.Send(It.Is<GetUserQuery>(cmd => cmd.Email == email), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -186,7 +186,7 @@ public class UserControllerTests
             Email = email,
             Name = null
         };
-        _mediatorMock.Setup(x => x.Send(It.IsAny<GetUserCommand>(), It.IsAny<CancellationToken>()))
+        _mediatorMock.Setup(x => x.Send(It.IsAny<GetUserQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
 
         // Act

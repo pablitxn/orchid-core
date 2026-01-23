@@ -1,5 +1,6 @@
 using Application.Interfaces;
 using Application.UseCases.Agent.RateAgent;
+using Domain.Exceptions;
 using MediatR;
 
 namespace Application.UseCases.Agent.GetAgentRatings;
@@ -15,14 +16,14 @@ public class GetAgentRatingsHandler(
     {
         if (request.AgentId == Guid.Empty)
         {
-            throw new ArgumentException("Agent ID is required.", nameof(request.AgentId));
+            throw new ValidationException("Agent ID is required.", nameof(request.AgentId));
         }
 
         // Verify agent exists
         var agent = await _agentRepository.GetByIdAsync(request.AgentId, cancellationToken);
         if (agent is null)
         {
-            throw new InvalidOperationException($"Agent with ID {request.AgentId} not found.");
+            throw new AgentNotFoundException(request.AgentId);
         }
 
         // Get all ratings for this agent

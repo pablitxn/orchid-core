@@ -156,7 +156,7 @@ public class ProjectControllerTests
     public async Task GetProject_ReturnsNotFound_WhenProjectDoesNotExist()
     {
         // Arrange
-        _mediatorMock.Setup(m => m.Send(It.IsAny<GetProjectByIdCommand>(), It.IsAny<CancellationToken>()))
+        _mediatorMock.Setup(m => m.Send(It.IsAny<GetProjectByIdQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((ProjectEntity)null!);
 
         // Act
@@ -174,7 +174,7 @@ public class ProjectControllerTests
         var dummyProject = ProjectEntity.Create("es", dummyAudio);
         typeof(ProjectEntity).GetProperty("Id")?.SetValue(dummyProject, Guid.NewGuid());
 
-        _mediatorMock.Setup(m => m.Send(It.IsAny<GetProjectByIdCommand>(), It.IsAny<CancellationToken>()))
+        _mediatorMock.Setup(m => m.Send(It.IsAny<GetProjectByIdQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(dummyProject);
 
         // Act

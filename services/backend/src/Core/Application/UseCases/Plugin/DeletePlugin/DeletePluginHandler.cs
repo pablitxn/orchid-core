@@ -1,4 +1,5 @@
 using Application.Interfaces;
+using Domain.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -19,14 +20,14 @@ public sealed class DeletePluginHandler(
         var plugin = await pluginRepository.GetByIdAsync(command.PluginId, cancellationToken);
         if (plugin == null)
         {
-            throw new InvalidOperationException($"Plugin with ID {command.PluginId} not found");
+            throw new PluginNotFoundException(command.PluginId);
         }
 
         // Check if user owns the plugin
         var userOwnsPlugin = await userPluginRepository.UserOwnsPluginAsync(command.UserId, command.PluginId, cancellationToken);
         if (!userOwnsPlugin)
         {
-            throw new UnauthorizedAccessException($"User {command.UserId} does not own plugin {command.PluginId}");
+            throw new UnauthorizedDomainAccessException("Plugin", command.PluginId, command.UserId);
         }
 
         // Find all agents that use this plugin and remove it from them

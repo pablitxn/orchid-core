@@ -94,7 +94,7 @@ public class ProjectController(IMediator mediator, IFileStorageService fileStora
     [HttpGet("{projectId:guid}")]
     public async Task<IActionResult> GetProject(Guid projectId)
     {
-        var result = await _mediator.Send(new GetProjectByIdCommand(projectId));
+        var result = await _mediator.Send(new GetProjectByIdQuery(projectId));
         if (result == null!)
             return NotFound();
         return Ok(result);

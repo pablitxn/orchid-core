@@ -154,6 +154,6 @@ public class ConsumeCreditsHandler(
             }
         }
         
-        throw new InvalidOperationException("Failed to consume credits after maximum retry attempts");
+        throw new OperationFailedException("consume credits");
     }
 }

@@ -4,7 +4,6 @@ using Domain.Entities;
 using Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using Application.UseCases.Subscription.ConsumeCredits;
 
 namespace Application.UseCases.Workflow.PurchaseWorkflow;
 
@@ -37,14 +36,14 @@ public class PurchaseWorkflowHandler(
                 if (workflow is null)
                 {
                     _logger.LogWarning("Workflow not found: {WorkflowId}", request.WorkflowId);
-                    throw new KeyNotFoundException($"Workflow with ID {request.WorkflowId} was not found.");
+                    throw new WorkflowNotFoundException(request.WorkflowId);
                 }
 
                 var subscription = await _unitOfWork.Subscriptions.GetByUserIdAsync(request.UserId, cancellationToken);
                 if (subscription is null)
                 {
                     _logger.LogWarning("User subscription not found: {UserId}", request.UserId);
-                    throw new InvalidOperationException("You must have an active subscription to purchase workflows.");
+                    throw new ActiveSubscriptionRequiredException("purchase workflows");
                 }
                 
                 // Store the version before modification
@@ -54,7 +53,7 @@ public class PurchaseWorkflowHandler(
                 if (await _unitOfWork.Workflows.UserHasWorkflowAsync(request.UserId, request.WorkflowId, cancellationToken))
                 {
                     _logger.LogWarning("User {UserId} already purchased workflow {WorkflowId}", request.UserId, request.WorkflowId);
-                    throw new InvalidOperationException("You have already purchased this workflow.");
+                    throw new AlreadyPurchasedException("workflow", request.WorkflowId, request.UserId);
                 }
                 
                 // Get the actual cost from the registry
@@ -135,9 +134,9 @@ public class PurchaseWorkflowHandler(
                 
                 if (retryCount >= MAX_RETRY_ATTEMPTS)
                 {
-                    _logger.LogError(ex, "Max retry attempts reached for purchasing workflow {WorkflowId} for user {UserId}", 
+                    _logger.LogError(ex, "Max retry attempts reached for purchasing workflow {WorkflowId} for user {UserId}",
                         request.WorkflowId, request.UserId);
-                    throw new InvalidOperationException("Unable to complete workflow purchase due to concurrent updates. Please try again.", ex);
+                    throw new OperationFailedException("workflow purchase", ex);
                 }
                 
                 _logger.LogWarning("Concurrency conflict detected, retrying... Attempt {RetryCount} of {MaxAttempts}", 
@@ -146,8 +145,8 @@ public class PurchaseWorkflowHandler(
                 // Exponential backoff
                 await Task.Delay(TimeSpan.FromMilliseconds(100 * Math.Pow(2, retryCount - 1)), cancellationToken);
             }
-            catch (Exception ex) when (ex is KeyNotFoundException or InvalidOperationException or 
-                                       InsufficientCreditsException or CreditLimitExceededException)
+            catch (Exception ex) when (ex is WorkflowNotFoundException or ActiveSubscriptionRequiredException or
+                                       AlreadyPurchasedException or InsufficientCreditsException or CreditLimitExceededException)
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                 throw;
@@ -155,12 +154,12 @@ public class PurchaseWorkflowHandler(
             catch (Exception ex)
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                _logger.LogError(ex, "Unexpected error purchasing workflow {WorkflowId} for user {UserId}", 
+                _logger.LogError(ex, "Unexpected error purchasing workflow {WorkflowId} for user {UserId}",
                     request.WorkflowId, request.UserId);
-                throw new InvalidOperationException("An error occurred while processing your workflow purchase.", ex);
+                throw new OperationFailedException("workflow purchase", ex);
             }
         }
-        
-        throw new InvalidOperationException("Failed to purchase workflow after maximum retry attempts");
+
+        throw new OperationFailedException("workflow purchase");
     }
 }

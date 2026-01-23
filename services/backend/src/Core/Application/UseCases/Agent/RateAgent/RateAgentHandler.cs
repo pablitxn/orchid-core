@@ -1,5 +1,6 @@
 using Application.Interfaces;
 using Domain.Entities;
+using Domain.Exceptions;
 using MediatR;
 
 namespace Application.UseCases.Agent.RateAgent;
@@ -19,7 +20,7 @@ public class RateAgentHandler(
         var agent = await _agentRepository.GetByIdAsync(request.AgentId, cancellationToken);
         if (agent is null)
         {
-            throw new InvalidOperationException($"Agent with ID {request.AgentId} not found.");
+            throw new AgentNotFoundException(request.AgentId);
         }
 
         // Check if user already rated this agent
