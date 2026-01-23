@@ -2,22 +2,23 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using Integration.Shared.Fixtures;
 using Microsoft.AspNetCore.Http.Connections;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
 using WebApi.Hubs;
 
 namespace WebApi.IntegrationTests.Project;
 
-public class FileUploadWithHubIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public class FileUploadWithHubIntegrationTests
 {
     private readonly HttpClient _client;
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CustomWebApplicationFactory _factory;
 
-    public FileUploadWithHubIntegrationTests(WebApplicationFactory<Program> factory)
+    public FileUploadWithHubIntegrationTests(CustomWebApplicationFactory factory)
     {
-        _factory = factory.WithWebHostBuilder(builder => { builder.UseSetting("Environment", "Testing"); });
-        _client = _factory.CreateClient();
+        _factory = factory;
+        _client = factory.CreateClient();
     }
 
     [Fact]

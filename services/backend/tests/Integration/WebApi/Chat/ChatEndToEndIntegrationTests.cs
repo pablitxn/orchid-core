@@ -1,45 +1,20 @@
 using System.Net.Http.Json;
-using System.Runtime.CompilerServices;
-using System.Security.Claims;
-using System.Text.Encodings.Web;
 using System.Text.Json;
 using Application.Interfaces;
-using Microsoft.AspNetCore.Authentication;
+using Integration.Shared.Fixtures;
 using Microsoft.AspNetCore.Http.Connections;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace WebApi.IntegrationTests.Chat;
 
-public class ChatEndToEndIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public class ChatEndToEndIntegrationTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CustomWebApplicationFactory _factory;
 
-    public ChatEndToEndIntegrationTests(WebApplicationFactory<Program> factory)
+    public ChatEndToEndIntegrationTests(CustomWebApplicationFactory factory)
     {
-        _factory = factory.WithWebHostBuilder(builder =>
-        {
-            builder.UseSetting("Environment", "Testing");
-            builder.ConfigureServices(services =>
-            {
-                services.RemoveAll<IDistributedCache>();
-                services.AddSingleton<IDistributedCache>(
-                    new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())));
-                services.RemoveAll<IChatCompletionPort>();
-                services.AddSingleton<IChatCompletionPort>(new FakeChatPort());
-                services.AddAuthentication(options =>
-                {
-                    options.DefaultAuthenticateScheme = "Integration";
-                    options.DefaultChallengeScheme = "Integration";
-                }).AddScheme<AuthenticationSchemeOptions, GuidTestAuthHandler>("Integration", _ => { });
-            });
-        });
+        _factory = factory;
     }
 
     [Fact]
@@ -78,62 +53,5 @@ public class ChatEndToEndIntegrationTests : IClassFixture<WebApplicationFactory<
         Assert.Contains(history, m => m.Content == "File stored and ready.");
 
         await connection.DisposeAsync();
-    }
-
-    private sealed class FakeChatPort : IChatCompletionPort
-    {
-        public Task<string> CompleteAsync(IEnumerable<ChatMessage> messages,
-            CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult("pong");
-        }
-
-        public Task<string> CompleteWithAgentAsync(IEnumerable<ChatMessage> messages, Guid agentId, Guid? userId = null,
-            CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult("pong");
-        }
-
-        public async IAsyncEnumerable<string> CompleteStreamingAsync(
-            IEnumerable<ChatMessage> messages,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
-            yield return "pong";
-            await Task.Yield();
-        }
-
-        public async IAsyncEnumerable<string> CompleteWithAgentStreamingAsync(
-            IEnumerable<ChatMessage> messages,
-            Guid agentId,
-            Guid? userId = null,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
-            yield return "pong";
-            await Task.Yield();
-        }
-    }
-}
-
-internal class GuidTestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
-{
-    public static readonly Guid UserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-
-    public GuidTestAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger,
-        UrlEncoder encoder)
-        : base(options, logger, encoder)
-    {
-    }
-
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
-    {
-        var claims = new[]
-        {
-            new Claim(ClaimTypes.NameIdentifier, UserId.ToString()),
-            new Claim(ClaimTypes.Email, "test@example.com")
-        };
-        var identity = new ClaimsIdentity(claims, "Integration");
-        var principal = new ClaimsPrincipal(identity);
-        var ticket = new AuthenticationTicket(principal, "Integration");
-        return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 }

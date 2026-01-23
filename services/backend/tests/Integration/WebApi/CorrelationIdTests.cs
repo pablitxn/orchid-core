@@ -1,6 +1,5 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Xunit;
+using Integration.Shared.Fixtures;
 
 namespace WebApi.IntegrationTests;
 
@@ -8,13 +7,17 @@ namespace WebApi.IntegrationTests;
 ///     Integration tests for the Correlation ID middleware.
 ///     Verifies that correlation IDs are properly generated, propagated, and returned in responses.
 /// </summary>
-public class CorrelationIdTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public class CorrelationIdTests
 {
     private const string CorrelationIdHeader = "X-Correlation-ID";
 
-    private readonly HttpClient _client =
-        factory.WithWebHostBuilder(b => b.UseSetting("Environment", "Testing")).CreateClient();
+    private readonly HttpClient _client;
+
+    public CorrelationIdTests(CustomWebApplicationFactory factory)
+    {
+        _client = factory.CreateClient();
+    }
 
     [Fact]
     public async Task Request_WithoutCorrelationId_ShouldGenerateAndReturnOne()

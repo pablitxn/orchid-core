@@ -1,42 +1,20 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Security.Claims;
-using System.Text.Encodings.Web;
 using System.Text.Json;
-using Microsoft.AspNetCore.Authentication;
+using Integration.Shared.Fixtures;
 using Microsoft.AspNetCore.Http.Connections;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace WebApi.IntegrationTests.ChatHub;
 
-public class CreditConsumptionIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public class CreditConsumptionIntegrationTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CustomWebApplicationFactory _factory;
 
-    public CreditConsumptionIntegrationTests(WebApplicationFactory<Program> factory)
+    public CreditConsumptionIntegrationTests(CustomWebApplicationFactory factory)
     {
-        _factory = factory.WithWebHostBuilder(builder =>
-        {
-            builder.UseSetting("Environment", "Testing");
-            builder.ConfigureServices(services =>
-            {
-                services.RemoveAll<IDistributedCache>();
-                services.AddSingleton<IDistributedCache>(
-                    new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())));
-                services.AddAuthentication(options =>
-                {
-                    options.DefaultAuthenticateScheme = "Integration";
-                    options.DefaultChallengeScheme = "Integration";
-                }).AddScheme<AuthenticationSchemeOptions, GuidTestAuthHandler>("Integration", _ => { });
-            });
-        });
+        _factory = factory;
     }
 
     [Fact]
@@ -64,7 +42,7 @@ public class CreditConsumptionIntegrationTests : IClassFixture<WebApplicationFac
         }
         catch (Exception ex)
         {
-            Assert.False(true, $"Failed to start SignalR connection: {ex}");
+            Assert.Fail($"Failed to start SignalR connection: {ex}");
         }
 
         var sessionId = Guid.NewGuid().ToString();
@@ -75,15 +53,15 @@ public class CreditConsumptionIntegrationTests : IClassFixture<WebApplicationFac
         {
             await connection.InvokeAsync("SendMessage", sessionId, "hola", false);
             var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(5)));
-            if (completedTask != tcs.Task) Assert.False(true, "Did not receive confirmation message from hub.");
+            if (completedTask != tcs.Task) Assert.Fail("Did not receive confirmation message from hub.");
 
-            var (sender, content) = tcs.Task.Result;
+            var (sender, content) = await tcs.Task;
             Assert.Equal("bot", sender);
             Assert.False(string.IsNullOrWhiteSpace(content));
         }
         catch (Exception ex)
         {
-            Assert.False(true, $"Exception thrown during SendMessage: {ex}");
+            Assert.Fail($"Exception thrown during SendMessage: {ex}");
         }
         finally
         {
@@ -174,14 +152,14 @@ public class CreditConsumptionIntegrationTests : IClassFixture<WebApplicationFac
             await connection.StartAsync();
             await connection.InvokeAsync("SendMessage", Guid.NewGuid().ToString(), "test", false);
             var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(5)));
-            if (completed != tcs.Task) Assert.False(true, "Did not receive Insufficient credits message from hub.");
+            if (completed != tcs.Task) Assert.Fail("Did not receive Insufficient credits message from hub.");
 
-            var content = tcs.Task.Result;
+            var content = await tcs.Task;
             Assert.Equal("Insufficient credits.", content);
         }
         catch (Exception ex)
         {
-            Assert.False(true, $"Exception thrown during SendMessage with zero credits: {ex}");
+            Assert.Fail($"Exception thrown during SendMessage with zero credits: {ex}");
         }
         finally
         {
@@ -234,14 +212,14 @@ public class CreditConsumptionIntegrationTests : IClassFixture<WebApplicationFac
             await connection.StartAsync();
             await connection.InvokeAsync("SendMessage", Guid.NewGuid().ToString(), "test", false);
             var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(5)));
-            if (completed != tcs.Task) Assert.False(true, "Did not receive Subscription not found message from hub.");
+            if (completed != tcs.Task) Assert.Fail("Did not receive Subscription not found message from hub.");
 
-            var content = tcs.Task.Result;
+            var content = await tcs.Task;
             Assert.Equal("Subscription not found.", content);
         }
         catch (Exception ex)
         {
-            Assert.False(true, $"Exception thrown during SendMessage without subscription: {ex}");
+            Assert.Fail($"Exception thrown during SendMessage without subscription: {ex}");
         }
         finally
         {
@@ -251,27 +229,5 @@ public class CreditConsumptionIntegrationTests : IClassFixture<WebApplicationFac
         // Verify subscription endpoint returns NotFound
         var finalResp = await client.GetAsync($"/api/subscription/{userId}");
         Assert.Equal(HttpStatusCode.NotFound, finalResp.StatusCode);
-    }
-}
-
-internal class GuidTestAuthHandler2(
-    IOptionsMonitor<AuthenticationSchemeOptions> options,
-    ILoggerFactory logger,
-    UrlEncoder encoder)
-    : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
-{
-    public static readonly Guid UserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
-    {
-        var claims = new[]
-        {
-            new Claim(ClaimTypes.NameIdentifier, UserId.ToString()),
-            new Claim(ClaimTypes.Email, "test@example.com")
-        };
-        var identity = new ClaimsIdentity(claims, "Integration");
-        var principal = new ClaimsPrincipal(identity);
-        var ticket = new AuthenticationTicket(principal, "Integration");
-        return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 }

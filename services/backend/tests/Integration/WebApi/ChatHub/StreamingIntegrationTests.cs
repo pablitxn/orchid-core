@@ -1,45 +1,20 @@
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
-using System.Security.Claims;
-using System.Text.Encodings.Web;
 using Application.Interfaces;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Hosting;
+using Integration.Shared.Fixtures;
 using Microsoft.AspNetCore.Http.Connections;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace WebApi.IntegrationTests.ChatHub;
 
-public class StreamingIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public class StreamingIntegrationTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CustomWebApplicationFactory _factory;
 
-    public StreamingIntegrationTests(WebApplicationFactory<Program> factory)
+    public StreamingIntegrationTests(CustomWebApplicationFactory factory)
     {
-        _factory = factory.WithWebHostBuilder(builder =>
-        {
-            builder.UseEnvironment("Testing");
-            builder.ConfigureServices(services =>
-            {
-                services.RemoveAll<IDistributedCache>();
-                services.AddSingleton<IDistributedCache>(
-                    new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())));
-                services.AddAuthentication(options =>
-                {
-                    options.DefaultAuthenticateScheme = "Integration";
-                    options.DefaultChallengeScheme = "Integration";
-                }).AddScheme<AuthenticationSchemeOptions, GuidTestAuthHandler>("Integration", _ => { });
-                services.RemoveAll<IChatCompletionPort>();
-                services.AddSingleton<IChatCompletionPort>(new FakeChatCompletionPort());
-            });
-        });
+        _factory = factory;
     }
 
     [Fact]
@@ -68,66 +43,5 @@ public class StreamingIntegrationTests : IClassFixture<WebApplicationFactory<Pro
         var history = await connection.InvokeAsync<IReadOnlyList<ChatMessage>>("GetHistory", sessionId);
         Assert.Equal("pong", history.Last().Content);
         await connection.DisposeAsync();
-    }
-
-    private sealed class FakeChatCompletionPort : IChatCompletionPort
-    {
-        public Task<string> CompleteAsync(IEnumerable<ChatMessage> messages,
-            CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult("pong");
-        }
-
-        public Task<string> CompleteWithAgentAsync(IEnumerable<ChatMessage> messages, Guid agentId, Guid? userId = null,
-            CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult("pong");
-        }
-
-        public async IAsyncEnumerable<string> CompleteStreamingAsync(
-            IEnumerable<ChatMessage> messages,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
-            yield return "po";
-            await Task.Yield();
-            yield return "ng";
-        }
-
-        public async IAsyncEnumerable<string> CompleteWithAgentStreamingAsync(
-            IEnumerable<ChatMessage> messages,
-            Guid agentId,
-            Guid? userId = null,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
-            yield return "po";
-            await Task.Yield();
-            yield return "ng";
-        }
-    }
-}
-
-internal class GuidTestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
-{
-    public static readonly Guid UserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-
-    public GuidTestAuthHandler(
-        IOptionsMonitor<AuthenticationSchemeOptions> options,
-        ILoggerFactory logger,
-        UrlEncoder encoder)
-        : base(options, logger, encoder)
-    {
-    }
-
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
-    {
-        var claims = new[]
-        {
-            new Claim(ClaimTypes.NameIdentifier, UserId.ToString()),
-            new Claim(ClaimTypes.Email, "test@example.com")
-        };
-        var identity = new ClaimsIdentity(claims, "Integration");
-        var principal = new ClaimsPrincipal(identity);
-        var ticket = new AuthenticationTicket(principal, "Integration");
-        return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 }

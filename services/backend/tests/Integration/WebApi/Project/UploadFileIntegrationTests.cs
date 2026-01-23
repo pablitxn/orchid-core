@@ -1,20 +1,21 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Integration.Shared.Fixtures;
 
 namespace WebApi.IntegrationTests.Project;
 
-public class UploadFileIntegrationTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public class UploadFileIntegrationTests
 {
-    private readonly HttpClient _client = factory.WithWebHostBuilder(builder =>
+    private readonly HttpClient _client;
+
+    public UploadFileIntegrationTests(CustomWebApplicationFactory factory)
     {
-        // Override settings if necessary (e.g., use in-memory DB, custom services, etc.)
-        builder.UseSetting("Environment", "Testing");
-    }).CreateClient();
+        _client = factory.CreateClient();
+    }
 
     [Fact]
     public async Task UploadFile_ReturnsOkAndProjectId()

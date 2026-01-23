@@ -1,42 +1,22 @@
-using System.Net;
-using System.Text.Json;
 using Domain.Entities;
 using Domain.Enums;
 using FluentAssertions;
 using Infrastructure.Persistence;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Integration.Shared.Fixtures;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace Subscription.IntegrationTests;
 
-public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public class UnlimitedSubscriptionTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
-    private readonly HttpClient _client;
+    private readonly CustomWebApplicationFactory _factory;
 
-    public UnlimitedSubscriptionTests(WebApplicationFactory<Program> factory)
+    public UnlimitedSubscriptionTests(CustomWebApplicationFactory factory)
     {
         _factory = factory;
-        _client = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
-                if (descriptor != null)
-                {
-                    services.Remove(descriptor);
-                }
-
-                services.AddDbContext<ApplicationDbContext>(options =>
-                {
-                    options.UseInMemoryDatabase("TestDb_" + Guid.NewGuid());
-                });
-            });
-        }).CreateClient();
     }
 
     [Fact]
@@ -45,17 +25,17 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
         // Arrange
         using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var userId = Guid.NewGuid();
         var sessionId = Guid.NewGuid().ToString();
-        
+
         var user = new UserEntity
         {
             Id = userId,
             Email = "unlimited@example.com",
             Name = "Unlimited User"
         };
-        
+
         var unlimitedPlan = new SubscriptionPlanEntity
         {
             Id = Guid.NewGuid(),
@@ -63,7 +43,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             Price = 99.99m,
             Credits = 999999
         };
-        
+
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
@@ -73,7 +53,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             SubscriptionPlan = unlimitedPlan,
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };
-        
+
         var agent = new AgentEntity
         {
             Id = Guid.NewGuid(),
@@ -81,7 +61,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             IsPublic = false,
             UserId = userId
         };
-        
+
         var chatSession = new ChatSessionEntity
         {
             Id = Guid.NewGuid(),
@@ -90,7 +70,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             AgentId = agent.Id,
             CreatedAt = DateTime.UtcNow
         };
-        
+
         await context.Users.AddAsync(user);
         await context.SubscriptionPlans.AddAsync(unlimitedPlan);
         await context.Subscriptions.AddAsync(subscription);
@@ -101,11 +81,12 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
         var creditsBefore = subscription.Credits;
 
         // Set up SignalR connection
+        var client = _factory.CreateClient();
         var connection = new HubConnectionBuilder()
-            .WithUrl($"http://localhost/chathub?sessionId={sessionId}", options =>
+            .WithUrl(new Uri(client.BaseAddress!, $"/chathub?sessionId={sessionId}"), options =>
             {
                 options.HttpMessageHandlerFactory = _ => _factory.Server.CreateHandler();
-                options.AccessTokenProvider = () => Task.FromResult(GenerateTestToken(userId));
+                options.AccessTokenProvider = () => Task.FromResult<string?>(GenerateTestToken(userId));
             })
             .Build();
 
@@ -128,7 +109,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
         var consumptions = await context.CreditConsumptions
             .Where(c => c.UserId == userId && c.ConsumptionType == "message")
             .ToListAsync();
-        
+
         consumptions.Should().BeEmpty(); // No consumption records for unlimited plan
 
         await connection.DisposeAsync();
@@ -140,17 +121,17 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
         // Arrange
         using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var userId = Guid.NewGuid();
         var pluginId = Guid.NewGuid();
-        
+
         var user = new UserEntity
         {
             Id = userId,
             Email = "unlimited@example.com",
             Name = "Unlimited User"
         };
-        
+
         var unlimitedPlan = new SubscriptionPlanEntity
         {
             Id = Guid.NewGuid(),
@@ -158,7 +139,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             Price = 99.99m,
             Credits = 999999
         };
-        
+
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
@@ -168,7 +149,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             SubscriptionPlan = unlimitedPlan,
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };
-        
+
         var plugin = new PluginEntity
         {
             Id = pluginId,
@@ -177,7 +158,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             IsActive = true,
             PriceCredits = 50 // Very expensive plugin
         };
-        
+
         var userPlugin = new UserPluginEntity
         {
             Id = Guid.NewGuid(),
@@ -186,7 +167,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             PurchasedAt = DateTime.UtcNow,
             IsActive = true
         };
-        
+
         await context.Users.AddAsync(user);
         await context.SubscriptionPlans.AddAsync(unlimitedPlan);
         await context.Subscriptions.AddAsync(subscription);
@@ -198,7 +179,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
 
         // Simulate plugin usage through credit tracking service
         // In real scenario, this would happen through the TelemetryFunctionFilter
-        
+
         // Act - The system should check if subscription is unlimited before deducting
         subscription.ConsumeCredits(50); // This should not actually deduct for unlimited plan
 
@@ -213,16 +194,16 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
         // Arrange
         using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var userId = Guid.NewGuid();
-        
+
         var user = new UserEntity
         {
             Id = userId,
             Email = "regular@example.com",
             Name = "Regular User"
         };
-        
+
         var regularPlan = new SubscriptionPlanEntity
         {
             Id = Guid.NewGuid(),
@@ -230,7 +211,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             Price = 29.99m,
             Credits = 100
         };
-        
+
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
@@ -240,7 +221,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             SubscriptionPlan = regularPlan,
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };
-        
+
         await context.Users.AddAsync(user);
         await context.SubscriptionPlans.AddAsync(regularPlan);
         await context.Subscriptions.AddAsync(subscription);
@@ -260,16 +241,16 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
         // Arrange
         using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var userId = Guid.NewGuid();
-        
+
         var user = new UserEntity
         {
             Id = userId,
             Email = "upgrade@example.com",
             Name = "Upgrade User"
         };
-        
+
         var regularPlan = new SubscriptionPlanEntity
         {
             Id = Guid.NewGuid(),
@@ -277,7 +258,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             Price = 29.99m,
             Credits = 100
         };
-        
+
         var unlimitedPlan = new SubscriptionPlanEntity
         {
             Id = Guid.NewGuid(),
@@ -285,7 +266,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             Price = 99.99m,
             Credits = 999999
         };
-        
+
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
@@ -295,7 +276,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             SubscriptionPlan = regularPlan,
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };
-        
+
         await context.Users.AddAsync(user);
         await context.SubscriptionPlans.AddRangeAsync(regularPlan, unlimitedPlan);
         await context.Subscriptions.AddAsync(subscription);
@@ -321,10 +302,9 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
         // Arrange
         using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var userId = Guid.NewGuid();
-        var sessionId = "test-session";
-        
+
         var unlimitedPlan = new SubscriptionPlanEntity
         {
             Id = Guid.NewGuid(),
@@ -332,7 +312,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             Price = 99.99m,
             Credits = 999999
         };
-        
+
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
@@ -342,7 +322,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             SubscriptionPlan = unlimitedPlan,
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };
-        
+
         var plugin = new PluginEntity
         {
             Id = Guid.NewGuid(),
@@ -351,7 +331,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
             IsActive = true,
             PriceCredits = 20
         };
-        
+
         await context.SubscriptionPlans.AddAsync(unlimitedPlan);
         await context.Subscriptions.AddAsync(subscription);
         await context.Plugins.AddAsync(plugin);
@@ -370,7 +350,7 @@ public class UnlimitedSubscriptionTests : IClassFixture<WebApplicationFactory<Pr
         // Assert
         subscription.Credits.Should().Be(creditsBefore); // No change in credits
         subscription.HasUnlimitedCredits().Should().BeTrue();
-        
+
         // Even after 100 uses, user should still have unlimited credits
         subscription.Credits.Should().BeGreaterThan(100000); // Still a very high number
     }

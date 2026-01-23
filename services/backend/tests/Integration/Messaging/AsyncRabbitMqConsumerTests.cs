@@ -1,20 +1,40 @@
-﻿using System.Text;
+using System.Text;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
 using Infrastructure.Messaging;
 using Infrastructure.Messaging.RabbitMq;
 using RabbitMQ.Client;
 
-namespace Infrastructure.Tests.Messaging;
+namespace Messaging.IntegrationTests;
 
-public class AsyncRabbitMqConsumerTests
+public class AsyncRabbitMqConsumerTests : IAsyncLifetime
 {
-    private readonly RabbitMqSettings _settings = new()
+    private readonly IContainer _rabbitmq = new ContainerBuilder()
+        .WithImage("rabbitmq:3-alpine")
+        .WithPortBinding(5672, true)
+        .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(5672))
+        .Build();
+
+    private RabbitMqSettings _settings = null!;
+
+    public async Task InitializeAsync()
     {
-        HostName = "localhost",
-        Port = 5672,
-        UserName = "guest",
-        Password = "guest",
-        QueueName = "testQueueConsumer"
-    };
+        await _rabbitmq.StartAsync();
+        var port = _rabbitmq.GetMappedPublicPort(5672);
+        _settings = new RabbitMqSettings
+        {
+            HostName = "localhost",
+            Port = port,
+            UserName = "guest",
+            Password = "guest",
+            QueueName = "testQueueConsumer"
+        };
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _rabbitmq.DisposeAsync();
+    }
 
     [Fact]
     public async Task Consumer_ShouldReceivePublishedMessage()
@@ -25,11 +45,11 @@ public class AsyncRabbitMqConsumerTests
         string? receivedMessage = null;
         var waitHandle = new ManualResetEventSlim();
 
-        consumer.OnTaskReceivedAsync += async message =>
+        consumer.OnTaskReceivedAsync += message =>
         {
             receivedMessage = message;
             waitHandle.Set();
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         };
 
         consumer.StartConsuming();
@@ -51,6 +71,7 @@ public class AsyncRabbitMqConsumerTests
             false,
             null
         );
+
         const string testMessage = "Async Task from publisher";
         var body = Encoding.UTF8.GetBytes(testMessage);
         await channel.BasicPublishAsync(
@@ -59,7 +80,7 @@ public class AsyncRabbitMqConsumerTests
             body
         );
 
-        var messageReceived = waitHandle.Wait(5000);
+        var messageReceived = waitHandle.Wait(TimeSpan.FromSeconds(10));
         Assert.True(messageReceived, "Consumer did not receive the message in time.");
         Assert.Equal(testMessage, receivedMessage);
     }

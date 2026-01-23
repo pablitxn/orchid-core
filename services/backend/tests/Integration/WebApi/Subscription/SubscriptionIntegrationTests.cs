@@ -1,15 +1,19 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Integration.Shared.Fixtures;
 
 namespace WebApi.IntegrationTests.Subscription;
 
-public class SubscriptionIntegrationTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public class SubscriptionIntegrationTests
 {
-    private readonly HttpClient _client =
-        factory.WithWebHostBuilder(b => b.UseSetting("Environment", "Testing")).CreateClient();
+    private readonly HttpClient _client;
+
+    public SubscriptionIntegrationTests(CustomWebApplicationFactory factory)
+    {
+        _client = factory.CreateClient();
+    }
 
     [Fact]
     public async Task Create_Then_Get_Works()

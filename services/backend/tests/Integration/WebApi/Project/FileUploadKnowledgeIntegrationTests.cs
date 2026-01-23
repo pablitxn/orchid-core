@@ -4,8 +4,8 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using Domain.Enums;
 using Infrastructure.Persistence;
+using Integration.Shared.Fixtures;
 using Microsoft.AspNetCore.Http.Connections;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,15 +13,16 @@ using WebApi.Hubs;
 
 namespace WebApi.IntegrationTests.Project;
 
-public class FileUploadKnowledgeIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public class FileUploadKnowledgeIntegrationTests
 {
     private readonly HttpClient _client;
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CustomWebApplicationFactory _factory;
 
-    public FileUploadKnowledgeIntegrationTests(WebApplicationFactory<Program> factory)
+    public FileUploadKnowledgeIntegrationTests(CustomWebApplicationFactory factory)
     {
-        _factory = factory.WithWebHostBuilder(builder => { builder.UseSetting("Environment", "Testing"); });
-        _client = _factory.CreateClient();
+        _factory = factory;
+        _client = factory.CreateClient();
     }
 
     [Fact]
@@ -69,7 +70,7 @@ public class FileUploadKnowledgeIntegrationTests : IClassFixture<WebApplicationF
         var fileName2 = second.Payload.GetProperty("fileName").GetString();
         var url = second.Payload.GetProperty("url").GetString();
         Assert.Equal(fileName1, fileName2);
-        Assert.Equal($"/api/files/{Uri.EscapeDataString(fileName2)}", url);
+        Assert.Equal($"/api/files/{Uri.EscapeDataString(fileName2!)}", url);
 
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

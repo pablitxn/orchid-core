@@ -6,21 +6,19 @@ using Domain.Entities;
 using Domain.Enums;
 using FluentAssertions;
 using Infrastructure.Persistence;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 using Application.Interfaces;
 using CreditSystem.IntegrationTests.Mocks;
 using Microsoft.AspNetCore.SignalR;
 
 namespace CreditSystem.IntegrationTests;
 
+[Collection("CreditSystem")]
 public class CreditConsumptionFlowTests : CreditSystemTestBase
 {
-    public CreditConsumptionFlowTests(WebApplicationFactory<Program> factory) : base(factory)
+    public CreditConsumptionFlowTests(CreditSystemWebApplicationFactory factory) : base(factory)
     {
     }
 

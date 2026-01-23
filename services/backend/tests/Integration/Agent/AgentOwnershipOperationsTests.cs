@@ -1,76 +1,34 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Security.Claims;
-using System.Text.Encodings.Web;
 using System.Text.Json;
 using Application.UseCases.Agent.Common;
 using Domain.Entities;
 using FluentAssertions;
 using Infrastructure.Persistence;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Integration.Shared.Fixtures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using WebApi.Controllers;
-using Xunit;
 
 namespace Agent.IntegrationTests;
 
-public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("HeaderAuth")]
+public class AgentOwnershipOperationsTests
 {
-    private readonly WebApplicationFactory<Program> _baseFactory;
+    private readonly HeaderAuthWebApplicationFactory _factory;
     private readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-    public AgentOwnershipOperationsTests(WebApplicationFactory<Program> factory)
+    public AgentOwnershipOperationsTests(HeaderAuthWebApplicationFactory factory)
     {
-        _baseFactory = factory;
-    }
-
-    private (WebApplicationFactory<Program> factory, HttpClient client) CreateTestEnvironment(string testName)
-    {
-        var dbName = $"TestDb_Ownership_{testName}_{Guid.NewGuid()}";
-        var configuredFactory = _baseFactory.WithWebHostBuilder(builder =>
-        {
-            builder.UseEnvironment("Testing");
-            builder.ConfigureServices(services =>
-            {
-                // Remove all EF Core related services
-                var efCoreServices = services
-                    .Where(d => d.ServiceType.FullName?.Contains("EntityFrameworkCore") == true
-                             || d.ServiceType.FullName?.Contains("DbContext") == true
-                             || d.ImplementationType?.FullName?.Contains("Npgsql") == true)
-                    .ToList();
-                foreach (var service in efCoreServices)
-                {
-                    services.Remove(service);
-                }
-
-                // Add InMemory database with unique name
-                services.AddDbContext<ApplicationDbContext>(options =>
-                {
-                    options.UseInMemoryDatabase(dbName);
-                });
-
-                // Add test authentication as default
-                services.AddAuthentication(options =>
-                {
-                    options.DefaultAuthenticateScheme = "Test";
-                    options.DefaultChallengeScheme = "Test";
-                }).AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", _ => { });
-            });
-        });
-        return (configuredFactory, configuredFactory.CreateClient());
+        _factory = factory;
     }
 
     [Fact]
     public async Task CreateAgent_Should_Assign_Ownership_To_Creating_User()
     {
         // Arrange
-        var (factory, client) = CreateTestEnvironment(nameof(CreateAgent_Should_Assign_Ownership_To_Creating_User));
-        using var scope = factory.Services.CreateScope();
+        var client = _factory.CreateClient();
+        using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
         var userId = Guid.NewGuid();
@@ -116,8 +74,8 @@ public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory
     public async Task ListAgents_Should_Return_Public_And_Own_Private_Agents()
     {
         // Arrange
-        var (factory, client) = CreateTestEnvironment(nameof(ListAgents_Should_Return_Public_And_Own_Private_Agents));
-        using var scope = factory.Services.CreateScope();
+        var client = _factory.CreateClient();
+        using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
         var currentUserId = Guid.NewGuid();
@@ -187,8 +145,8 @@ public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory
     public async Task DeleteAgent_Should_Succeed_For_Owner()
     {
         // Arrange
-        var (factory, client) = CreateTestEnvironment(nameof(DeleteAgent_Should_Succeed_For_Owner));
-        using var scope = factory.Services.CreateScope();
+        var client = _factory.CreateClient();
+        using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
         var userId = Guid.NewGuid();
@@ -233,8 +191,8 @@ public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory
     public async Task DeleteAgent_Should_Fail_For_NonOwner()
     {
         // Arrange
-        var (factory, client) = CreateTestEnvironment(nameof(DeleteAgent_Should_Fail_For_NonOwner));
-        using var scope = factory.Services.CreateScope();
+        var client = _factory.CreateClient();
+        using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
         var ownerId = Guid.NewGuid();
@@ -278,8 +236,8 @@ public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory
     public async Task CreateAgent_With_IsPublic_True_Should_Be_Accessible_To_Others()
     {
         // Arrange
-        var (factory, client) = CreateTestEnvironment(nameof(CreateAgent_With_IsPublic_True_Should_Be_Accessible_To_Others));
-        using var scope = factory.Services.CreateScope();
+        var client = _factory.CreateClient();
+        using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
         var creatorId = Guid.NewGuid();
@@ -329,8 +287,8 @@ public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory
     public async Task Unauthenticated_User_Can_See_Public_Agents_Only()
     {
         // Arrange
-        var (factory, client) = CreateTestEnvironment(nameof(Unauthenticated_User_Can_See_Public_Agents_Only));
-        using var scope = factory.Services.CreateScope();
+        var client = _factory.CreateClient();
+        using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
         var userId = Guid.NewGuid();
@@ -383,45 +341,5 @@ public class AgentOwnershipOperationsTests : IClassFixture<WebApplicationFactory
     {
         client.DefaultRequestHeaders.Remove("X-Test-User-Id");
         client.DefaultRequestHeaders.Add("X-Test-User-Id", userId.ToString());
-    }
-}
-
-public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
-{
-    public TestAuthHandler(
-        IOptionsMonitor<AuthenticationSchemeOptions> options,
-        ILoggerFactory logger,
-        UrlEncoder encoder)
-        : base(options, logger, encoder)
-    {
-    }
-
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
-    {
-        // Check for test user ID header
-        if (!Request.Headers.TryGetValue("X-Test-User-Id", out var userIdHeader)
-            || string.IsNullOrEmpty(userIdHeader.FirstOrDefault()))
-        {
-            // No user ID provided - allow anonymous access (no authentication)
-            return Task.FromResult(AuthenticateResult.NoResult());
-        }
-
-        if (!Guid.TryParse(userIdHeader.FirstOrDefault(), out var userId))
-        {
-            return Task.FromResult(AuthenticateResult.Fail("Invalid user ID"));
-        }
-
-        var claims = new[]
-        {
-            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-            new Claim(ClaimTypes.Name, "Test User"),
-            new Claim(ClaimTypes.Email, "test@example.com")
-        };
-
-        var identity = new ClaimsIdentity(claims, "Test");
-        var principal = new ClaimsPrincipal(identity);
-        var ticket = new AuthenticationTicket(principal, "Test");
-
-        return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 }

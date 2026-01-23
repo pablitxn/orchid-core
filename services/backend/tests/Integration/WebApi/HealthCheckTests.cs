@@ -1,24 +1,17 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Xunit;
+using Integration.Shared.Fixtures;
 
 namespace WebApi.IntegrationTests;
 
-public class HealthCheckTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public class HealthCheckTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
 
-    public HealthCheckTests(WebApplicationFactory<Program> factory)
+    public HealthCheckTests(CustomWebApplicationFactory factory)
     {
-        _factory = factory.WithWebHostBuilder(builder =>
-        {
-            builder.UseSetting("Environment", "Testing");
-        });
-        _client = _factory.CreateClient();
+        _client = factory.CreateClient();
     }
 
     [Fact]
@@ -29,44 +22,44 @@ public class HealthCheckTests : IClassFixture<WebApplicationFactory<Program>>
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        
+
         var content = await response.Content.ReadAsStringAsync();
         Assert.NotEmpty(content);
-        
+
         // Parse the JSON response
         var healthReport = JsonDocument.Parse(content);
         var root = healthReport.RootElement;
-        
-        // Log the response for debugging  
+
+        // Log the response for debugging
         Console.WriteLine($"Health check response: {content}");
-        
+
         // Check that the response has the expected structure
         Assert.True(root.TryGetProperty("status", out var status), $"Response missing 'status' property. Content: {content}");
         Assert.True(root.TryGetProperty("entries", out var entries), $"Response missing 'entries' property. Content: {content}");
-        
+
         // Log the results for debugging
         var resultsDict = entries.EnumerateObject().ToDictionary(p => p.Name, p => p.Value);
-        
+
         // Check for expected health checks
         Assert.True(resultsDict.ContainsKey("postgres"), "Missing postgres health check");
         Assert.True(resultsDict.ContainsKey("redis"), "Missing redis health check");
         Assert.True(resultsDict.ContainsKey("memory"), "Missing memory health check");
         Assert.True(resultsDict.ContainsKey("seeding"), "Missing seeding health check");
         Assert.True(resultsDict.ContainsKey("self"), "Missing self health check");
-        
+
         // Check if Langfuse health check is present (may not be if not configured)
         if (resultsDict.ContainsKey("langfuse"))
         {
             var langfuseCheck = resultsDict["langfuse"];
             Assert.True(langfuseCheck.TryGetProperty("status", out var langfuseStatus));
-            
+
             // Log Langfuse health check details
             if (langfuseCheck.TryGetProperty("description", out var description))
             {
                 var descriptionText = description.GetString();
                 Assert.NotNull(descriptionText);
             }
-            
+
             if (langfuseCheck.TryGetProperty("data", out var data))
             {
                 // Check for expected data properties

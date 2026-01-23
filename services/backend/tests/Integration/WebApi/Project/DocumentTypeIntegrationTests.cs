@@ -4,20 +4,21 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Domain.Enums;
 using Infrastructure.Persistence;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Integration.Shared.Fixtures;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace WebApi.IntegrationTests.Project;
 
-public class DocumentTypeIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public class DocumentTypeIntegrationTests
 {
     private readonly HttpClient _client;
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CustomWebApplicationFactory _factory;
 
-    public DocumentTypeIntegrationTests(WebApplicationFactory<Program> factory)
+    public DocumentTypeIntegrationTests(CustomWebApplicationFactory factory)
     {
-        _factory = factory.WithWebHostBuilder(builder => builder.UseSetting("Environment", "Testing"));
-        _client = _factory.CreateClient();
+        _factory = factory;
+        _client = factory.CreateClient();
     }
 
     [Fact]

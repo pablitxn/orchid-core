@@ -9,15 +9,14 @@ using Domain.Enums;
 using Domain.Exceptions;
 using FluentAssertions;
 using MediatR;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace CreditSystem.IntegrationTests;
 
+[Collection("CreditSystem")]
 public class EnhancedCreditSystemTests : CreditSystemTestBase
 {
-    public EnhancedCreditSystemTests(WebApplicationFactory<Program> factory) : base(factory)
+    public EnhancedCreditSystemTests(CreditSystemWebApplicationFactory factory) : base(factory)
     {
     }
     

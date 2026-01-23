@@ -1,16 +1,17 @@
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Integration.Shared.Fixtures;
 
 namespace WebApi.IntegrationTests.Agents;
 
-public class AgentIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public class AgentIntegrationTests
 {
     private readonly HttpClient _client;
 
-    public AgentIntegrationTests(WebApplicationFactory<Program> factory)
+    public AgentIntegrationTests(CustomWebApplicationFactory factory)
     {
-        _client = factory.WithWebHostBuilder(b => b.UseSetting("Environment", "Testing")).CreateClient();
+        _client = factory.CreateClient();
     }
 
     [Fact]

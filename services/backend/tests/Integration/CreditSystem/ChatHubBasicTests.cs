@@ -4,19 +4,18 @@ using Domain.Entities;
 using Domain.Enums;
 using FluentAssertions;
 using Infrastructure.Persistence;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 using CreditSystem.IntegrationTests.Mocks;
 using Application.Interfaces;
 using Microsoft.AspNetCore.SignalR;
 
 namespace CreditSystem.IntegrationTests;
 
+[Collection("CreditSystem")]
 public class ChatHubBasicTests : CreditSystemTestBase
 {
-    public ChatHubBasicTests(WebApplicationFactory<Program> factory) : base(factory)
+    public ChatHubBasicTests(CreditSystemWebApplicationFactory factory) : base(factory)
     {
     }
 

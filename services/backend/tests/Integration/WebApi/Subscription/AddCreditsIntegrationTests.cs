@@ -1,15 +1,19 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Integration.Shared.Fixtures;
 
 namespace WebApi.IntegrationTests.Subscription;
 
-public class AddCreditsIntegrationTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+[Collection("Integration")]
+public class AddCreditsIntegrationTests
 {
-    private readonly HttpClient _client =
-        factory.WithWebHostBuilder(b => b.UseSetting("Environment", "Testing")).CreateClient();
+    private readonly HttpClient _client;
+
+    public AddCreditsIntegrationTests(CustomWebApplicationFactory factory)
+    {
+        _client = factory.CreateClient();
+    }
 
     [Fact]
     public async Task AddCredits_IncrementsCredits()

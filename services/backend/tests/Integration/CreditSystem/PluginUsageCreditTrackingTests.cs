@@ -5,39 +5,22 @@ using Domain.Entities;
 using Domain.Enums;
 using FluentAssertions;
 using Infrastructure.Persistence;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace CreditSystem.IntegrationTests;
 
-public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("CreditSystem")]
+public class PluginUsageCreditTrackingTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CreditSystemWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
-    public PluginUsageCreditTrackingTests(WebApplicationFactory<Program> factory)
+    public PluginUsageCreditTrackingTests(CreditSystemWebApplicationFactory factory)
     {
         _factory = factory;
-        _client = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                var descriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
-                if (descriptor != null)
-                {
-                    services.Remove(descriptor);
-                }
-
-                services.AddDbContext<ApplicationDbContext>(options =>
-                {
-                    options.UseInMemoryDatabase("TestDb_" + Guid.NewGuid());
-                });
-            });
-        }).CreateClient();
+        _client = factory.CreateClient();
     }
 
     [Fact]
@@ -46,12 +29,12 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
         // Arrange
         using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var userId = Guid.NewGuid();
         var pluginId = Guid.NewGuid();
         var agentId = Guid.NewGuid();
         var sessionId = Guid.NewGuid().ToString();
-        
+
         // Create user with subscription
         var user = new UserEntity
         {
@@ -59,7 +42,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             Email = "test@example.com",
             Name = "Test User"
         };
-        
+
         var subscriptionPlan = new SubscriptionPlanEntity
         {
             Id = Guid.NewGuid(),
@@ -67,7 +50,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             Price = 29.99m,
             Credits = 100
         };
-        
+
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
@@ -76,7 +59,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             SubscriptionPlanId = subscriptionPlan.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };
-        
+
         // Create plugin with cost
         var plugin = new PluginEntity
         {
@@ -88,7 +71,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             PriceCredits = 5, // 5 credits per use
             IsSubscriptionBased = false
         };
-        
+
         // User owns the plugin
         var userPlugin = new UserPluginEntity
         {
@@ -98,7 +81,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             PurchasedAt = DateTime.UtcNow,
             IsActive = true
         };
-        
+
         // Create agent with plugin
         var agent = new AgentEntity
         {
@@ -108,7 +91,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             UserId = userId,
             PluginIds = new[] { pluginId }
         };
-        
+
         // Create chat session
         var chatSession = new ChatSessionEntity
         {
@@ -118,7 +101,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             AgentId = agentId,
             CreatedAt = DateTime.UtcNow
         };
-        
+
         await context.Users.AddAsync(user);
         await context.SubscriptionPlans.AddAsync(subscriptionPlan);
         await context.Subscriptions.AddAsync(subscription);
@@ -161,7 +144,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
         var consumptions = await context.CreditConsumptions
             .Where(c => c.UserId == userId)
             .ToListAsync();
-        
+
         consumptions.Should().NotBeEmpty();
         consumptions.Should().Contain(c => c.ConsumptionType == "plugin" && c.CreditsConsumed == 5);
         consumptions.Should().Contain(c => c.ConsumptionType == "message" && c.CreditsConsumed == 1);
@@ -175,12 +158,12 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
         // Arrange
         using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var userId = Guid.NewGuid();
         var plugin1Id = Guid.NewGuid();
         var plugin2Id = Guid.NewGuid();
         var agentId = Guid.NewGuid();
-        
+
         // Create plugins with different costs
         var plugins = new[]
         {
@@ -201,7 +184,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
                 PriceCredits = 2
             }
         };
-        
+
         // User owns both plugins
         var userPlugins = plugins.Select(p => new UserPluginEntity
         {
@@ -211,7 +194,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             PurchasedAt = DateTime.UtcNow,
             IsActive = true
         }).ToList();
-        
+
         // Create agent with both plugins
         var agent = new AgentEntity
         {
@@ -221,7 +204,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             UserId = userId,
             PluginIds = new[] { plugin1Id, plugin2Id }
         };
-        
+
         var user = new UserEntity { Id = userId, Email = "multi@example.com", Name = "Multi User" };
         var subscription = new SubscriptionEntity
         {
@@ -229,7 +212,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             UserId = userId,
             Credits = 100
         };
-        
+
         await context.Users.AddAsync(user);
         await context.Subscriptions.AddAsync(subscription);
         await context.Plugins.AddRangeAsync(plugins);
@@ -239,7 +222,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
 
         // Simulate multiple plugin invocations
         // This would normally happen through the chat flow
-        
+
         // First plugin use
         var consumption1 = new CreditConsumptionEntity
         {
@@ -253,7 +236,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             ConsumedAt = DateTime.UtcNow,
             Metadata = JsonSerializer.Serialize(new { sessionId = "test-session" })
         };
-        
+
         // Second plugin use
         var consumption2 = new CreditConsumptionEntity
         {
@@ -267,7 +250,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             ConsumedAt = DateTime.UtcNow.AddSeconds(1),
             Metadata = JsonSerializer.Serialize(new { sessionId = "test-session" })
         };
-        
+
         // Third use of first plugin
         var consumption3 = new CreditConsumptionEntity
         {
@@ -290,21 +273,21 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
         var testSessionConsumptions = await context.CreditConsumptions
             .Where(c => c.Metadata != null && c.Metadata.Contains("test-session"))
             .ToListAsync();
-        
+
         var totalConsumptions = testSessionConsumptions.Sum(c => c.CreditsConsumed);
-        
+
         totalConsumptions.Should().Be(8); // 3 + 2 + 3
-        
+
         var plugin1Consumptions = await context.CreditConsumptions
             .Where(c => c.ResourceId == plugin1Id)
             .CountAsync();
-        
+
         plugin1Consumptions.Should().Be(2);
-        
+
         var plugin2Consumptions = await context.CreditConsumptions
             .Where(c => c.ResourceId == plugin2Id)
             .CountAsync();
-        
+
         plugin2Consumptions.Should().Be(1);
     }
 
@@ -314,11 +297,11 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
         // Arrange
         using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var userId = Guid.NewGuid();
         var pluginId = Guid.NewGuid();
         var agentId = Guid.NewGuid();
-        
+
         var user = new UserEntity { Id = userId, Email = "noPlugin@example.com", Name = "No Plugin User" };
         var subscription = new SubscriptionEntity
         {
@@ -326,7 +309,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             UserId = userId,
             Credits = 50
         };
-        
+
         var plugin = new PluginEntity
         {
             Id = pluginId,
@@ -335,9 +318,9 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             IsActive = true,
             PriceCredits = 10
         };
-        
+
         // User does NOT own the plugin
-        
+
         var agent = new AgentEntity
         {
             Id = agentId,
@@ -346,7 +329,7 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             UserId = Guid.NewGuid(), // Different owner
             PluginIds = new[] { pluginId }
         };
-        
+
         await context.Users.AddAsync(user);
         await context.Subscriptions.AddAsync(subscription);
         await context.Plugins.AddAsync(plugin);
@@ -355,16 +338,16 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
 
         // Act - Try to use agent with plugin user doesn't own
         // This should be blocked at the access verification level
-        
+
         // Assert
         var creditsBefore = subscription.Credits;
         await context.Entry(subscription).ReloadAsync();
         subscription.Credits.Should().Be(creditsBefore); // No credits deducted
-        
+
         var consumptions = await context.CreditConsumptions
             .Where(c => c.UserId == userId && c.ResourceId == pluginId)
             .ToListAsync();
-        
+
         consumptions.Should().BeEmpty();
     }
 
@@ -373,11 +356,11 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
     {
         // This test simulates a scenario where plugin execution fails
         // In real implementation, the TelemetryFunctionFilter should not deduct credits on failure
-        
+
         // Arrange
         using var scope = _factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
+
         var userId = Guid.NewGuid();
         var subscription = new SubscriptionEntity
         {
@@ -385,23 +368,23 @@ public class PluginUsageCreditTrackingTests : IClassFixture<WebApplicationFactor
             UserId = userId,
             Credits = 100
         };
-        
+
         await context.Users.AddAsync(new UserEntity { Id = userId, Email = "test@example.com", Name = "Test" });
         await context.Subscriptions.AddAsync(subscription);
         await context.SaveChangesAsync();
-        
+
         var creditsBefore = subscription.Credits;
-        
+
         // Act - Simulate failed plugin execution (no credit consumption record created)
-        
+
         // Assert
         await context.Entry(subscription).ReloadAsync();
         subscription.Credits.Should().Be(creditsBefore);
-        
+
         var consumptions = await context.CreditConsumptions
             .Where(c => c.UserId == userId && c.ConsumptionType == "plugin")
             .ToListAsync();
-        
+
         consumptions.Should().BeEmpty();
     }
 
