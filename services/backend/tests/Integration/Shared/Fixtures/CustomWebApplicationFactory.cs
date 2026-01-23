@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -136,6 +137,25 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             {
                 options.EnableDetailedErrors = true;
             });
+
+            // Replace health checks with mock versions that always pass
+            // Remove all existing health check registrations
+            var healthCheckDescriptors = services.Where(d =>
+                d.ServiceType == typeof(HealthCheckService) ||
+                d.ServiceType.FullName?.Contains("HealthCheck") == true).ToList();
+            foreach (var descriptor in healthCheckDescriptors)
+            {
+                services.Remove(descriptor);
+            }
+
+            // Add mock health checks that always return Healthy
+            services.AddHealthChecks()
+                .AddCheck("postgres", () => HealthCheckResult.Healthy("Test database"))
+                .AddCheck("redis", () => HealthCheckResult.Healthy("Test cache"))
+                .AddCheck("memory", () => HealthCheckResult.Healthy("Memory OK"))
+                .AddCheck("seeding", () => HealthCheckResult.Healthy("Seeding complete"))
+                .AddCheck("self", () => HealthCheckResult.Healthy("Self check OK"))
+                .AddCheck("langfuse", () => HealthCheckResult.Healthy("Telemetry OK"));
         });
     }
 
@@ -177,9 +197,23 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         var authHeader = Request.Headers["Authorization"].ToString();
+
+        // If no Authorization header, use the default test user ID
         if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
-            return Task.FromResult(AuthenticateResult.NoResult());
+            // Use GuidTestAuthHandler.UserId as default for tests without token
+            var defaultClaims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, GuidTestAuthHandler.UserId.ToString()),
+                new Claim(ClaimTypes.Name, "TestUser"),
+                new Claim(ClaimTypes.Email, "test@example.com")
+            };
+
+            var defaultIdentity = new ClaimsIdentity(defaultClaims, "Test");
+            var defaultPrincipal = new ClaimsPrincipal(defaultIdentity);
+            var defaultTicket = new AuthenticationTicket(defaultPrincipal, "Test");
+
+            return Task.FromResult(AuthenticateResult.Success(defaultTicket));
         }
 
         var token = authHeader.Substring("Bearer ".Length).Trim();

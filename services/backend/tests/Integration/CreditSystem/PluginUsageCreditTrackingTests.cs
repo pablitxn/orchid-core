@@ -129,8 +129,8 @@ public class PluginUsageCreditTrackingTests
             messagesReceived.Add(message);
         });
 
-        // Act - Send message that would trigger plugin use
-        await connection.InvokeAsync("SendMessage", sessionId, "Calculate 5 + 3", false);
+        // Act - Send message that would trigger plugin use (SendMessage signature: sessionId, message, byTokens, agentId, teamId)
+        await connection.InvokeAsync("SendMessage", sessionId, "Calculate 5 + 3", false, (Guid?)null, (Guid?)null);
 
         // Wait for response
         await Task.Delay(2000);

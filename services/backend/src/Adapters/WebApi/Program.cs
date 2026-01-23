@@ -657,6 +657,19 @@ app.MapWhen(
     }
 );
 
+// Map health checks on main port for Testing environment
+if (app.Environment.IsEnvironment("Testing"))
+{
+    app.MapHealthChecks("/health", new HealthCheckOptions
+    {
+        ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+    });
+    app.MapHealthChecks("/health/live", new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("live")
+    });
+}
+
 #endregion
 
 // Database seeding now runs in background via DatabaseSeedingService

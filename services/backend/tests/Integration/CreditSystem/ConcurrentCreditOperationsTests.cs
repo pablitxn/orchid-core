@@ -86,7 +86,7 @@ public class ConcurrentCreditOperationsTests : CreditSystemTestBase
                 {
                     try
                     {
-                        await connection.InvokeAsync("SendMessage", capturedSessionId, $"Concurrent message {messageIndex}", false);
+                        await connection.InvokeAsync("SendMessage", capturedSessionId, $"Concurrent message {messageIndex}", false, (Guid?)null, (Guid?)null);
                     }
                     catch (Exception ex)
                     {
@@ -235,7 +235,7 @@ public class ConcurrentCreditOperationsTests : CreditSystemTestBase
             await SeedAgentAndSession(context, userId, agentId, sessionId);
             
             var connection = await CreateSignalRConnection(sessionId, userId);
-            consumeTasks.Add(connection.InvokeAsync("SendMessage", sessionId, $"Message {i}", false));
+            consumeTasks.Add(connection.InvokeAsync("SendMessage", sessionId, $"Message {i}", false, (Guid?)null, (Guid?)null));
         }
         
         await Task.WhenAll(consumeTasks);
@@ -344,7 +344,7 @@ public class ConcurrentCreditOperationsTests : CreditSystemTestBase
                         messages.Add(message);
                     });
                     
-                    await connection.InvokeAsync("SendMessage", sessionId, "Concurrent test", false);
+                    await connection.InvokeAsync("SendMessage", sessionId, "Concurrent test", false, (Guid?)null, (Guid?)null);
                     await Task.Delay(500);
                     
                     if (messages.Any(m => m.Contains("Insufficient")))

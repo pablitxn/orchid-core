@@ -50,7 +50,7 @@ public class CreditConsumptionFlowTests : CreditSystemTestBase
         // Act
         try
         {
-            await connection.InvokeAsync("SendMessage", sessionId, "Hello AI", false);
+            await connection.InvokeAsync("SendMessage", sessionId, "Hello AI", false, (Guid?)null, (Guid?)null);
             await Task.Delay(1000); // Wait for processing
         }
         catch (HubException ex)
@@ -104,7 +104,7 @@ public class CreditConsumptionFlowTests : CreditSystemTestBase
         // Act
         try
         {
-            await connection.InvokeAsync("SendMessage", sessionId, "Hello AI", false);
+            await connection.InvokeAsync("SendMessage", sessionId, "Hello AI", false, (Guid?)null, (Guid?)null);
         }
         catch (HubException)
         {
@@ -157,7 +157,7 @@ public class CreditConsumptionFlowTests : CreditSystemTestBase
 
         // Act
         var longMessage = string.Join(" ", Enumerable.Repeat("Hello world", 200)); // ~400 tokens
-        await connection.InvokeAsync("SendMessage", sessionId, longMessage, true); // byTokens = true
+        await connection.InvokeAsync("SendMessage", sessionId, longMessage, true, (Guid?)null, (Guid?)null); // byTokens = true
         await Task.Delay(1000);
 
         // Assert - Get fresh context to verify credits
@@ -237,7 +237,7 @@ public class CreditConsumptionFlowTests : CreditSystemTestBase
         var connection = await CreateSignalRConnection(sessionId, userId);
 
         // Act
-        await connection.InvokeAsync("SendMessage", sessionId, "Hello AI", false);
+        await connection.InvokeAsync("SendMessage", sessionId, "Hello AI", false, (Guid?)null, (Guid?)null);
         await Task.Delay(1000);
 
         // Assert - Need to get a fresh context to check the updated values

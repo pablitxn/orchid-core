@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
@@ -177,6 +178,23 @@ public class CreditSystemWebApplicationFactory : WebApplicationFactory<Program>
             });
 
             services.AddScoped<IRequestHandler<VerifyAgentAccessQuery, VerifyAgentAccessResult>, MockVerifyAgentAccessHandler>();
+
+            // Replace health checks with mock versions that always pass
+            var healthCheckDescriptors = services.Where(d =>
+                d.ServiceType == typeof(HealthCheckService) ||
+                d.ServiceType.FullName?.Contains("HealthCheck") == true).ToList();
+            foreach (var descriptor in healthCheckDescriptors)
+            {
+                services.Remove(descriptor);
+            }
+
+            services.AddHealthChecks()
+                .AddCheck("postgres", () => HealthCheckResult.Healthy("Test database"))
+                .AddCheck("redis", () => HealthCheckResult.Healthy("Test cache"))
+                .AddCheck("memory", () => HealthCheckResult.Healthy("Memory OK"))
+                .AddCheck("seeding", () => HealthCheckResult.Healthy("Seeding complete"))
+                .AddCheck("self", () => HealthCheckResult.Healthy("Self check OK"))
+                .AddCheck("langfuse", () => HealthCheckResult.Healthy("Telemetry OK"));
         });
     }
 

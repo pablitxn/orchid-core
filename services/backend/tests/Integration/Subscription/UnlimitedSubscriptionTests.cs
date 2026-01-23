@@ -92,10 +92,10 @@ public class UnlimitedSubscriptionTests
 
         await connection.StartAsync();
 
-        // Act - Send multiple messages
+        // Act - Send multiple messages (SendMessage signature: sessionId, message, byTokens, agentId, teamId)
         for (int i = 0; i < 5; i++)
         {
-            await connection.InvokeAsync("SendMessage", sessionId, $"Test message {i}", false);
+            await connection.InvokeAsync("SendMessage", sessionId, $"Test message {i}", false, (Guid?)null, (Guid?)null);
             await Task.Delay(500);
         }
 

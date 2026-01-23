@@ -51,7 +51,7 @@ public class CreditConsumptionIntegrationTests
 
         try
         {
-            await connection.InvokeAsync("SendMessage", sessionId, "hola", false);
+            await connection.InvokeAsync("SendMessage", sessionId, "hola", false, (Guid?)null, (Guid?)null);
             var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(5)));
             if (completedTask != tcs.Task) Assert.Fail("Did not receive confirmation message from hub.");
 
@@ -103,7 +103,7 @@ public class CreditConsumptionIntegrationTests
         connection.On<string, string>("ReceiveMessage", (s, c) => tcs.TrySetResult((s, c)));
 
         var text = new string('a', 1000);
-        await connection.InvokeAsync("SendMessage", sessionId, text, true);
+        await connection.InvokeAsync("SendMessage", sessionId, text, true, (Guid?)null, (Guid?)null);
         await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(5)));
         await connection.DisposeAsync();
 
@@ -150,7 +150,7 @@ public class CreditConsumptionIntegrationTests
         try
         {
             await connection.StartAsync();
-            await connection.InvokeAsync("SendMessage", Guid.NewGuid().ToString(), "test", false);
+            await connection.InvokeAsync("SendMessage", Guid.NewGuid().ToString(), "test", false, (Guid?)null, (Guid?)null);
             var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(5)));
             if (completed != tcs.Task) Assert.Fail("Did not receive Insufficient credits message from hub.");
 
@@ -210,7 +210,7 @@ public class CreditConsumptionIntegrationTests
         try
         {
             await connection.StartAsync();
-            await connection.InvokeAsync("SendMessage", Guid.NewGuid().ToString(), "test", false);
+            await connection.InvokeAsync("SendMessage", Guid.NewGuid().ToString(), "test", false, (Guid?)null, (Guid?)null);
             var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(5)));
             if (completed != tcs.Task) Assert.Fail("Did not receive Subscription not found message from hub.");
 

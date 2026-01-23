@@ -131,10 +131,10 @@ public class ChatHubBasicTests : CreditSystemTestBase
         
         await connection.StartAsync();
         
-        // Send message
+        // Send message (SendMessage signature: sessionId, message, byTokens, agentId, teamId)
         try
         {
-            await connection.InvokeAsync("SendMessage", sessionId, "Test message", false);
+            await connection.InvokeAsync("SendMessage", sessionId, "Test message", false, (Guid?)null, (Guid?)null);
             await Task.Delay(1000); // Wait for processing
         }
         catch (HubException ex)
