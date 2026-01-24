@@ -127,9 +127,11 @@ public static class DatabaseSeeder
         var hasPlans = await db.SubscriptionPlans.AnyAsync();
         var hasCosts = await db.ActionCosts.AnyAsync();
         var hasPlugins = await db.Plugins.AnyAsync();
+        var existingFeatureFlagKeys = await db.FeatureFlags
+            .Select(flag => flag.Key)
+            .ToListAsync();
 
-        if (hasPlans && hasCosts && hasPlugins)
-            return;
+        var hasChanges = false;
 
         if (!hasPlans)
         {
@@ -175,6 +177,7 @@ public static class DatabaseSeeder
                     PaymentUnit = PaymentUnit.PerMessage
                 }
             );
+            hasChanges = true;
         }
 
         if (!hasCosts)
@@ -195,6 +198,7 @@ public static class DatabaseSeeder
                     PaymentUnit = PaymentUnit.PerMessage
                 }
             );
+            hasChanges = true;
         }
 
         if (!hasPlugins)
@@ -215,10 +219,82 @@ public static class DatabaseSeeder
                     IsActive = true
                 }
             );
+            hasChanges = true;
         }
 
-        // Single SaveChangesAsync for all reference data
-        await db.SaveChangesAsync();
+        var now = DateTime.UtcNow;
+        var existingFeatureFlagKeySet = new HashSet<string>(existingFeatureFlagKeys, StringComparer.OrdinalIgnoreCase);
+        var featureFlagsToAdd = new List<FeatureFlagEntity>();
+
+        if (!existingFeatureFlagKeySet.Contains("new_chat_ui"))
+        {
+            featureFlagsToAdd.Add(new FeatureFlagEntity
+            {
+                Id = Guid.NewGuid(),
+                Key = "new_chat_ui",
+                Description = "Enable new chat UI",
+                IsEnabled = false,
+                RolloutPercentage = 100,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+        }
+
+        if (!existingFeatureFlagKeySet.Contains("advanced_analytics"))
+        {
+            featureFlagsToAdd.Add(new FeatureFlagEntity
+            {
+                Id = Guid.NewGuid(),
+                Key = "advanced_analytics",
+                Description = "Advanced analytics dashboard",
+                IsEnabled = false,
+                AllowedPlans = "pro,enterprise",
+                RolloutPercentage = 100,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+        }
+
+        if (!existingFeatureFlagKeySet.Contains("team_collaboration"))
+        {
+            featureFlagsToAdd.Add(new FeatureFlagEntity
+            {
+                Id = Guid.NewGuid(),
+                Key = "team_collaboration",
+                Description = "Team collaboration features",
+                IsEnabled = false,
+                AllowedPlans = "enterprise",
+                RolloutPercentage = 100,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+        }
+
+        if (!existingFeatureFlagKeySet.Contains("beta_features"))
+        {
+            featureFlagsToAdd.Add(new FeatureFlagEntity
+            {
+                Id = Guid.NewGuid(),
+                Key = "beta_features",
+                Description = "Beta features access",
+                IsEnabled = false,
+                RolloutPercentage = 10,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+        }
+
+        if (featureFlagsToAdd.Count > 0)
+        {
+            db.FeatureFlags.AddRange(featureFlagsToAdd);
+            hasChanges = true;
+        }
+
+        if (hasChanges)
+        {
+            // Single SaveChangesAsync for all reference data
+            await db.SaveChangesAsync();
+        }
     }
 
     private static async Task SeedContentAsync(ApplicationDbContext db, IServiceProvider? serviceProvider)

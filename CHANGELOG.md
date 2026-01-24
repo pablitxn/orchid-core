@@ -29,6 +29,7 @@ All notable changes to this project will be documented in this file.
 - Improve FormulaQueryHandler tests and ensure sample caching behavior.
 - Scaffold tests and typings for UI components including token-packages and others.
 - Fix login cookie auth by running AuthorizationMiddleware in Development.
+- Seed initial feature flags during database seeding.
 
 - Add knowledge-base upload route `/knowledge-base` and store embeddings in `Documents.Embedding`.
 - Add role-based layouts for guest, user, maintainer and admin in the web app.
