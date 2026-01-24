@@ -525,6 +525,7 @@ if (!env.IsEnvironment("Testing"))
                     var path = context.HttpContext.Request.Path;
                     if (!string.IsNullOrEmpty(accessToken) &&
                         (path.StartsWithSegments("/chatHub") ||
+                         path.StartsWithSegments("/chatHubV2") ||
                          path.StartsWithSegments("/huddleHub") ||
                          path.StartsWithSegments("/hubs/credits")))
                     {
@@ -645,6 +646,7 @@ app.UseWhen(
 // ─── Route Mapping ────────────────────────────────────────────────────────────
 app.MapControllers();
 app.MapHub<ChatHub>("/chatHub");
+app.MapHub<ChatHubV2>("/chatHubV2");
 app.MapHub<NotificationHub>("/notificationHub");
 app.MapHub<CreditHub>("/hubs/credits");
 // app.MapHub<HuddleHub>("/huddleHub").RequireCors("MyPolicy");
