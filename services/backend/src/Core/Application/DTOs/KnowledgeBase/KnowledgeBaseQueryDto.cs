@@ -47,7 +47,7 @@ public record KnowledgeBaseItemDto
     public DateTime UpdatedAt { get; init; }
 }
 
-public record KnowledgeBaseListResponseDto
+public record KnowledgeBaseListDto
 {
     public List<KnowledgeBaseItemDto> Items { get; init; } = new();
     public int TotalCount { get; init; }

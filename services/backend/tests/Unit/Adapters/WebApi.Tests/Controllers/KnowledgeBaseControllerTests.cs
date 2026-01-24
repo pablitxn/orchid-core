@@ -55,7 +55,7 @@ public class KnowledgeBaseControllerTests
             SearchTerm = "test"
         };
         
-        var expectedResult = new KnowledgeBaseListResponseDto
+        var expectedResult = new KnowledgeBaseListDto
         {
             Items = new List<KnowledgeBaseItemDto>
             {
@@ -83,7 +83,7 @@ public class KnowledgeBaseControllerTests
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var actualResult = Assert.IsType<KnowledgeBaseListResponseDto>(okResult.Value);
+        var actualResult = Assert.IsType<KnowledgeBaseListDto>(okResult.Value);
         Assert.Equal(expectedResult.TotalCount, actualResult.TotalCount);
         Assert.Single(actualResult.Items);
         

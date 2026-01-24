@@ -24,7 +24,7 @@ public class PublicMarketplaceControllerTests
     public async Task ListPlugins_ReturnsOk_WithPluginList()
     {
         // Arrange
-        var expectedPlugins = new List<PublicPlugin>
+        var expectedPlugins = new List<PublicPluginDto>
         {
             new(Guid.NewGuid(), "Plugin 1", "Desc 1", 100, false, true, null, DateTime.UtcNow),
             new(Guid.NewGuid(), "Plugin 2", "Desc 2", 200, true, true, null, DateTime.UtcNow)
@@ -49,7 +49,7 @@ public class PublicMarketplaceControllerTests
     public async Task ListPlugins_ReturnsOk_WithEmptyList_WhenNoPluginsAvailable()
     {
         // Arrange
-        var emptyList = new ListPublicPluginsDto(new List<PublicPlugin>());
+        var emptyList = new ListPublicPluginsDto(new List<PublicPluginDto>());
 
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<ListPublicPluginsQuery>(),
@@ -73,13 +73,13 @@ public class PublicMarketplaceControllerTests
     public async Task ListWorkflows_ReturnsOk_WithWorkflowList()
     {
         // Arrange
-        var expectedWorkflows = new List<PublicWorkflow>
+        var expectedWorkflows = new List<PublicWorkflowDto>
         {
             new(Guid.NewGuid(), "Workflow 1", "Desc 1", 100, "Author1", "Cat1", 5, "10m", 4.5, 100, null, null, DateTime.UtcNow, DateTime.UtcNow, DateTime.UtcNow),
             new(Guid.NewGuid(), "Workflow 2", "Desc 2", 200, "Author2", "Cat2", 3, "5m", 4.8, 50, null, null, DateTime.UtcNow, DateTime.UtcNow, DateTime.UtcNow)
         };
 
-        var paginatedResult = new Application.Common.Models.PaginatedResult<PublicWorkflow>(
+        var paginatedResult = new Application.Common.Models.PaginatedResult<PublicWorkflowDto>(
             expectedWorkflows, expectedWorkflows.Count, 1, 20);
         var result = new ListPublicWorkflowsDto(paginatedResult);
 
@@ -100,7 +100,7 @@ public class PublicMarketplaceControllerTests
     public async Task ListWorkflows_ReturnsOk_WithEmptyList_WhenNoWorkflowsAvailable()
     {
         // Arrange
-        var emptyPaginated = Application.Common.Models.PaginatedResult<PublicWorkflow>.Empty();
+        var emptyPaginated = Application.Common.Models.PaginatedResult<PublicWorkflowDto>.Empty();
         var emptyList = new ListPublicWorkflowsDto(emptyPaginated);
 
         _mediatorMock.Setup(m => m.Send(
@@ -126,7 +126,7 @@ public class PublicMarketplaceControllerTests
     {
         // Arrange
         var pluginId = Guid.NewGuid();
-        var expectedPlugin = new PublicPluginDetails(
+        var expectedPlugin = new PublicPluginDetailsDto(
             pluginId, "Test Plugin", "Test Description", 100, false, true, "http://example.com", "test-plugin", DateTime.UtcNow, DateTime.UtcNow);
 
         _mediatorMock.Setup(m => m.Send(
@@ -151,7 +151,7 @@ public class PublicMarketplaceControllerTests
         _mediatorMock.Setup(m => m.Send(
             It.Is<GetPublicPluginDetailsQuery>(q => q.PluginId == pluginId),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync((PublicPluginDetails?)null);
+            .ReturnsAsync((PublicPluginDetailsDto?)null);
 
         // Act
         var result = await _controller.GetPluginDetails(pluginId, CancellationToken.None);
@@ -165,7 +165,7 @@ public class PublicMarketplaceControllerTests
     {
         // Arrange
         var pluginId = Guid.NewGuid();
-        var expectedPlugin = new PublicPluginDetails(
+        var expectedPlugin = new PublicPluginDetailsDto(
             pluginId, "Test Plugin", null, 100, false, true, null, null, DateTime.UtcNow, DateTime.UtcNow);
 
         _mediatorMock.Setup(m => m.Send(
@@ -192,7 +192,7 @@ public class PublicMarketplaceControllerTests
     {
         // Arrange
         var workflowId = Guid.NewGuid();
-        var expectedWorkflow = new PublicWorkflowDetails(
+        var expectedWorkflow = new PublicWorkflowDetailsDto(
             workflowId, "Test Workflow", "Test Description", 200, "Author", "Category", 5, "10m", 
             4.5, 100, null, null, null, null, null, null, DateTime.UtcNow, DateTime.UtcNow);
 
@@ -218,7 +218,7 @@ public class PublicMarketplaceControllerTests
         _mediatorMock.Setup(m => m.Send(
             It.Is<GetPublicWorkflowDetailsQuery>(q => q.WorkflowId == workflowId),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync((PublicWorkflowDetails?)null);
+            .ReturnsAsync((PublicWorkflowDetailsDto?)null);
 
         // Act
         var result = await _controller.GetWorkflowDetails(workflowId, CancellationToken.None);
@@ -232,7 +232,7 @@ public class PublicMarketplaceControllerTests
     {
         // Arrange
         var workflowId = Guid.NewGuid();
-        var expectedWorkflow = new PublicWorkflowDetails(
+        var expectedWorkflow = new PublicWorkflowDetailsDto(
             workflowId, "Test Workflow", null, 200, null, null, 0, null, 0, 0, null, null, null, null, null, null, DateTime.UtcNow, DateTime.UtcNow);
 
         _mediatorMock.Setup(m => m.Send(

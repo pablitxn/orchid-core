@@ -28,7 +28,7 @@ public class KnowledgeBaseController : ControllerBase
     /// Get paginated list of knowledge base documents
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<KnowledgeBaseListResponseDto>> GetList([FromQuery] KnowledgeBaseQueryDto query)
+    public async Task<ActionResult<KnowledgeBaseListDto>> GetList([FromQuery] KnowledgeBaseQueryDto query)
     {
         var userId = User.GetUserId();
         var result = await _mediator.Send(new GetKnowledgeBaseListQuery(query, userId));

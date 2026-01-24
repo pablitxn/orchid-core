@@ -1,6 +1,6 @@
 namespace Application.UseCases.Workflow.ListWorkflows;
 
-public sealed record PublicWorkflowDetails(
+public sealed record PublicWorkflowDetailsDto(
     Guid Id,
     string Name,
     string? Description,

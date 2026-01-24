@@ -5,9 +5,9 @@ namespace Application.UseCases.Workflow.ListWorkflows;
 
 public sealed class GetPublicWorkflowDetailsHandler(
     IWorkflowRepository workflowRepository
-) : IRequestHandler<GetPublicWorkflowDetailsQuery, PublicWorkflowDetails?>
+) : IRequestHandler<GetPublicWorkflowDetailsQuery, PublicWorkflowDetailsDto?>
 {
-    public async Task<PublicWorkflowDetails?> Handle(GetPublicWorkflowDetailsQuery query, CancellationToken cancellationToken)
+    public async Task<PublicWorkflowDetailsDto?> Handle(GetPublicWorkflowDetailsQuery query, CancellationToken cancellationToken)
     {
         var workflow = await workflowRepository.GetByIdAsync(query.WorkflowId, cancellationToken);
         
@@ -16,7 +16,7 @@ public sealed class GetPublicWorkflowDetailsHandler(
             return null;
         }
 
-        return new PublicWorkflowDetails(
+        return new PublicWorkflowDetailsDto(
             Id: workflow.Id,
             Name: workflow.Name,
             Description: workflow.Description,

@@ -2,9 +2,9 @@ using Application.Common.Models;
 
 namespace Application.UseCases.Workflow.ListWorkflows;
 
-public sealed record ListPublicWorkflowsDto(PaginatedResult<PublicWorkflow> Workflows);
+public sealed record ListPublicWorkflowDtosDto(PaginatedResult<PublicWorkflowDto> Workflows);
 
-public sealed record PublicWorkflow(
+public sealed record PublicWorkflowDto(
     Guid Id,
     string Name,
     string? Description,

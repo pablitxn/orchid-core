@@ -11,7 +11,7 @@ public sealed class ListPublicPluginsHandler(
     {
         var allPlugins = await pluginRepository.ListActiveAsync(cancellationToken);
 
-        var publicPlugins = allPlugins.Select(plugin => new PublicPlugin(
+        var publicPlugins = allPlugins.Select(plugin => new PublicPluginDto(
             Id: plugin.Id,
             Name: plugin.Name,
             Description: plugin.Description,

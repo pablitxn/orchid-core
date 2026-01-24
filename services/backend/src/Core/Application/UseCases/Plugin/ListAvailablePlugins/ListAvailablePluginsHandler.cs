@@ -1,20 +1,20 @@
 using Application.Interfaces;
 using MediatR;
 
-namespace Application.UseCases.Plugin.ListAvailablePlugins;
+namespace Application.UseCases.Plugin.ListAvailablePluginDtos;
 
-public sealed class ListAvailablePluginsHandler(
+public sealed class ListAvailablePluginDtosHandler(
     IPluginRepository pluginRepository,
     IUserPluginRepository userPluginRepository
-) : IRequestHandler<ListAvailablePluginsQuery, ListAvailablePluginsDto>
+) : IRequestHandler<ListAvailablePluginDtosQuery, ListAvailablePluginDtosDto>
 {
-    public async Task<ListAvailablePluginsDto> Handle(ListAvailablePluginsQuery query, CancellationToken cancellationToken)
+    public async Task<ListAvailablePluginDtosDto> Handle(ListAvailablePluginDtosQuery query, CancellationToken cancellationToken)
     {
         var allPlugins = await pluginRepository.ListActiveAsync(cancellationToken);
         var userPlugins = await userPluginRepository.ListByUserAsync(query.UserId, cancellationToken);
         var userPluginIds = userPlugins.Where(up => up.IsActive).Select(up => up.PluginId).ToHashSet();
 
-        var availablePlugins = allPlugins.Select(plugin => new AvailablePlugin(
+        var availablePlugins = allPlugins.Select(plugin => new AvailablePluginDto(
             Id: plugin.Id,
             Name: plugin.Name,
             Description: plugin.Description,
@@ -24,6 +24,6 @@ public sealed class ListAvailablePluginsHandler(
             IsActive: plugin.IsActive
         ));
 
-        return new ListAvailablePluginsDto(availablePlugins);
+        return new ListAvailablePluginDtosDto(availablePlugins);
     }
 }

@@ -1,6 +1,6 @@
 namespace Application.UseCases.Plugin.ListAvailablePlugins;
 
-public sealed record PublicPluginDetails(
+public sealed record PublicPluginDetailsDto(
     Guid Id,
     string Name,
     string? Description,

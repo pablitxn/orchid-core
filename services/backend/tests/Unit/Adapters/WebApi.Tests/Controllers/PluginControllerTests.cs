@@ -3,7 +3,7 @@ using Application.UseCases.Agent.AddPluginToAgent;
 using Application.UseCases.Agent.RemovePluginFromAgent;
 using Application.UseCases.Plugin.Common;
 using Application.UseCases.Plugin.DeletePlugin;
-using Application.UseCases.Plugin.ListAvailablePlugins;
+using Application.UseCases.Plugin.ListAvailablePluginDtos;
 using Application.UseCases.Plugin.ListPlugins;
 using Application.UseCases.Plugin.PurchasePlugin;
 using MediatR;
@@ -99,30 +99,30 @@ public class PluginControllerTests
 
     #endregion
 
-    #region ListAvailablePlugins Tests
+    #region ListAvailablePluginDtos Tests
 
     [Fact]
-    public async Task ListAvailablePlugins_ReturnsOk_WithAvailablePlugins()
+    public async Task ListAvailablePluginDtos_ReturnsOk_WithAvailablePluginDtos()
     {
         // Arrange
         var userId = Guid.NewGuid();
         SetupAuthenticatedUser(userId);
 
-        var expectedPlugins = new List<AvailablePlugin>
+        var expectedPlugins = new List<AvailablePluginDto>
         {
             new (Guid.NewGuid(), "Available Plugin 1", "Desc 1", 100, false, false, true),
             new (Guid.NewGuid(), "Available Plugin 2", "Desc 2", 200, true, true, false)
         };
 
-        var queryResult = new ListAvailablePluginsDto(expectedPlugins);
+        var queryResult = new ListAvailablePluginDtosDto(expectedPlugins);
 
         _mediatorMock.Setup(m => m.Send(
-            It.Is<ListAvailablePluginsQuery>(q => q.UserId == userId),
+            It.Is<ListAvailablePluginDtosQuery>(q => q.UserId == userId),
             It.IsAny<CancellationToken>()))
             .ReturnsAsync(queryResult);
 
         // Act
-        var result = await _controller.ListAvailablePlugins(CancellationToken.None);
+        var result = await _controller.ListAvailablePluginDtos(CancellationToken.None);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result);
@@ -133,21 +133,21 @@ public class PluginControllerTests
     }
 
     [Fact]
-    public async Task ListAvailablePlugins_ReturnsOk_WithEmptyList_WhenNoPluginsAvailable()
+    public async Task ListAvailablePluginDtos_ReturnsOk_WithEmptyList_WhenNoPluginsAvailable()
     {
         // Arrange
         var userId = Guid.NewGuid();
         SetupAuthenticatedUser(userId);
 
-        var queryResult = new ListAvailablePluginsDto(new List<AvailablePlugin>());
+        var queryResult = new ListAvailablePluginDtosDto(new List<AvailablePluginDto>());
 
         _mediatorMock.Setup(m => m.Send(
-            It.IsAny<ListAvailablePluginsQuery>(),
+            It.IsAny<ListAvailablePluginDtosQuery>(),
             It.IsAny<CancellationToken>()))
             .ReturnsAsync(queryResult);
 
         // Act
-        var result = await _controller.ListAvailablePlugins(CancellationToken.None);
+        var result = await _controller.ListAvailablePluginDtos(CancellationToken.None);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result);
@@ -159,14 +159,14 @@ public class PluginControllerTests
     }
 
     [Fact]
-    public async Task ListAvailablePlugins_ThrowsUnauthorizedException_WhenUserNotAuthenticated()
+    public async Task ListAvailablePluginDtos_ThrowsUnauthorizedException_WhenUserNotAuthenticated()
     {
         // Arrange
         SetupUnauthenticatedUser();
 
         // Act & Assert
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
-            () => _controller.ListAvailablePlugins(CancellationToken.None));
+            () => _controller.ListAvailablePluginDtos(CancellationToken.None));
     }
 
     #endregion

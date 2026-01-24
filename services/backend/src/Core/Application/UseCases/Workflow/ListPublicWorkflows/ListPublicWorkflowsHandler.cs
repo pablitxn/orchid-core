@@ -61,7 +61,7 @@ public sealed class ListPublicWorkflowsHandler(
         var paginatedWorkflows = filteredWorkflows
             .Skip(query.Skip)
             .Take(query.Take)
-            .Select(w => new PublicWorkflow(
+            .Select(w => new PublicWorkflowDto(
                 w.Id,
                 w.Name,
                 w.Description,
@@ -80,7 +80,7 @@ public sealed class ListPublicWorkflowsHandler(
             ))
             .ToList();
         
-        var paginatedResult = new PaginatedResult<PublicWorkflow>(
+        var paginatedResult = new PaginatedResult<PublicWorkflowDto>(
             paginatedWorkflows,
             totalCount,
             query.Page,

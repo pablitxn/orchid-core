@@ -10,9 +10,9 @@ namespace Core.Application.UseCases.KnowledgeBase.GetKnowledgeBaseList;
 public record GetKnowledgeBaseListQuery(
     KnowledgeBaseQueryDto Query,
     Guid UserId
-) : IRequest<KnowledgeBaseListResponseDto>;
+) : IRequest<KnowledgeBaseListDto>;
 
-public class GetKnowledgeBaseListHandler : IRequestHandler<GetKnowledgeBaseListQuery, KnowledgeBaseListResponseDto>
+public class GetKnowledgeBaseListHandler : IRequestHandler<GetKnowledgeBaseListQuery, KnowledgeBaseListDto>
 {
     private readonly IKnowledgeBaseFileRepository _repository;
 
@@ -21,7 +21,7 @@ public class GetKnowledgeBaseListHandler : IRequestHandler<GetKnowledgeBaseListQ
         _repository = repository;
     }
 
-    public async Task<KnowledgeBaseListResponseDto> Handle(
+    public async Task<KnowledgeBaseListDto> Handle(
         GetKnowledgeBaseListQuery request,
         CancellationToken cancellationToken)
     {
@@ -55,7 +55,7 @@ public class GetKnowledgeBaseListHandler : IRequestHandler<GetKnowledgeBaseListQ
             UpdatedAt = item.UpdatedAt
         }).ToList();
 
-        return new KnowledgeBaseListResponseDto
+        return new KnowledgeBaseListDto
         {
             Items = dtoItems,
             TotalCount = totalCount,

@@ -5,9 +5,9 @@ namespace Application.UseCases.Plugin.ListAvailablePlugins;
 
 public sealed class GetPublicPluginDetailsHandler(
     IPluginRepository pluginRepository
-) : IRequestHandler<GetPublicPluginDetailsQuery, PublicPluginDetails?>
+) : IRequestHandler<GetPublicPluginDetailsQuery, PublicPluginDetailsDto?>
 {
-    public async Task<PublicPluginDetails?> Handle(GetPublicPluginDetailsQuery query, CancellationToken cancellationToken)
+    public async Task<PublicPluginDetailsDto?> Handle(GetPublicPluginDetailsQuery query, CancellationToken cancellationToken)
     {
         var plugin = await pluginRepository.GetByIdAsync(query.PluginId, cancellationToken);
         
@@ -16,7 +16,7 @@ public sealed class GetPublicPluginDetailsHandler(
             return null;
         }
 
-        return new PublicPluginDetails(
+        return new PublicPluginDetailsDto(
             Id: plugin.Id,
             Name: plugin.Name,
             Description: plugin.Description,

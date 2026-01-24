@@ -1,8 +1,8 @@
 namespace Application.UseCases.Plugin.ListAvailablePlugins;
 
-public sealed record ListPublicPluginsDto(IEnumerable<PublicPlugin> Plugins);
+public sealed record ListPublicPluginDtosDto(IEnumerable<PublicPluginDto> Plugins);
 
-public sealed record PublicPlugin(
+public sealed record PublicPluginDto(
     Guid Id,
     string Name,
     string? Description,
