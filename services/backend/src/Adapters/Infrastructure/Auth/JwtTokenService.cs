@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using Application.Interfaces;
 using Domain.Entities;
 using Microsoft.Extensions.Configuration;
@@ -60,6 +61,7 @@ public class JwtTokenService : ITokenService
             new(JwtRegisteredClaimNames.Sub, $"service:{serviceAccount.ClientId}"),
             new("type", "service_account"),
             new("client_id", serviceAccount.ClientId),
+            new("scopes", JsonSerializer.Serialize(serviceAccount.Scopes))
         };
 
         foreach (var scope in serviceAccount.Scopes)

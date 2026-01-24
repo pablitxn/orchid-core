@@ -3,6 +3,7 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+- Add service account JWT scopes claim plus scope enforcement helper updates for Matrix Bridge integration.
 - Harden API security with FluentValidation input rules, JWT algorithm enforcement, stricter CORS origins, and dependency update for BouncyCastle.
 - Add Roslynator analyzers and remove unused backend code/packages as part of dead code cleanup.
 - Fix AutoRenewToggle tests to rely on shared i18n mock and await async effects.

@@ -382,9 +382,9 @@ public class AuthController(
 
         return Ok(new
         {
-            access_token = result.AccessToken,
-            token_type = result.TokenType,
-            expires_in = result.ExpiresIn
+            accessToken = result.AccessToken,
+            tokenType = result.TokenType,
+            expiresIn = result.ExpiresIn
         });
     }
 
