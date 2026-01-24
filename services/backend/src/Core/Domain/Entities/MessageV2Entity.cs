@@ -55,4 +55,9 @@ public class MessageV2Entity
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Navigation property to artifacts attached to this message.
+    /// </summary>
+    public ICollection<MessageArtifactEntity> Artifacts { get; set; } = new List<MessageArtifactEntity>();
 }

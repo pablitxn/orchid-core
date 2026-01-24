@@ -65,6 +65,16 @@ public class ApplicationDbContext(
     public DbSet<FeatureFlagEntity> FeatureFlags { get; set; }
     public DbSet<ServiceAccountEntity> ServiceAccounts { get; set; }
     public DbSet<MessageV2Entity> MessagesV2 { get; set; }
+    public DbSet<MessageArtifactEntity> MessageArtifacts { get; set; }
+    public DbSet<ChartArtifactEntity> ChartArtifacts { get; set; }
+    public DbSet<TableArtifactEntity> TableArtifacts { get; set; }
+    public DbSet<MermaidArtifactEntity> MermaidArtifacts { get; set; }
+    public DbSet<CanvasTextArtifactEntity> CanvasTextArtifacts { get; set; }
+    public DbSet<ImageArtifactEntity> ImageArtifacts { get; set; }
+    public DbSet<VideoArtifactEntity> VideoArtifacts { get; set; }
+    public DbSet<ThreeJsArtifactEntity> ThreeJsArtifacts { get; set; }
+    public DbSet<CalendarArtifactEntity> CalendarArtifacts { get; set; }
+    public DbSet<ReactionEntity> Reactions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -657,6 +667,171 @@ public class ApplicationDbContext(
                 .WithMany()
                 .HasForeignKey(m => m.ChatSessionId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map MessageArtifacts entity (base table for all artifact types)
+        modelBuilder.Entity<MessageArtifactEntity>(b =>
+        {
+            b.ToTable("MessageArtifacts");
+            b.HasKey(a => a.Id);
+            b.Property(a => a.MessageId).IsRequired();
+            b.Property(a => a.Type).IsRequired().HasMaxLength(50);
+            b.Property(a => a.Title).HasMaxLength(200);
+            b.Property(a => a.Order).IsRequired().HasDefaultValue(0);
+            b.Property(a => a.CreatedAt).HasColumnType("timestamp with time zone");
+
+            // Index for efficient queries by message
+            b.HasIndex(a => a.MessageId);
+
+            // Relationship with Message
+            b.HasOne(a => a.Message)
+                .WithMany(m => m.Artifacts)
+                .HasForeignKey(a => a.MessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map ChartArtifacts entity
+        modelBuilder.Entity<ChartArtifactEntity>(b =>
+        {
+            b.ToTable("ChartArtifacts");
+            b.HasKey(c => c.ArtifactId);
+            b.Property(c => c.ChartType).IsRequired().HasMaxLength(20);
+            b.Property(c => c.Data).HasColumnType("jsonb");
+
+            // 1:1 relationship with MessageArtifact
+            b.HasOne(c => c.Artifact)
+                .WithOne(a => a.ChartArtifact)
+                .HasForeignKey<ChartArtifactEntity>(c => c.ArtifactId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map TableArtifacts entity
+        modelBuilder.Entity<TableArtifactEntity>(b =>
+        {
+            b.ToTable("TableArtifacts");
+            b.HasKey(t => t.ArtifactId);
+            b.Property(t => t.Data).HasColumnType("jsonb");
+
+            // 1:1 relationship with MessageArtifact
+            b.HasOne(t => t.Artifact)
+                .WithOne(a => a.TableArtifact)
+                .HasForeignKey<TableArtifactEntity>(t => t.ArtifactId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map MermaidArtifacts entity
+        modelBuilder.Entity<MermaidArtifactEntity>(b =>
+        {
+            b.ToTable("MermaidArtifacts");
+            b.HasKey(m => m.ArtifactId);
+            b.Property(m => m.Content).IsRequired();
+
+            // 1:1 relationship with MessageArtifact
+            b.HasOne(m => m.Artifact)
+                .WithOne(a => a.MermaidArtifact)
+                .HasForeignKey<MermaidArtifactEntity>(m => m.ArtifactId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map CanvasTextArtifacts entity
+        modelBuilder.Entity<CanvasTextArtifactEntity>(b =>
+        {
+            b.ToTable("CanvasTextArtifacts");
+            b.HasKey(c => c.ArtifactId);
+            b.Property(c => c.Content).IsRequired();
+
+            // 1:1 relationship with MessageArtifact
+            b.HasOne(c => c.Artifact)
+                .WithOne(a => a.CanvasTextArtifact)
+                .HasForeignKey<CanvasTextArtifactEntity>(c => c.ArtifactId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map ImageArtifacts entity
+        modelBuilder.Entity<ImageArtifactEntity>(b =>
+        {
+            b.ToTable("ImageArtifacts");
+            b.HasKey(i => i.ArtifactId);
+            b.Property(i => i.Src).IsRequired();
+            b.Property(i => i.Alt).HasMaxLength(200);
+
+            // 1:1 relationship with MessageArtifact
+            b.HasOne(i => i.Artifact)
+                .WithOne(a => a.ImageArtifact)
+                .HasForeignKey<ImageArtifactEntity>(i => i.ArtifactId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map VideoArtifacts entity
+        modelBuilder.Entity<VideoArtifactEntity>(b =>
+        {
+            b.ToTable("VideoArtifacts");
+            b.HasKey(v => v.ArtifactId);
+            b.Property(v => v.Src).IsRequired();
+
+            // 1:1 relationship with MessageArtifact
+            b.HasOne(v => v.Artifact)
+                .WithOne(a => a.VideoArtifact)
+                .HasForeignKey<VideoArtifactEntity>(v => v.ArtifactId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map ThreeJsArtifacts entity
+        modelBuilder.Entity<ThreeJsArtifactEntity>(b =>
+        {
+            b.ToTable("ThreeJsArtifacts");
+            b.HasKey(t => t.ArtifactId);
+            b.Property(t => t.SceneData).HasColumnType("jsonb");
+
+            // 1:1 relationship with MessageArtifact
+            b.HasOne(t => t.Artifact)
+                .WithOne(a => a.ThreeJsArtifact)
+                .HasForeignKey<ThreeJsArtifactEntity>(t => t.ArtifactId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map CalendarArtifacts entity
+        modelBuilder.Entity<CalendarArtifactEntity>(b =>
+        {
+            b.ToTable("CalendarArtifacts");
+            b.HasKey(c => c.ArtifactId);
+            b.Property(c => c.Events).HasColumnType("jsonb");
+
+            // 1:1 relationship with MessageArtifact
+            b.HasOne(c => c.Artifact)
+                .WithOne(a => a.CalendarArtifact)
+                .HasForeignKey<CalendarArtifactEntity>(c => c.ArtifactId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map Reactions entity (polymorphic: targets messages or artifacts)
+        modelBuilder.Entity<ReactionEntity>(b =>
+        {
+            b.ToTable("Reactions");
+            b.HasKey(r => r.Id);
+            b.Property(r => r.TargetType).IsRequired().HasMaxLength(20);
+            b.Property(r => r.TargetId).IsRequired();
+            b.Property(r => r.UserId).IsRequired();
+            b.Property(r => r.Emoji).IsRequired().HasMaxLength(100);
+            b.Property(r => r.Type).IsRequired().HasMaxLength(20).HasDefaultValue("emoji");
+            b.Property(r => r.CreatedAt).HasColumnType("timestamp with time zone");
+
+            // Unique constraint: one reaction per user per target per emoji
+            b.HasIndex(r => new { r.TargetId, r.UserId, r.Emoji }).IsUnique();
+
+            // Index for efficient queries by target
+            b.HasIndex(r => new { r.TargetType, r.TargetId });
+
+            // Relationship with User
+            b.HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Note: Polymorphic relationships to Message and Artifact are handled
+            // manually in application code since EF Core doesn't natively support
+            // polymorphic FKs. The TargetType discriminator indicates which entity
+            // the TargetId references ('message' or 'artifact').
         });
     }
 }
