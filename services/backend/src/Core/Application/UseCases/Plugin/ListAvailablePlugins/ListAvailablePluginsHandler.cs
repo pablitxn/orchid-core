@@ -1,14 +1,14 @@
 using Application.Interfaces;
 using MediatR;
 
-namespace Application.UseCases.Plugin.ListAvailablePluginDtos;
+namespace Application.UseCases.Plugin.ListAvailablePlugins;
 
-public sealed class ListAvailablePluginDtosHandler(
+public sealed class ListAvailablePluginsHandler(
     IPluginRepository pluginRepository,
     IUserPluginRepository userPluginRepository
-) : IRequestHandler<ListAvailablePluginDtosQuery, ListAvailablePluginDtosDto>
+) : IRequestHandler<ListAvailablePluginsQuery, ListAvailablePluginsDto>
 {
-    public async Task<ListAvailablePluginDtosDto> Handle(ListAvailablePluginDtosQuery query, CancellationToken cancellationToken)
+    public async Task<ListAvailablePluginsDto> Handle(ListAvailablePluginsQuery query, CancellationToken cancellationToken)
     {
         var allPlugins = await pluginRepository.ListActiveAsync(cancellationToken);
         var userPlugins = await userPluginRepository.ListByUserAsync(query.UserId, cancellationToken);
@@ -24,6 +24,6 @@ public sealed class ListAvailablePluginDtosHandler(
             IsActive: plugin.IsActive
         ));
 
-        return new ListAvailablePluginDtosDto(availablePlugins);
+        return new ListAvailablePluginsDto(availablePlugins);
     }
 }

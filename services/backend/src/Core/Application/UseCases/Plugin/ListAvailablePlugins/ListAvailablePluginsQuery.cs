@@ -1,12 +1,12 @@
 using MediatR;
 
-namespace Application.UseCases.Plugin.ListAvailablePluginDtos;
+namespace Application.UseCases.Plugin.ListAvailablePlugins;
 
-public sealed record ListAvailablePluginDtosQuery(
+public sealed record ListAvailablePluginsQuery(
     Guid UserId
-) : IRequest<ListAvailablePluginDtosDto>;
+) : IRequest<ListAvailablePluginsDto>;
 
-public sealed record ListAvailablePluginDtosDto(
+public sealed record ListAvailablePluginsDto(
     IEnumerable<AvailablePluginDto> Plugins
 );
 

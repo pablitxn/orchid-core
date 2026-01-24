@@ -1,4 +1,5 @@
 using Application.UseCases.Plugin.ListAvailablePlugins;
+using Application.UseCases.Plugin.ListPublicPlugins;
 using Application.UseCases.Workflow.ListWorkflows;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
