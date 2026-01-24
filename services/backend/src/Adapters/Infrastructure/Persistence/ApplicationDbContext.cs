@@ -64,6 +64,7 @@ public class ApplicationDbContext(
     public DbSet<AgentRatingEntity> AgentRatings { get; set; }
     public DbSet<FeatureFlagEntity> FeatureFlags { get; set; }
     public DbSet<ServiceAccountEntity> ServiceAccounts { get; set; }
+    public DbSet<MessageV2Entity> MessagesV2 { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -629,6 +630,33 @@ public class ApplicationDbContext(
             b.Property(sa => sa.CreatedAt).HasColumnType("timestamp with time zone");
             b.Property(sa => sa.LastUsedAt).HasColumnType("timestamp with time zone");
             b.HasIndex(sa => sa.ClientId).IsUnique();
+        });
+
+        // Map MessagesV2 entity for Chat V2 API
+        modelBuilder.Entity<MessageV2Entity>(b =>
+        {
+            b.ToTable("MessagesV2");
+            b.HasKey(m => m.Id);
+            b.Property(m => m.SessionId).IsRequired().HasMaxLength(128);
+            b.Property(m => m.ChatSessionId).IsRequired();
+            b.Property(m => m.Role).IsRequired().HasMaxLength(20);
+            b.Property(m => m.Content);
+            b.Property(m => m.ToolCallsJson).HasColumnType("jsonb");
+            b.Property(m => m.ArtifactsJson).HasColumnType("jsonb");
+            b.Property(m => m.ReactionsJson).HasColumnType("jsonb");
+            b.Property(m => m.Timestamp).IsRequired();
+            b.Property(m => m.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(m => m.UpdatedAt).HasColumnType("timestamp with time zone");
+
+            // Indexes for efficient pagination queries
+            b.HasIndex(m => new { m.SessionId, m.Timestamp });
+            b.HasIndex(m => m.ChatSessionId);
+
+            // Relationship with ChatSession
+            b.HasOne(m => m.ChatSession)
+                .WithMany()
+                .HasForeignKey(m => m.ChatSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
