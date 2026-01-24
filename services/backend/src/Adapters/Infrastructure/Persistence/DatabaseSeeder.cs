@@ -227,8 +227,9 @@ public static class DatabaseSeeder
         var needsWorkflows = !await db.Workflows.AnyAsync();
         var needsPersonalities = !await db.PersonalityTemplates.AnyAsync();
         var needsAgents = !await db.Agents.AnyAsync();
+        var needsServiceAccounts = !await db.ServiceAccounts.AnyAsync();
 
-        if (!needsWorkflows && !needsPersonalities && !needsAgents)
+        if (!needsWorkflows && !needsPersonalities && !needsAgents && !needsServiceAccounts)
             return;
 
         // Build list of seeding tasks to run in parallel
@@ -255,6 +256,16 @@ public static class DatabaseSeeder
             var logger = serviceProvider?.GetService<ILogger<AgentSeeder>>()
                 ?? new Microsoft.Extensions.Logging.Abstractions.NullLogger<AgentSeeder>();
             var seeder = new AgentSeeder(db, logger);
+            seedingTasks.Add(seeder.SeedAsync());
+        }
+
+        if (needsServiceAccounts)
+        {
+            var logger = serviceProvider?.GetService<ILogger<ServiceAccountSeeder>>()
+                ?? new Microsoft.Extensions.Logging.Abstractions.NullLogger<ServiceAccountSeeder>();
+            var hasher = serviceProvider?.GetRequiredService<IPasswordHasher>()
+                ?? throw new InvalidOperationException("IPasswordHasher is required for service account seeding");
+            var seeder = new ServiceAccountSeeder(db, hasher, logger);
             seedingTasks.Add(seeder.SeedAsync());
         }
 

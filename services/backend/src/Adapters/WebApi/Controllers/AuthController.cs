@@ -9,6 +9,7 @@ using Application.UseCases.Auth.ForgotPassword;
 using Application.UseCases.Auth.Login;
 using Application.UseCases.Auth.Register;
 using Application.UseCases.Auth.ResetPassword;
+using Application.UseCases.Auth.ServiceToken;
 using Application.UseCases.User.CreateUser;
 using Application.UseCases.User.GetUser;
 using Domain.Entities;
@@ -347,6 +348,45 @@ public class AuthController(
         return Ok(new { message = "Password reset successfully" });
     }
 
+    [HttpPost("service-token")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ServiceToken([FromBody] ServiceTokenRequest request)
+    {
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        // Rate limiting: 10 attempts per minute per IP for service accounts
+        var rateLimitKey = $"service-token:{ipAddress}";
+        var rateCheck = await _rateLimitService.CheckAsync(
+            rateLimitKey,
+            limit: 10,
+            window: TimeSpan.FromMinutes(1),
+            HttpContext.RequestAborted);
+
+        if (!rateCheck.IsAllowed)
+        {
+            Response.Headers.Append("Retry-After", ((int)rateCheck.RetryAfter.TotalSeconds).ToString());
+            return StatusCode(429, new
+            {
+                error = "Too many authentication attempts. Please try again later.",
+                retryAfter = (int)rateCheck.RetryAfter.TotalSeconds
+            });
+        }
+
+        var result = await _mediator.Send(new ServiceTokenCommand(
+            request.ClientId,
+            request.ClientSecret,
+            ipAddress));
+
+        if (!result.IsSuccess)
+            return Unauthorized(new { error = result.ErrorMessage });
+
+        return Ok(new
+        {
+            access_token = result.AccessToken,
+            token_type = result.TokenType,
+            expires_in = result.ExpiresIn
+        });
+    }
 
     // Step 1: Redirect user to Google OAuth URL manually
     [HttpGet("google")]
@@ -516,6 +556,8 @@ public record ForgotPasswordRequest(string Email);
 public record ResetPasswordRequest(string Email, string Token, string NewPassword);
 
 public record RefreshTokenRequest(string? RefreshToken);
+
+public record ServiceTokenRequest(string ClientId, string ClientSecret);
 
 // Helper class for OAuth token response
 public class OAuthTokenResponse

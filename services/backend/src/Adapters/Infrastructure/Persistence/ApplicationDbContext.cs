@@ -63,6 +63,7 @@ public class ApplicationDbContext(
     public DbSet<RefreshTokenEntity> RefreshTokens { get; set; }
     public DbSet<AgentRatingEntity> AgentRatings { get; set; }
     public DbSet<FeatureFlagEntity> FeatureFlags { get; set; }
+    public DbSet<ServiceAccountEntity> ServiceAccounts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -614,6 +615,20 @@ public class ApplicationDbContext(
             b.Property(f => f.UpdatedAt).HasColumnType("timestamp with time zone");
             b.HasIndex(f => f.Key).IsUnique();
             b.HasIndex(f => f.IsEnabled);
+        });
+
+        modelBuilder.Entity<ServiceAccountEntity>(b =>
+        {
+            b.ToTable("ServiceAccounts");
+            b.HasKey(sa => sa.Id);
+            b.Property(sa => sa.ClientId).IsRequired().HasMaxLength(100);
+            b.Property(sa => sa.ClientSecretHash).IsRequired();
+            b.Property(sa => sa.Name).IsRequired().HasMaxLength(200);
+            b.Property(sa => sa.Scopes).HasColumnType("text[]");
+            b.Property(sa => sa.IsActive).IsRequired().HasDefaultValue(true);
+            b.Property(sa => sa.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(sa => sa.LastUsedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(sa => sa.ClientId).IsUnique();
         });
     }
 }

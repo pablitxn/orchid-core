@@ -51,4 +51,31 @@ public class JwtTokenService : ITokenService
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
+    public string GenerateServiceAccountToken(ServiceAccountEntity serviceAccount)
+    {
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(JwtRegisteredClaimNames.Sub, $"service:{serviceAccount.ClientId}"),
+            new("type", "service_account"),
+            new("client_id", serviceAccount.ClientId),
+        };
+
+        foreach (var scope in serviceAccount.Scopes)
+        {
+            claims.Add(new Claim("scope", scope));
+        }
+
+        var creds = new SigningCredentials(_key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            _issuer,
+            _audience,
+            claims,
+            expires: DateTime.UtcNow.AddHours(1), // Service tokens expire in 1 hour
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
 }
