@@ -16,7 +16,7 @@ public static class CreateAgentCommandValidator
     public static void Validate(CreateAgentCommand command)
     {
         if (command == null)
-            throw new ArgumentNullException(nameof(command));
+            throw new ValidationException("Command cannot be null.", nameof(command));
 
         if (string.IsNullOrWhiteSpace(command.Name))
             throw new ValidationException("Name is required.", nameof(command.Name));

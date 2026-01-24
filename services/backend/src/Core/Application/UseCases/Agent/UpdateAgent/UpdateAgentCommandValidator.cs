@@ -16,7 +16,7 @@ public static class UpdateAgentCommandValidator
     public static void Validate(UpdateAgentCommand command)
     {
         if (command == null)
-            throw new ArgumentNullException(nameof(command));
+            throw new ValidationException("Command cannot be null.", nameof(command));
 
         if (command.AgentId == Guid.Empty)
             throw new ValidationException("AgentId cannot be empty.", nameof(command.AgentId));

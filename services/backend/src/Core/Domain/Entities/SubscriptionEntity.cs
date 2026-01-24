@@ -1,4 +1,5 @@
 using Domain.Enums;
+using Domain.Exceptions;
 
 namespace Domain.Entities;
 
@@ -33,7 +34,7 @@ public class SubscriptionEntity
     /// </summary>
     public void AddCredits(int amount)
     {
-        if (amount <= 0) throw new ArgumentException("Amount to add must be positive.", nameof(amount));
+        if (amount <= 0) throw new ValidationException("Amount to add must be positive.", nameof(amount));
         Credits += amount;
         UpdatedAt = DateTime.UtcNow;
         Version++;
@@ -44,7 +45,7 @@ public class SubscriptionEntity
     /// </summary>
     public void ConsumeCredits(int amount)
     {
-        if (amount <= 0) throw new ArgumentException("Amount to consume must be positive.", nameof(amount));
+        if (amount <= 0) throw new ValidationException("Amount to consume must be positive.", nameof(amount));
         
         // Check if subscription has unlimited plan
         if (SubscriptionPlan?.PlanEnum == SubscriptionPlanEnum.Unlimited)
@@ -56,7 +57,7 @@ public class SubscriptionEntity
         }
         
         if (Credits < amount)
-            throw new InvalidOperationException($"Insufficient credits: available {Credits}, requested {amount}.");
+            throw new InsufficientCreditsException(Credits, amount);
         Credits -= amount;
         UpdatedAt = DateTime.UtcNow;
         Version++;
