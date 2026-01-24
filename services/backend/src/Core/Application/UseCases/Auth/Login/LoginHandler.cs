@@ -12,7 +12,7 @@ public class LoginHandler(
     IPasswordHasher passwordHasher,
     ILoginHistoryRepository loginHistoryRepository,
     ILogger<LoginHandler> logger)
-    : IRequestHandler<LoginCommand, LoginResult>
+    : IRequestHandler<LoginCommand, LoginDto>
 {
     private const int MaxFailedAttempts = 5;
     private static readonly TimeSpan LockoutWindow = TimeSpan.FromMinutes(15);
@@ -23,7 +23,7 @@ public class LoginHandler(
     private readonly ILoginHistoryRepository _loginHistoryRepository = loginHistoryRepository;
     private readonly ILogger<LoginHandler> _logger = logger;
 
-    public async Task<LoginResult> Handle(LoginCommand request, CancellationToken cancellationToken)
+    public async Task<LoginDto> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
         // Security: Normalize email for consistent lookup (prevents case-sensitive bypasses)
         var normalizedEmail = request.Email?.Trim().ToLowerInvariant() ?? string.Empty;
@@ -31,7 +31,7 @@ public class LoginHandler(
         if (user == null)
         {
             // Don't reveal that user doesn't exist
-            return new LoginResult(false, string.Empty, [], ErrorMessage: "Invalid credentials");
+            return new LoginDto(false, string.Empty, [], ErrorMessage: "Invalid credentials");
         }
 
         // Check for account lockout
@@ -50,20 +50,20 @@ public class LoginHandler(
             // Record lockout attempt in history
             await RecordLoginAttemptAsync(user.Id, request, false, $"Account locked - {failedAttempts} failed attempts", cancellationToken);
 
-            return new LoginResult(false, string.Empty, [], ErrorMessage: "Account temporarily locked. Please try again later.");
+            return new LoginDto(false, string.Empty, [], ErrorMessage: "Account temporarily locked. Please try again later.");
         }
 
         // Password is always required
         if (string.IsNullOrEmpty(request.Password))
         {
             await RecordLoginAttemptAsync(user.Id, request, false, "Password not provided", cancellationToken);
-            return new LoginResult(false, string.Empty, [], ErrorMessage: "Password is required");
+            return new LoginDto(false, string.Empty, [], ErrorMessage: "Password is required");
         }
 
         if (!_passwordHasher.VerifyPassword(user.PasswordHash, request.Password))
         {
             await RecordLoginAttemptAsync(user.Id, request, false, "Invalid password", cancellationToken);
-            return new LoginResult(false, string.Empty, [], ErrorMessage: "Invalid credentials");
+            return new LoginDto(false, string.Empty, [], ErrorMessage: "Invalid credentials");
         }
 
         // Successful login
@@ -72,7 +72,7 @@ public class LoginHandler(
         var roles = user.UserRoles?.Select(ur => ur.Role.Name) ?? [];
         var enumerable = roles as string[] ?? roles.ToArray();
         var token = _tokenService.GenerateToken(user, enumerable);
-        return new LoginResult(true, token, enumerable, user.Id);
+        return new LoginDto(true, token, enumerable, user.Id);
     }
 
     private async Task RecordLoginAttemptAsync(

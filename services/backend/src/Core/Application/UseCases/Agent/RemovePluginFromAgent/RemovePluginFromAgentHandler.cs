@@ -7,9 +7,9 @@ namespace Application.UseCases.Agent.RemovePluginFromAgent;
 public sealed class RemovePluginFromAgentHandler(
     IAgentRepository agentRepository,
     ILogger<RemovePluginFromAgentHandler> logger
-) : IRequestHandler<RemovePluginFromAgentCommand, RemovePluginFromAgentResult>
+) : IRequestHandler<RemovePluginFromAgentCommand, RemovePluginFromAgentDto>
 {
-    public async Task<RemovePluginFromAgentResult> Handle(RemovePluginFromAgentCommand command, CancellationToken cancellationToken)
+    public async Task<RemovePluginFromAgentDto> Handle(RemovePluginFromAgentCommand command, CancellationToken cancellationToken)
     {
         try
         {
@@ -17,13 +17,13 @@ public sealed class RemovePluginFromAgentHandler(
             var agent = await agentRepository.GetByIdAsync(command.AgentId, cancellationToken);
             if (agent == null)
             {
-                return new RemovePluginFromAgentResult(false, "Agent not found");
+                return new RemovePluginFromAgentDto(false, "Agent not found");
             }
 
             // Check if plugin is in the agent
             if (!agent.PluginIds.Contains(command.PluginId))
             {
-                return new RemovePluginFromAgentResult(false, "Plugin is not assigned to this agent");
+                return new RemovePluginFromAgentDto(false, "Plugin is not assigned to this agent");
             }
 
             // Remove plugin from agent
@@ -35,13 +35,13 @@ public sealed class RemovePluginFromAgentHandler(
             logger.LogInformation("Plugin {PluginId} removed from agent {AgentId} by user {UserId}", 
                 command.PluginId, command.AgentId, command.UserId);
 
-            return new RemovePluginFromAgentResult(true);
+            return new RemovePluginFromAgentDto(true);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error removing plugin {PluginId} from agent {AgentId}", 
                 command.PluginId, command.AgentId);
-            return new RemovePluginFromAgentResult(false, "An error occurred while removing the plugin");
+            return new RemovePluginFromAgentDto(false, "An error occurred while removing the plugin");
         }
     }
 }

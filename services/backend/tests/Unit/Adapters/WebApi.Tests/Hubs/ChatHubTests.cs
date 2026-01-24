@@ -359,7 +359,7 @@ public class ChatHubTests
         _chatSessionRepositoryMock.Setup(r => r.GetBySessionIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(chatSession);
 
-        var accessResult = new VerifyAgentAccessResult(true);
+        var accessResult = new VerifyAgentAccessDto(true);
         _mediatorMock.Setup(m => m.Send(It.IsAny<VerifyAgentAccessQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(accessResult);
 
@@ -554,7 +554,7 @@ public class ChatHubTests
         _chatSessionRepositoryMock.Setup(r => r.GetBySessionIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(chatSession);
 
-        var accessResult = new VerifyAgentAccessResult(false, "Access denied");
+        var accessResult = new VerifyAgentAccessDto(false, "Access denied");
         _mediatorMock.Setup(m => m.Send(It.IsAny<VerifyAgentAccessQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(accessResult);
 

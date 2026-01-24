@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Application.UseCases.ChatV2.ToggleReaction;
 
-public sealed class ToggleReactionHandler : IRequestHandler<ToggleReactionCommand, ToggleReactionResult>
+public sealed class ToggleReactionHandler : IRequestHandler<ToggleReactionCommand, ToggleReactionDto>
 {
     private readonly IMessageRepository _messageRepository;
     private readonly IChatSessionRepository _sessionRepository;
@@ -29,7 +29,7 @@ public sealed class ToggleReactionHandler : IRequestHandler<ToggleReactionComman
         _logger = logger;
     }
 
-    public async Task<ToggleReactionResult> Handle(
+    public async Task<ToggleReactionDto> Handle(
         ToggleReactionCommand request,
         CancellationToken cancellationToken)
     {
@@ -105,7 +105,7 @@ public sealed class ToggleReactionHandler : IRequestHandler<ToggleReactionComman
 
         await _messageRepository.UpdateAsync(message, cancellationToken);
 
-        return new ToggleReactionResult(
+        return new ToggleReactionDto(
             request.MessageId.ToString(),
             resultReaction,
             wasAdded);

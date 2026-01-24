@@ -919,7 +919,7 @@ public class AgentsControllerTests
         var agentId = Guid.NewGuid();
         SetupAuthenticatedUser(userId);
 
-        var expectedResult = new VerifyAgentAccessResult(true, "User owns the agent");
+        var expectedResult = new VerifyAgentAccessDto(true, "User owns the agent");
 
         _mediatorMock.Setup(m => m.Send(
                 It.IsAny<VerifyAgentAccessQuery>(),
@@ -931,7 +931,7 @@ public class AgentsControllerTests
 
         // Assert
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var accessResult = okResult.Value.Should().BeOfType<VerifyAgentAccessResult>().Subject;
+        var accessResult = okResult.Value.Should().BeOfType<VerifyAgentAccessDto>().Subject;
         accessResult.HasAccess.Should().BeTrue();
     }
 
@@ -943,7 +943,7 @@ public class AgentsControllerTests
         var agentId = Guid.NewGuid();
         SetupAuthenticatedUser(userId);
 
-        var expectedResult = new VerifyAgentAccessResult(false, "Agent is private");
+        var expectedResult = new VerifyAgentAccessDto(false, "Agent is private");
 
         _mediatorMock.Setup(m => m.Send(
                 It.IsAny<VerifyAgentAccessQuery>(),
@@ -956,7 +956,7 @@ public class AgentsControllerTests
         // Assert
         var statusCodeResult = result.Should().BeOfType<ObjectResult>().Subject;
         statusCodeResult.StatusCode.Should().Be(403);
-        var accessResult = statusCodeResult.Value.Should().BeOfType<VerifyAgentAccessResult>().Subject;
+        var accessResult = statusCodeResult.Value.Should().BeOfType<VerifyAgentAccessDto>().Subject;
         accessResult.HasAccess.Should().BeFalse();
     }
 
@@ -969,7 +969,7 @@ public class AgentsControllerTests
         SetupAuthenticatedUser(userId);
 
         _mediatorMock.Setup(m => m.Send(It.IsAny<VerifyAgentAccessQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new VerifyAgentAccessResult(true));
+            .ReturnsAsync(new VerifyAgentAccessDto(true));
 
         // Act
         await _controller.VerifyAgentAccess(agentId);

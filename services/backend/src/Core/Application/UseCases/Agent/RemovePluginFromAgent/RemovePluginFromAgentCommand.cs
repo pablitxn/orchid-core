@@ -6,9 +6,9 @@ public sealed record RemovePluginFromAgentCommand(
     Guid UserId,
     Guid AgentId,
     Guid PluginId
-) : IRequest<RemovePluginFromAgentResult>;
+) : IRequest<RemovePluginFromAgentDto>;
 
-public sealed record RemovePluginFromAgentResult(
+public sealed record RemovePluginFromAgentDto(
     bool Success,
     string? ErrorMessage = null
 );

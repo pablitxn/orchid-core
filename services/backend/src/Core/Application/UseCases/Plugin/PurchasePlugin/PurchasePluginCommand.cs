@@ -5,9 +5,9 @@ namespace Application.UseCases.Plugin.PurchasePlugin;
 public sealed record PurchasePluginCommand(
     Guid UserId,
     Guid PluginId
-) : IRequest<PurchasePluginResult>;
+) : IRequest<PurchasePluginDto>;
 
-public sealed record PurchasePluginResult(
+public sealed record PurchasePluginDto(
     bool Success,
     string? ErrorMessage = null
 );

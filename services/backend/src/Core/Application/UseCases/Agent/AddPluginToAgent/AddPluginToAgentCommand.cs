@@ -6,9 +6,9 @@ public sealed record AddPluginToAgentCommand(
     Guid UserId,
     Guid AgentId,
     Guid PluginId
-) : IRequest<AddPluginToAgentResult>;
+) : IRequest<AddPluginToAgentDto>;
 
-public sealed record AddPluginToAgentResult(
+public sealed record AddPluginToAgentDto(
     bool Success,
     string? ErrorMessage = null
 );

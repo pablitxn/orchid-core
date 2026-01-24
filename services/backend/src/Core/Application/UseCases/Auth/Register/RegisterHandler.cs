@@ -10,21 +10,21 @@ public class RegisterHandler(
     IRoleRepository roleRepository,
     IPasswordHasher passwordHasher,
     IEventPublisher eventPublisher)
-    : IRequestHandler<RegisterCommand, RegisterResult>
+    : IRequestHandler<RegisterCommand, RegisterDto>
 {
     private readonly IPasswordHasher _passwordHasher = passwordHasher;
     private readonly IRoleRepository _roles = roleRepository;
     private readonly IUserRepository _users = userRepository;
     private readonly IEventPublisher _eventPublisher = eventPublisher;
 
-    public async Task<RegisterResult> Handle(RegisterCommand request, CancellationToken cancellationToken)
+    public async Task<RegisterDto> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
         // Security: Normalize email for consistent storage and lookup
         var normalizedEmail = request.Email?.Trim().ToLowerInvariant() ?? string.Empty;
 
         var existing = await _users.GetByEmailAsync(normalizedEmail);
         if (existing != null!)
-            return RegisterResult.Failure("An account with this email already exists");
+            return RegisterDto.Failure("An account with this email already exists");
 
         var newUser = new UserEntity
         {
@@ -48,6 +48,6 @@ public class RegisterHandler(
         // Publish user created event to trigger knowledge base seeding
         await _eventPublisher.PublishAsync(new UserCreatedEvent(created.Id, created.Email));
 
-        return RegisterResult.Success(created);
+        return RegisterDto.Success(created);
     }
 }

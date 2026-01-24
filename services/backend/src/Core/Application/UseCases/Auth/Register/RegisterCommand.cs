@@ -3,10 +3,10 @@ using MediatR;
 
 namespace Application.UseCases.Auth.Register;
 
-public record RegisterCommand(string Email, string Password, IEnumerable<string>? Roles) : IRequest<RegisterResult>;
+public record RegisterCommand(string Email, string Password, IEnumerable<string>? Roles) : IRequest<RegisterDto>;
 
-public record RegisterResult(bool IsSuccess, UserEntity? User = null, string? ErrorMessage = null)
+public record RegisterDto(bool IsSuccess, UserEntity? User = null, string? ErrorMessage = null)
 {
-    public static RegisterResult Success(UserEntity user) => new(true, user);
-    public static RegisterResult Failure(string message) => new(false, null, message);
+    public static RegisterDto Success(UserEntity user) => new(true, user);
+    public static RegisterDto Failure(string message) => new(false, null, message);
 }

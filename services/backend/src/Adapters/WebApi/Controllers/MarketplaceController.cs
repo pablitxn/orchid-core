@@ -82,14 +82,14 @@ public class MarketplaceController(IMediator mediator) : ControllerBase
             var userId = User.GetUserId();
             var result = await _mediator.Send(new PurchaseWorkflowCommand(userId, workflowId), cancellationToken);
             
-            if (result != PurchaseResult.Success)
+            if (result != PurchaseOutcome.Success)
             {
                 var errorMessage = result switch
                 {
-                    PurchaseResult.WorkflowNotFound => "Workflow not found",
-                    PurchaseResult.UserNotFound => "User not found",
-                    PurchaseResult.InsufficientCredits => "Insufficient credits",
-                    PurchaseResult.AlreadyPurchased => "You have already purchased this workflow",
+                    PurchaseOutcome.WorkflowNotFound => "Workflow not found",
+                    PurchaseOutcome.UserNotFound => "User not found",
+                    PurchaseOutcome.InsufficientCredits => "Insufficient credits",
+                    PurchaseOutcome.AlreadyPurchased => "You have already purchased this workflow",
                     _ => "An error occurred while processing your purchase"
                 };
                 return BadRequest(errorMessage);

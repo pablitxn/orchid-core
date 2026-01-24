@@ -77,7 +77,7 @@ public class EnhancedCreditSystemTests : CreditSystemTestBase
         var result = await mediator.Send(command);
         
         // Assert
-        result.Should().Be(PurchaseResult.Success);
+        result.Should().Be(PurchaseOutcome.Success);
         
         var subscription = await unitOfWork.Subscriptions.GetByUserIdAsync(userId);
         subscription!.Credits.Should().Be(400); // 500 - 100

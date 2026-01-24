@@ -13,7 +13,7 @@ public sealed class PurchasePluginHandler(
     ICostRegistry costRegistry,
     ICreditLimitService creditLimitService,
     ILogger<PurchasePluginHandler> logger
-) : IRequestHandler<PurchasePluginCommand, PurchasePluginResult>
+) : IRequestHandler<PurchasePluginCommand, PurchasePluginDto>
 {
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly ICreditTrackingService _creditTracking = creditTrackingService;
@@ -21,7 +21,7 @@ public sealed class PurchasePluginHandler(
     private readonly ICreditLimitService _creditLimitService = creditLimitService;
     private readonly ILogger<PurchasePluginHandler> _logger = logger;
 
-    public async Task<PurchasePluginResult> Handle(PurchasePluginCommand command, CancellationToken cancellationToken)
+    public async Task<PurchasePluginDto> Handle(PurchasePluginCommand command, CancellationToken cancellationToken)
     {
         const int MAX_RETRY_ATTEMPTS = 3;
         int retryCount = 0;
@@ -39,7 +39,7 @@ public sealed class PurchasePluginHandler(
                 if (existingPurchase != null && existingPurchase.IsActive)
                 {
                     await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                    return new PurchasePluginResult(false, "You already own this plugin");
+                    return new PurchasePluginDto(false, "You already own this plugin");
                 }
 
                 // Get the plugin details
@@ -47,13 +47,13 @@ public sealed class PurchasePluginHandler(
                 if (plugin == null)
                 {
                     await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                    return new PurchasePluginResult(false, "Plugin not found");
+                    return new PurchasePluginDto(false, "Plugin not found");
                 }
 
                 if (!plugin.IsActive)
                 {
                     await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                    return new PurchasePluginResult(false, "Plugin is not available for purchase");
+                    return new PurchasePluginDto(false, "Plugin is not available for purchase");
                 }
 
                 // Get user subscription
@@ -61,7 +61,7 @@ public sealed class PurchasePluginHandler(
                 if (subscription == null)
                 {
                     await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                    return new PurchasePluginResult(false, "No active subscription found");
+                    return new PurchasePluginDto(false, "No active subscription found");
                 }
                 
                 // Store the version before modification
@@ -74,7 +74,7 @@ public sealed class PurchasePluginHandler(
                     if (subscription.ExpiresAt.HasValue && subscription.ExpiresAt.Value < DateTime.UtcNow)
                     {
                         await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                        return new PurchasePluginResult(false, "Your subscription has expired");
+                        return new PurchasePluginDto(false, "Your subscription has expired");
                     }
                 }
                 else
@@ -94,13 +94,13 @@ public sealed class PurchasePluginHandler(
                         if (!limitCheck.IsWithinLimits)
                         {
                             await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                            return new PurchasePluginResult(false, "Credit limit exceeded");
+                            return new PurchasePluginDto(false, "Credit limit exceeded");
                         }
 
                         if (subscription.Credits < purchaseCost)
                         {
                             await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                            return new PurchasePluginResult(false,
+                            return new PurchasePluginDto(false,
                                 $"Insufficient credits. You need {purchaseCost} credits but only have {subscription.Credits}");
                         }
                     }
@@ -175,7 +175,7 @@ public sealed class PurchasePluginHandler(
                 _logger.LogInformation("User {UserId} successfully purchased plugin {PluginId} ({PluginName})", 
                     command.UserId, plugin.Id, plugin.Name);
 
-                return new PurchasePluginResult(true);
+                return new PurchasePluginDto(true);
             }
             catch (ConcurrencyException ex)
             {
@@ -186,7 +186,7 @@ public sealed class PurchasePluginHandler(
                 {
                     _logger.LogError(ex, "Max retry attempts reached for purchasing plugin {PluginId} for user {UserId}", 
                         command.PluginId, command.UserId);
-                    return new PurchasePluginResult(false, "Unable to complete plugin purchase due to concurrent updates. Please try again.");
+                    return new PurchasePluginDto(false, "Unable to complete plugin purchase due to concurrent updates. Please try again.");
                 }
                 
                 _logger.LogWarning("Concurrency conflict detected, retrying... Attempt {RetryCount} of {MaxAttempts}", 
@@ -200,11 +200,11 @@ public sealed class PurchasePluginHandler(
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                 _logger.LogError(ex, "Error purchasing plugin {PluginId} for user {UserId}", 
                     command.PluginId, command.UserId);
-                return new PurchasePluginResult(false, "An error occurred while processing your purchase");
+                return new PurchasePluginDto(false, "An error occurred while processing your purchase");
             }
         }
         
-        return new PurchasePluginResult(false, "Failed to purchase plugin after maximum retry attempts");
+        return new PurchasePluginDto(false, "Failed to purchase plugin after maximum retry attempts");
     }
 }
 

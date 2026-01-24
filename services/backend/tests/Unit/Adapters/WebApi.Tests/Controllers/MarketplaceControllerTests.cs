@@ -159,7 +159,7 @@ public class MarketplaceControllerTests
         var pluginId = Guid.NewGuid();
         SetupAuthenticatedUser(userId);
 
-        var successResult = new PurchasePluginResult(true);
+        var successResult = new PurchasePluginDto(true);
         _mediatorMock.Setup(m => m.Send(
             It.Is<PurchasePluginCommand>(c => c.UserId == userId && c.PluginId == pluginId),
             It.IsAny<CancellationToken>()))
@@ -189,7 +189,7 @@ public class MarketplaceControllerTests
         SetupAuthenticatedUser(userId);
 
         var errorMessage = "Insufficient credits";
-        var failureResult = new PurchasePluginResult(false, errorMessage);
+        var failureResult = new PurchasePluginDto(false, errorMessage);
         _mediatorMock.Setup(m => m.Send(
             It.Is<PurchasePluginCommand>(c => c.UserId == userId && c.PluginId == pluginId),
             It.IsAny<CancellationToken>()))
@@ -274,7 +274,7 @@ public class MarketplaceControllerTests
         _mediatorMock.Setup(m => m.Send(
             It.Is<PurchaseWorkflowCommand>(c => c.UserId == userId && c.WorkflowId == workflowId),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(PurchaseResult.Success);
+            .ReturnsAsync(PurchaseOutcome.Success);
 
         // Act
         var result = await _controller.PurchaseWorkflow(workflowId, CancellationToken.None);
@@ -301,7 +301,7 @@ public class MarketplaceControllerTests
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<PurchaseWorkflowCommand>(),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(PurchaseResult.WorkflowNotFound);
+            .ReturnsAsync(PurchaseOutcome.WorkflowNotFound);
 
         // Act
         var result = await _controller.PurchaseWorkflow(workflowId, CancellationToken.None);
@@ -322,7 +322,7 @@ public class MarketplaceControllerTests
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<PurchaseWorkflowCommand>(),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(PurchaseResult.UserNotFound);
+            .ReturnsAsync(PurchaseOutcome.UserNotFound);
 
         // Act
         var result = await _controller.PurchaseWorkflow(workflowId, CancellationToken.None);
@@ -343,7 +343,7 @@ public class MarketplaceControllerTests
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<PurchaseWorkflowCommand>(),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(PurchaseResult.InsufficientCredits);
+            .ReturnsAsync(PurchaseOutcome.InsufficientCredits);
 
         // Act
         var result = await _controller.PurchaseWorkflow(workflowId, CancellationToken.None);
@@ -364,7 +364,7 @@ public class MarketplaceControllerTests
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<PurchaseWorkflowCommand>(),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(PurchaseResult.AlreadyPurchased);
+            .ReturnsAsync(PurchaseOutcome.AlreadyPurchased);
 
         // Act
         var result = await _controller.PurchaseWorkflow(workflowId, CancellationToken.None);

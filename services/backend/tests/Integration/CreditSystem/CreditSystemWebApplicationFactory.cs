@@ -164,7 +164,7 @@ public class CreditSystemWebApplicationFactory : WebApplicationFactory<Program>
             }
 
             var verifyAccessHandler = services.SingleOrDefault(d =>
-                d.ServiceType == typeof(IRequestHandler<VerifyAgentAccessQuery, VerifyAgentAccessResult>));
+                d.ServiceType == typeof(IRequestHandler<VerifyAgentAccessQuery, VerifyAgentAccessDto>));
             if (verifyAccessHandler != null)
             {
                 services.Remove(verifyAccessHandler);
@@ -177,7 +177,7 @@ public class CreditSystemWebApplicationFactory : WebApplicationFactory<Program>
                 return new MockConsumeCreditsHandler(context);
             });
 
-            services.AddScoped<IRequestHandler<VerifyAgentAccessQuery, VerifyAgentAccessResult>, MockVerifyAgentAccessHandler>();
+            services.AddScoped<IRequestHandler<VerifyAgentAccessQuery, VerifyAgentAccessDto>, MockVerifyAgentAccessHandler>();
 
             // Replace health checks with mock versions that always pass
             var healthCheckDescriptors = services.Where(d =>

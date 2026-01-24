@@ -114,7 +114,7 @@ public class PluginControllerTests
             new (Guid.NewGuid(), "Available Plugin 2", "Desc 2", 200, true, true, false)
         };
 
-        var queryResult = new ListAvailablePluginsResult(expectedPlugins);
+        var queryResult = new ListAvailablePluginsDto(expectedPlugins);
 
         _mediatorMock.Setup(m => m.Send(
             It.Is<ListAvailablePluginsQuery>(q => q.UserId == userId),
@@ -139,7 +139,7 @@ public class PluginControllerTests
         var userId = Guid.NewGuid();
         SetupAuthenticatedUser(userId);
 
-        var queryResult = new ListAvailablePluginsResult(new List<AvailablePlugin>());
+        var queryResult = new ListAvailablePluginsDto(new List<AvailablePlugin>());
 
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<ListAvailablePluginsQuery>(),
@@ -181,7 +181,7 @@ public class PluginControllerTests
         var pluginId = Guid.NewGuid();
         SetupAuthenticatedUser(userId);
 
-        var successResult = new PurchasePluginResult(true);
+        var successResult = new PurchasePluginDto(true);
         _mediatorMock.Setup(m => m.Send(
             It.Is<PurchasePluginCommand>(c => c.UserId == userId && c.PluginId == pluginId),
             It.IsAny<CancellationToken>()))
@@ -207,7 +207,7 @@ public class PluginControllerTests
         SetupAuthenticatedUser(userId);
 
         var errorMessage = "Insufficient credits";
-        var failureResult = new PurchasePluginResult(false, errorMessage);
+        var failureResult = new PurchasePluginDto(false, errorMessage);
         _mediatorMock.Setup(m => m.Send(
             It.Is<PurchasePluginCommand>(c => c.UserId == userId && c.PluginId == pluginId),
             It.IsAny<CancellationToken>()))
@@ -249,7 +249,7 @@ public class PluginControllerTests
         var pluginId = Guid.NewGuid();
         SetupAuthenticatedUser(userId);
 
-        var successResult = new AddPluginToAgentResult(true);
+        var successResult = new AddPluginToAgentDto(true);
         _mediatorMock.Setup(m => m.Send(
             It.Is<AddPluginToAgentCommand>(c => 
                 c.UserId == userId && c.AgentId == agentId && c.PluginId == pluginId),
@@ -277,7 +277,7 @@ public class PluginControllerTests
         SetupAuthenticatedUser(userId);
 
         var errorMessage = "Plugin already added to agent";
-        var failureResult = new AddPluginToAgentResult(false, errorMessage);
+        var failureResult = new AddPluginToAgentDto(false, errorMessage);
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<AddPluginToAgentCommand>(),
             It.IsAny<CancellationToken>()))
@@ -320,7 +320,7 @@ public class PluginControllerTests
         var pluginId = Guid.NewGuid();
         SetupAuthenticatedUser(userId);
 
-        var successResult = new RemovePluginFromAgentResult(true);
+        var successResult = new RemovePluginFromAgentDto(true);
         _mediatorMock.Setup(m => m.Send(
             It.Is<RemovePluginFromAgentCommand>(c => 
                 c.UserId == userId && c.AgentId == agentId && c.PluginId == pluginId),
@@ -348,7 +348,7 @@ public class PluginControllerTests
         SetupAuthenticatedUser(userId);
 
         var errorMessage = "Plugin not found on agent";
-        var failureResult = new RemovePluginFromAgentResult(false, errorMessage);
+        var failureResult = new RemovePluginFromAgentDto(false, errorMessage);
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<RemovePluginFromAgentCommand>(),
             It.IsAny<CancellationToken>()))

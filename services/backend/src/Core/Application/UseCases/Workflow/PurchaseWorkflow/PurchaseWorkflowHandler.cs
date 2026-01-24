@@ -13,7 +13,7 @@ public class PurchaseWorkflowHandler(
     ICostRegistry costRegistry,
     ICreditLimitService creditLimitService,
     ILogger<PurchaseWorkflowHandler> logger)
-    : IRequestHandler<PurchaseWorkflowCommand, PurchaseResult>
+    : IRequestHandler<PurchaseWorkflowCommand, PurchaseOutcome>
 {
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly ICreditTrackingService _creditTracking = creditTrackingService;
@@ -21,7 +21,7 @@ public class PurchaseWorkflowHandler(
     private readonly ICreditLimitService _creditLimitService = creditLimitService;
     private readonly ILogger<PurchaseWorkflowHandler> _logger = logger;
 
-    public async Task<PurchaseResult> Handle(PurchaseWorkflowCommand request, CancellationToken cancellationToken)
+    public async Task<PurchaseOutcome> Handle(PurchaseWorkflowCommand request, CancellationToken cancellationToken)
     {
         const int MAX_RETRY_ATTEMPTS = 3;
         int retryCount = 0;
@@ -125,7 +125,7 @@ public class PurchaseWorkflowHandler(
                 _logger.LogInformation("User {UserId} successfully purchased workflow {WorkflowId} for {Credits} credits", 
                     request.UserId, request.WorkflowId, purchaseCost);
                     
-                return PurchaseResult.Success;
+                return PurchaseOutcome.Success;
             }
             catch (ConcurrencyException ex)
             {

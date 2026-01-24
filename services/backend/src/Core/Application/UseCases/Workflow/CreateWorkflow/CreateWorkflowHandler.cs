@@ -1,8 +1,8 @@
 using Application.Interfaces;
 using Domain.Entities;
+using Domain.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using System.ComponentModel.DataAnnotations;
 
 namespace Application.UseCases.Workflow.CreateWorkflow;
 
@@ -36,7 +36,7 @@ public class CreateWorkflowHandler(IWorkflowRepository repository, ILogger<Creat
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to create workflow with name {Name}", request.Name);
-            throw new ApplicationException("An error occurred while creating the workflow.", ex);
+            throw new OperationFailedException("create workflow", ex);
         }
 
         return workflow;

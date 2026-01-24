@@ -65,16 +65,16 @@ public class MockConsumeCreditsHandler : IRequestHandler<ConsumeCreditsCommand, 
     }
 }
 
-public class MockVerifyAgentAccessHandler : IRequestHandler<VerifyAgentAccessQuery, VerifyAgentAccessResult>
+public class MockVerifyAgentAccessHandler : IRequestHandler<VerifyAgentAccessQuery, VerifyAgentAccessDto>
 {
-    public Task<VerifyAgentAccessResult> Handle(VerifyAgentAccessQuery request, CancellationToken cancellationToken)
+    public Task<VerifyAgentAccessDto> Handle(VerifyAgentAccessQuery request, CancellationToken cancellationToken)
     {
         // For testing, always grant access unless agentId is empty
         if (request.AgentId == Guid.Empty)
         {
-            return Task.FromResult(new VerifyAgentAccessResult(false, "Invalid agent"));
+            return Task.FromResult(new VerifyAgentAccessDto(false, "Invalid agent"));
         }
         
-        return Task.FromResult(new VerifyAgentAccessResult(true));
+        return Task.FromResult(new VerifyAgentAccessDto(true));
     }
 }

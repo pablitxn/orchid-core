@@ -4,9 +4,9 @@ namespace Application.UseCases.Plugin.ListAvailablePlugins;
 
 public sealed record ListAvailablePluginsQuery(
     Guid UserId
-) : IRequest<ListAvailablePluginsResult>;
+) : IRequest<ListAvailablePluginsDto>;
 
-public sealed record ListAvailablePluginsResult(
+public sealed record ListAvailablePluginsDto(
     IEnumerable<AvailablePlugin> Plugins
 );
 

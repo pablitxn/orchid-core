@@ -3,7 +3,7 @@ using MediatR;
 
 namespace Application.UseCases.Agent.VerifyAgentAccess;
 
-public class VerifyAgentAccessHandler : IRequestHandler<VerifyAgentAccessQuery, VerifyAgentAccessResult>
+public class VerifyAgentAccessHandler : IRequestHandler<VerifyAgentAccessQuery, VerifyAgentAccessDto>
 {
     private readonly IAgentRepository _agentRepository;
     private readonly IUserPluginRepository _userPluginRepository;
@@ -16,7 +16,7 @@ public class VerifyAgentAccessHandler : IRequestHandler<VerifyAgentAccessQuery, 
         _userPluginRepository = userPluginRepository;
     }
 
-    public async Task<VerifyAgentAccessResult> Handle(
+    public async Task<VerifyAgentAccessDto> Handle(
         VerifyAgentAccessQuery request, 
         CancellationToken cancellationToken)
     {
@@ -25,13 +25,13 @@ public class VerifyAgentAccessHandler : IRequestHandler<VerifyAgentAccessQuery, 
         
         if (agent == null)
         {
-            return new VerifyAgentAccessResult(false, "Agent not found");
+            return new VerifyAgentAccessDto(false, "Agent not found");
         }
 
         // If the agent is private, only the owner can access it
         if (!agent.IsPublic && agent.UserId != request.UserId)
         {
-            return new VerifyAgentAccessResult(false, "Agent is private and you are not the owner");
+            return new VerifyAgentAccessDto(false, "Agent is private and you are not the owner");
         }
 
         // If the agent is public or owned by the user, check plugin availability
@@ -54,7 +54,7 @@ public class VerifyAgentAccessHandler : IRequestHandler<VerifyAgentAccessQuery, 
 
             if (missingPlugins.Count > 0)
             {
-                return new VerifyAgentAccessResult(
+                return new VerifyAgentAccessDto(
                     false, 
                     "You don't have access to all required plugins", 
                     missingPlugins);
@@ -62,6 +62,6 @@ public class VerifyAgentAccessHandler : IRequestHandler<VerifyAgentAccessQuery, 
         }
 
         // User has access
-        return new VerifyAgentAccessResult(true);
+        return new VerifyAgentAccessDto(true);
     }
 }

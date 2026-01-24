@@ -35,7 +35,7 @@ public class PurchasePlanHandler(
             SubscriptionPlanEnum.Package10 => 10,
             SubscriptionPlanEnum.Package25 => 25,
             SubscriptionPlanEnum.Unlimited => 0, // Unlimited doesn't need credits
-            _ => throw new ArgumentOutOfRangeException(nameof(request.PlanEnum))
+            _ => throw new ValidationException($"Unsupported subscription plan: {request.PlanEnum}", nameof(request.PlanEnum))
         };
 
         if (subscription == null)

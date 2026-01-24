@@ -18,7 +18,7 @@ public sealed record ToggleReactionCommand(
     Guid UserId,
     string Emoji,
     string Type
-) : IRequest<ToggleReactionResult>;
+) : IRequest<ToggleReactionDto>;
 
 /// <summary>
 /// Result of the toggle reaction operation.
@@ -26,7 +26,7 @@ public sealed record ToggleReactionCommand(
 /// <param name="MessageId">The message that was reacted to.</param>
 /// <param name="Reaction">The reaction that was added, or null if removed.</param>
 /// <param name="WasAdded">True if the reaction was added, false if removed.</param>
-public sealed record ToggleReactionResult(
+public sealed record ToggleReactionDto(
     string MessageId,
     ReactionDto? Reaction,
     bool WasAdded

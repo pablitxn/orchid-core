@@ -5,9 +5,9 @@ namespace Application.UseCases.Auth.ServiceToken;
 public record ServiceTokenCommand(
     string ClientId,
     string ClientSecret,
-    string? IpAddress = null) : IRequest<ServiceTokenResult>;
+    string? IpAddress = null) : IRequest<ServiceTokenDto>;
 
-public record ServiceTokenResult(
+public record ServiceTokenDto(
     bool IsSuccess,
     string AccessToken = "",
     string TokenType = "Bearer",

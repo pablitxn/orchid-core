@@ -6,9 +6,9 @@ namespace Application.UseCases.Plugin.ListAvailablePlugins;
 public sealed class ListAvailablePluginsHandler(
     IPluginRepository pluginRepository,
     IUserPluginRepository userPluginRepository
-) : IRequestHandler<ListAvailablePluginsQuery, ListAvailablePluginsResult>
+) : IRequestHandler<ListAvailablePluginsQuery, ListAvailablePluginsDto>
 {
-    public async Task<ListAvailablePluginsResult> Handle(ListAvailablePluginsQuery query, CancellationToken cancellationToken)
+    public async Task<ListAvailablePluginsDto> Handle(ListAvailablePluginsQuery query, CancellationToken cancellationToken)
     {
         var allPlugins = await pluginRepository.ListActiveAsync(cancellationToken);
         var userPlugins = await userPluginRepository.ListByUserAsync(query.UserId, cancellationToken);
@@ -24,6 +24,6 @@ public sealed class ListAvailablePluginsHandler(
             IsActive: plugin.IsActive
         ));
 
-        return new ListAvailablePluginsResult(availablePlugins);
+        return new ListAvailablePluginsDto(availablePlugins);
     }
 }

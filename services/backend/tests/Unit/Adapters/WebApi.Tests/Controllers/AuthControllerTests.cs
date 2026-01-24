@@ -257,7 +257,7 @@ public class AuthControllerTests
         SetupAllowedRateLimit();
         SetupValidPasswordValidation();
         _mediatorMock.Setup(x => x.Send(It.IsAny<RegisterCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new RegisterResult(false, null, "User already exists"));
+            .ReturnsAsync(new RegisterDto(false, null, "User already exists"));
         var request = new RegisterRequest("Test User", "existing@example.com", "SecurePassword123!");
 
         // Act
@@ -280,7 +280,7 @@ public class AuthControllerTests
         var userId = Guid.NewGuid();
         var user = new UserEntity { Id = userId, Email = "test@example.com" };
         _mediatorMock.Setup(x => x.Send(It.IsAny<RegisterCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new RegisterResult(true, user, null));
+            .ReturnsAsync(new RegisterDto(true, user, null));
         var request = new RegisterRequest("Test User", "test@example.com", "SecurePassword123!");
 
         // Act
@@ -303,8 +303,8 @@ public class AuthControllerTests
         var user = new UserEntity { Id = Guid.NewGuid(), Email = "test@example.com" };
         RegisterCommand? capturedCommand = null;
         _mediatorMock.Setup(x => x.Send(It.IsAny<RegisterCommand>(), It.IsAny<CancellationToken>()))
-            .Callback<IRequest<RegisterResult>, CancellationToken>((cmd, _) => capturedCommand = cmd as RegisterCommand)
-            .ReturnsAsync(new RegisterResult(true, user, null));
+            .Callback<IRequest<RegisterDto>, CancellationToken>((cmd, _) => capturedCommand = cmd as RegisterCommand)
+            .ReturnsAsync(new RegisterDto(true, user, null));
         var request = new RegisterRequest("Test User", "test@example.com", "SecurePassword123!");
 
         // Act
@@ -370,7 +370,7 @@ public class AuthControllerTests
         SetupAllowedRateLimit();
         SetupJwtConfig();
         _mediatorMock.Setup(x => x.Send(It.IsAny<LoginCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new LoginResult(false, string.Empty, Array.Empty<string>(), default, "Invalid credentials"));
+            .ReturnsAsync(new LoginDto(false, string.Empty, Array.Empty<string>(), default, "Invalid credentials"));
         var request = new LoginRequest("test@example.com", "wrongpassword");
 
         // Act
@@ -392,7 +392,7 @@ public class AuthControllerTests
         SetupJwtConfig();
         var userId = Guid.NewGuid();
         _mediatorMock.Setup(x => x.Send(It.IsAny<LoginCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new LoginResult(true, "test-jwt-token", new[] { "User" }, userId, string.Empty));
+            .ReturnsAsync(new LoginDto(true, "test-jwt-token", new[] { "User" }, userId, string.Empty));
         _refreshTokenRepositoryMock.Setup(x => x.CreateAsync(It.IsAny<RefreshTokenEntity>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((RefreshTokenEntity t, CancellationToken _) => t);
         var request = new LoginRequest("test@example.com", "correctpassword");
@@ -416,7 +416,7 @@ public class AuthControllerTests
         SetupJwtConfig();
         var userId = Guid.NewGuid();
         _mediatorMock.Setup(x => x.Send(It.IsAny<LoginCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new LoginResult(true, "test-jwt-token", new[] { "User" }, userId, string.Empty));
+            .ReturnsAsync(new LoginDto(true, "test-jwt-token", new[] { "User" }, userId, string.Empty));
         _refreshTokenRepositoryMock.Setup(x => x.CreateAsync(It.IsAny<RefreshTokenEntity>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((RefreshTokenEntity t, CancellationToken _) => t);
         var request = new LoginRequest("test@example.com", "correctpassword");
@@ -805,7 +805,7 @@ public class AuthControllerTests
     {
         // Arrange
         _mediatorMock.Setup(x => x.Send(It.IsAny<ResetPasswordCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ResetPasswordResult(false, "Invalid or expired reset token"));
+            .ReturnsAsync(new ResetPasswordDto(false, "Invalid or expired reset token"));
         var request = new ResetPasswordRequest("test@example.com", "invalid-token", "NewPassword123!");
 
         // Act
@@ -824,7 +824,7 @@ public class AuthControllerTests
     {
         // Arrange
         _mediatorMock.Setup(x => x.Send(It.IsAny<ResetPasswordCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ResetPasswordResult(true));
+            .ReturnsAsync(new ResetPasswordDto(true));
         var request = new ResetPasswordRequest("test@example.com", "valid-token", "NewPassword123!");
 
         // Act

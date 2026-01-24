@@ -280,7 +280,7 @@ public class WorkflowsControllerTests
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<PurchaseWorkflowCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(PurchaseResult.Success);
+            .ReturnsAsync(PurchaseOutcome.Success);
 
         // Act
         var result = await _controller.Purchase(workflowId);
@@ -306,7 +306,7 @@ public class WorkflowsControllerTests
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<PurchaseWorkflowCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(PurchaseResult.Success);
+            .ReturnsAsync(PurchaseOutcome.Success);
 
         // Act
         await _controller.Purchase(workflowId);

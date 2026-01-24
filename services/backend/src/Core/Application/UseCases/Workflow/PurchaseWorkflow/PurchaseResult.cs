@@ -1,6 +1,6 @@
 namespace Application.UseCases.Workflow.PurchaseWorkflow
 {
-    public enum PurchaseResult
+    public enum PurchaseOutcome
     {
         Success,
         WorkflowNotFound,
