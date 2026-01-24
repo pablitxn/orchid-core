@@ -1,6 +1,6 @@
+using Application.UseCases.Team.Common;
 using Application.UseCases.Team.CreateTeam;
 using Application.UseCases.Team.ListTeams;
-using Domain.Entities;
 using Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -28,7 +28,7 @@ public class TeamsControllerTests
     public async Task GetTeams_ReturnsOk_WithTeamsList()
     {
         // Arrange
-        var teams = new List<TeamEntity>
+        var teams = new List<TeamDto>
         {
             new() { Id = Guid.NewGuid(), Name = "Team 1" },
             new() { Id = Guid.NewGuid(), Name = "Team 2" }
@@ -50,7 +50,7 @@ public class TeamsControllerTests
     public async Task GetTeams_ReturnsOk_WithEmptyList_WhenNoTeams()
     {
         // Arrange
-        var teams = new List<TeamEntity>();
+        var teams = new List<TeamDto>();
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<ListTeamsQuery>(), It.IsAny<CancellationToken>()))
@@ -70,7 +70,7 @@ public class TeamsControllerTests
         // Arrange
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<ListTeamsQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<TeamEntity>());
+            .ReturnsAsync(new List<TeamDto>());
 
         // Act
         await _controller.GetTeams();
@@ -97,7 +97,7 @@ public class TeamsControllerTests
             Policy = TeamInteractionPolicy.Open
         };
 
-        var createdTeam = new TeamEntity
+        var createdTeam = new TeamDto
         {
             Id = teamId,
             Name = request.Name,
@@ -136,7 +136,7 @@ public class TeamsControllerTests
             Agents = agents
         };
 
-        var createdTeam = new TeamEntity { Id = Guid.NewGuid() };
+        var createdTeam = new TeamDto { Id = Guid.NewGuid() };
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<CreateTeamCommand>(), It.IsAny<CancellationToken>()))
@@ -168,7 +168,7 @@ public class TeamsControllerTests
             Policy = TeamInteractionPolicy.Open
         };
 
-        var createdTeam = new TeamEntity { Id = Guid.NewGuid() };
+        var createdTeam = new TeamDto { Id = Guid.NewGuid() };
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<CreateTeamCommand>(), It.IsAny<CancellationToken>()))
@@ -197,7 +197,7 @@ public class TeamsControllerTests
             Agents = null
         };
 
-        var createdTeam = new TeamEntity { Id = Guid.NewGuid() };
+        var createdTeam = new TeamDto { Id = Guid.NewGuid() };
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<CreateTeamCommand>(), It.IsAny<CancellationToken>()))
@@ -225,7 +225,7 @@ public class TeamsControllerTests
             Policy = TeamInteractionPolicy.Open
         };
 
-        var createdTeam = new TeamEntity { Id = Guid.NewGuid() };
+        var createdTeam = new TeamDto { Id = Guid.NewGuid() };
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<CreateTeamCommand>(), It.IsAny<CancellationToken>()))
@@ -253,7 +253,7 @@ public class TeamsControllerTests
             Policy = TeamInteractionPolicy.LeaderDriven
         };
 
-        var createdTeam = new TeamEntity { Id = Guid.NewGuid() };
+        var createdTeam = new TeamDto { Id = Guid.NewGuid() };
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<CreateTeamCommand>(), It.IsAny<CancellationToken>()))

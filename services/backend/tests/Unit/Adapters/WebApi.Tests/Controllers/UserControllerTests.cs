@@ -1,6 +1,6 @@
 using System.Security.Claims;
+using Application.UseCases.User.Common;
 using Application.UseCases.User.GetUser;
-using Domain.Entities;
 using FluentAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Http;
@@ -106,9 +106,9 @@ public class UserControllerTests
     {
         // Arrange
         SetupAuthenticatedUser("nonexistent@example.com");
-        // The controller compares to null! so we return default(UserEntity) which is null
+        // The controller compares to null! so we return default(UserDto) which is null
         _mediatorMock.Setup(x => x.Send(It.IsAny<GetUserQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(default(UserEntity));
+            .ReturnsAsync(default(UserDto));
 
         // Act
         var result = await _controller.GetUser();
@@ -127,7 +127,7 @@ public class UserControllerTests
         var name = "Test User";
 
         SetupAuthenticatedUser(email);
-        var user = new UserEntity
+        var user = new UserDto
         {
             Id = userId,
             Email = email,
@@ -161,7 +161,7 @@ public class UserControllerTests
         var email = "specific@example.com";
         SetupAuthenticatedUser(email);
         _mediatorMock.Setup(x => x.Send(It.IsAny<GetUserQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserEntity { Id = Guid.NewGuid(), Email = email, Name = "Test" });
+            .ReturnsAsync(new UserDto { Id = Guid.NewGuid(), Email = email, Name = "Test" });
 
         // Act
         await _controller.GetUser();
@@ -180,7 +180,7 @@ public class UserControllerTests
         var email = "test@example.com";
 
         SetupAuthenticatedUser(email);
-        var user = new UserEntity
+        var user = new UserDto
         {
             Id = userId,
             Email = email,

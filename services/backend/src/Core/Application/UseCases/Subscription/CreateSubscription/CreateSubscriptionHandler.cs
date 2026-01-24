@@ -1,5 +1,6 @@
 using System.Transactions;
 using Application.Interfaces;
+using Application.UseCases.Subscription.Common;
 using Domain.Entities;
 using Domain.Events;
 using Domain.Exceptions;
@@ -11,13 +12,13 @@ public class CreateSubscriptionHandler(
     ISubscriptionRepository subscriptionRepository,
     IUserRepository userRepository,
     IEventPublisher eventPublisher)
-    : IRequestHandler<CreateSubscriptionCommand, SubscriptionEntity>
+    : IRequestHandler<CreateSubscriptionCommand, SubscriptionDto>
 {
     private readonly IEventPublisher _events = eventPublisher;
     private readonly ISubscriptionRepository _subs = subscriptionRepository;
     private readonly IUserRepository _users = userRepository;
 
-    public async Task<SubscriptionEntity> Handle(CreateSubscriptionCommand request, CancellationToken cancellationToken)
+    public async Task<SubscriptionDto> Handle(CreateSubscriptionCommand request, CancellationToken cancellationToken)
     {
         var user = await _users.GetByIdAsync(request.UserId);
         if (user == null)
@@ -49,6 +50,6 @@ public class CreateSubscriptionHandler(
         await _subs.CreateAsync(sub, cancellationToken);
         await _events.PublishAsync(new SubscriptionCreatedEvent(sub.Id, sub.UserId));
         scope.Complete();
-        return sub;
+        return SubscriptionDto.FromEntity(sub);
     }
 }

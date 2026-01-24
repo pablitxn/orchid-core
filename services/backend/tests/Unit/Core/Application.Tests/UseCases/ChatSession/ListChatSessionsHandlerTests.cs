@@ -122,7 +122,8 @@ public class ListChatSessionsHandlerTests
 
         var result = await _handler.Handle(new ListChatSessionsQuery(_uid, false, null, null, null, null, null), CancellationToken.None);
 
-        Assert.Same(expected, result);
+        Assert.Equal(expected.Count, result.Count);
+        Assert.Equal(expected[0].SessionId, result[0].SessionId);
     }
 
     [Fact]

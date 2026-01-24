@@ -1,19 +1,19 @@
 using Application.Interfaces;
-using Domain.Entities;
-using Domain.Exceptions;
+using Application.UseCases.Subscription.Common;
 using Domain.Events;
+using Domain.Exceptions;
 using MediatR;
 
 namespace Application.UseCases.Subscription.UpdateAutoRenew;
 
 public class UpdateAutoRenewHandler(
     ISubscriptionRepository subscriptionRepository,
-    IEventPublisher eventPublisher) : IRequestHandler<UpdateAutoRenewCommand, SubscriptionEntity>
+    IEventPublisher eventPublisher) : IRequestHandler<UpdateAutoRenewCommand, SubscriptionDto>
 {
     private readonly IEventPublisher _events = eventPublisher;
     private readonly ISubscriptionRepository _subs = subscriptionRepository;
 
-    public async Task<SubscriptionEntity> Handle(UpdateAutoRenewCommand request, CancellationToken cancellationToken)
+    public async Task<SubscriptionDto> Handle(UpdateAutoRenewCommand request, CancellationToken cancellationToken)
     {
         var subscription = await _subs.GetByUserIdAsync(request.UserId, cancellationToken);
         if (subscription == null)
@@ -24,6 +24,6 @@ public class UpdateAutoRenewHandler(
 
         await _subs.UpdateAsync(subscription, cancellationToken);
         await _events.PublishAsync(new SubscriptionUpdatedEvent(subscription.Id, subscription.UserId));
-        return subscription;
+        return SubscriptionDto.FromEntity(subscription);
     }
 }

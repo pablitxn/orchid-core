@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using Application.Interfaces;
+using Application.UseCases.User.Common;
 using Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -31,12 +32,22 @@ public class JwtTokenService : ITokenService
 
     public string GenerateToken(UserEntity user, IEnumerable<string> roles)
     {
+        return GenerateTokenInternal(user.Id, user.Email, roles);
+    }
+
+    public string GenerateToken(UserDto user, IEnumerable<string> roles)
+    {
+        return GenerateTokenInternal(user.Id, user.Email, roles);
+    }
+
+    private string GenerateTokenInternal(Guid userId, string? email, IEnumerable<string> roles)
+    {
         var claims = new List<Claim>
         {
             // Security: Add unique token ID (jti) for blacklist support
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new(ClaimTypes.Email, user.Email)
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
+            new(ClaimTypes.Email, email)
         };
 
         foreach (var role in roles) claims.Add(new Claim(ClaimTypes.Role, role));

@@ -1,4 +1,5 @@
 using Application.Interfaces;
+using Application.UseCases.Subscription.Common;
 using Domain.Entities;
 using Domain.Enums;
 using Domain.Events;
@@ -11,13 +12,13 @@ public class PurchasePlanHandler(
     ISubscriptionRepository subscriptionRepository,
     ISubscriptionPlanRepository subscriptionPlanRepository,
     IEventPublisher eventPublisher)
-    : IRequestHandler<PurchasePlanCommand, SubscriptionEntity>
+    : IRequestHandler<PurchasePlanCommand, SubscriptionDto>
 {
     private readonly IEventPublisher _events = eventPublisher;
     private readonly ISubscriptionRepository _subs = subscriptionRepository;
     private readonly ISubscriptionPlanRepository _plans = subscriptionPlanRepository;
 
-    public async Task<SubscriptionEntity> Handle(PurchasePlanCommand request, CancellationToken cancellationToken)
+    public async Task<SubscriptionDto> Handle(PurchasePlanCommand request, CancellationToken cancellationToken)
     {
         var subscription = await _subs.GetByUserIdAsync(request.UserId, cancellationToken);
         var plan = await _plans.GetByPlanAsync(request.PlanEnum, cancellationToken);
@@ -69,6 +70,9 @@ public class PurchasePlanHandler(
         {
             await _events.PublishAsync(new CreditsAddedEvent(subscription.Id, subscription.UserId, credits));
         }
-        return subscription;
+
+        // Reload to get SubscriptionPlan for DTO
+        subscription = await _subs.GetByUserIdAsync(request.UserId, cancellationToken);
+        return SubscriptionDto.FromEntity(subscription!);
     }
 }

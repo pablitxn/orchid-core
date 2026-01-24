@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Application.UseCases.Workflow.Common;
 using Application.UseCases.Workflow.CreateWorkflow;
 using Application.UseCases.Workflow.GetWorkflowById;
 using Application.UseCases.Workflow.ListWorkflows;
@@ -57,7 +58,7 @@ public class WorkflowsControllerTests
     public async Task GetWorkflows_ReturnsOk_WithWorkflowsList()
     {
         // Arrange
-        var workflows = new List<WorkflowEntity>
+        var workflows = new List<WorkflowDto>
         {
             new() { Id = Guid.NewGuid(), Name = "Workflow 1" },
             new() { Id = Guid.NewGuid(), Name = "Workflow 2" }
@@ -79,7 +80,7 @@ public class WorkflowsControllerTests
     public async Task GetWorkflows_ReturnsOk_WithEmptyList_WhenNoWorkflows()
     {
         // Arrange
-        var workflows = new List<WorkflowEntity>();
+        var workflows = new List<WorkflowDto>();
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<ListWorkflowsQuery>(), It.IsAny<CancellationToken>()))
@@ -99,7 +100,7 @@ public class WorkflowsControllerTests
         // Arrange
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<ListWorkflowsQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<WorkflowEntity>());
+            .ReturnsAsync(new List<WorkflowDto>());
 
         // Act
         await _controller.GetWorkflows();
@@ -186,7 +187,7 @@ public class WorkflowsControllerTests
         var workflowId = Guid.NewGuid();
         var command = new CreateWorkflowCommand("New Workflow", "Test Description", 100);
 
-        var createdWorkflow = new WorkflowEntity
+        var createdWorkflow = new WorkflowDto
         {
             Id = workflowId,
             Name = command.Name,
@@ -214,7 +215,7 @@ public class WorkflowsControllerTests
         // Arrange
         var command = new CreateWorkflowCommand("Test Workflow", "Description", 50);
 
-        var createdWorkflow = new WorkflowEntity { Id = Guid.NewGuid() };
+        var createdWorkflow = new WorkflowDto { Id = Guid.NewGuid() };
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<CreateWorkflowCommand>(), It.IsAny<CancellationToken>()))
@@ -289,7 +290,7 @@ public class WorkflowsControllerTests
         var okResult = Assert.IsType<OkObjectResult>(result);
         var response = okResult.Value;
         Assert.NotNull(response);
-        
+
         var messageProperty = response!.GetType().GetProperty("message");
         Assert.NotNull(messageProperty);
         var message = messageProperty!.GetValue(response) as string;

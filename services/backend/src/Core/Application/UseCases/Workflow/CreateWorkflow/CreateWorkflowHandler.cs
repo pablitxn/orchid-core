@@ -1,4 +1,5 @@
 using Application.Interfaces;
+using Application.UseCases.Workflow.Common;
 using Domain.Entities;
 using Domain.Exceptions;
 using MediatR;
@@ -7,12 +8,12 @@ using Microsoft.Extensions.Logging;
 namespace Application.UseCases.Workflow.CreateWorkflow;
 
 public class CreateWorkflowHandler(IWorkflowRepository repository, ILogger<CreateWorkflowHandler> logger)
-    : IRequestHandler<CreateWorkflowCommand, WorkflowEntity>
+    : IRequestHandler<CreateWorkflowCommand, WorkflowDto>
 {
     private readonly IWorkflowRepository _repository = repository;
     private readonly ILogger<CreateWorkflowHandler> _logger = logger;
 
-    public async Task<WorkflowEntity> Handle(CreateWorkflowCommand request, CancellationToken cancellationToken)
+    public async Task<WorkflowDto> Handle(CreateWorkflowCommand request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
             throw new ValidationException("Workflow name is required.");
@@ -39,6 +40,6 @@ public class CreateWorkflowHandler(IWorkflowRepository repository, ILogger<Creat
             throw new OperationFailedException("create workflow", ex);
         }
 
-        return workflow;
+        return WorkflowDto.FromEntity(workflow);
     }
 }

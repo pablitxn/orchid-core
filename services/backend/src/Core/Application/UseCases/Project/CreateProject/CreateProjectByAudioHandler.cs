@@ -1,4 +1,5 @@
-﻿using Application.Interfaces;
+using Application.Interfaces;
+using Application.UseCases.Project.Common;
 using Domain.Entities;
 using Domain.Events;
 using MediatR;
@@ -8,12 +9,12 @@ namespace Application.UseCases.Project.CreateProject;
 public class CreateProjectByAudioHandler(
     IProjectRepository projectRepository,
     IEventPublisher eventPublisher
-) : IRequestHandler<CreateProjectByAudioCommand, ProjectEntity>
+) : IRequestHandler<CreateProjectByAudioCommand, ProjectDto>
 {
     private readonly IEventPublisher _eventPublisher = eventPublisher;
     private readonly IProjectRepository _projectRepository = projectRepository;
 
-    public async Task<ProjectEntity> Handle(CreateProjectByAudioCommand request, CancellationToken cancellationToken)
+    public async Task<ProjectDto> Handle(CreateProjectByAudioCommand request, CancellationToken cancellationToken)
     {
         var audioFile = new AudioFileEntity
         {
@@ -32,6 +33,6 @@ public class CreateProjectByAudioHandler(
         var evt = new ProjectCreatedEvent(project.Id);
         await _eventPublisher.PublishAsync(evt);
 
-        return project;
+        return ProjectDto.FromEntity(project);
     }
 }

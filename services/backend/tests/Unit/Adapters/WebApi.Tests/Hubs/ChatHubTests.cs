@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Application.Interfaces;
 using Application.UseCases.Agent.VerifyAgentAccess;
+using Application.UseCases.Subscription.Common;
 using Application.UseCases.Subscription.ConsumeCredits;
 using Domain.Entities;
 using Domain.Exceptions;
@@ -332,14 +333,14 @@ public class ChatHubTests
 
         int capturedAmount = 0;
         _mediatorMock.Setup(m => m.Send(It.IsAny<ConsumeCreditsCommand>(), It.IsAny<CancellationToken>()))
-            .Callback<IRequest<SubscriptionEntity>, CancellationToken>((cmd, ct) =>
+            .Callback<IRequest<SubscriptionDto>, CancellationToken>((cmd, ct) =>
             {
                 if (cmd is ConsumeCreditsCommand consumeCmd)
                 {
                     capturedAmount = consumeCmd.Amount;
                 }
             })
-            .ReturnsAsync(new SubscriptionEntity());
+            .ReturnsAsync(new SubscriptionDto());
 
         _creditTrackingServiceMock.Setup(c => c.TrackMessageCostAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
@@ -402,7 +403,7 @@ public class ChatHubTests
             .ReturnsAsync(rateLimitResult);
 
         _mediatorMock.Setup(m => m.Send(It.IsAny<ConsumeCreditsCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SubscriptionEntity());
+            .ReturnsAsync(new SubscriptionDto());
 
         _creditTrackingServiceMock.Setup(c => c.TrackMessageCostAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
@@ -441,7 +442,7 @@ public class ChatHubTests
             .ReturnsAsync(rateLimitResult);
 
         _mediatorMock.Setup(m => m.Send(It.IsAny<ConsumeCreditsCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SubscriptionEntity());
+            .ReturnsAsync(new SubscriptionDto());
 
         _creditTrackingServiceMock.Setup(c => c.TrackMessageCostAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
@@ -485,7 +486,7 @@ public class ChatHubTests
             .ReturnsAsync(rateLimitResult);
 
         _mediatorMock.Setup(m => m.Send(It.IsAny<ConsumeCreditsCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SubscriptionEntity());
+            .ReturnsAsync(new SubscriptionDto());
 
         _creditTrackingServiceMock.Setup(c => c.TrackMessageCostAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
@@ -534,7 +535,7 @@ public class ChatHubTests
             .ReturnsAsync(rateLimitResult);
 
         _mediatorMock.Setup(m => m.Send(It.IsAny<ConsumeCreditsCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SubscriptionEntity());
+            .ReturnsAsync(new SubscriptionDto());
 
         _creditTrackingServiceMock.Setup(c => c.TrackMessageCostAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))

@@ -483,7 +483,7 @@ public class AuthController(
         }
 
         // Generate JWT using the centralized token service (not hardcoded secret)
-        var roles = userFromDb?.UserRoles?.Select(ur => ur.Role.Name) ?? ["User"];
+        var roles = userFromDb?.Roles ?? ["User"];
         var jwtTokenString = _tokenService.GenerateToken(userFromDb!, roles);
 
         // Set secure cookie

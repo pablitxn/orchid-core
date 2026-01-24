@@ -1,14 +1,15 @@
 using Application.Interfaces;
+using Application.UseCases.Plugin.Common;
 using Domain.Entities;
 using MediatR;
 
 namespace Application.UseCases.Plugin.CreatePlugin;
 
-public class CreatePluginHandler(IPluginRepository repository) : IRequestHandler<CreatePluginCommand, PluginEntity>
+public class CreatePluginHandler(IPluginRepository repository) : IRequestHandler<CreatePluginCommand, PluginDto>
 {
     private readonly IPluginRepository _repository = repository;
 
-    public async Task<PluginEntity> Handle(CreatePluginCommand request, CancellationToken cancellationToken)
+    public async Task<PluginDto> Handle(CreatePluginCommand request, CancellationToken cancellationToken)
     {
         var plugin = new PluginEntity
         {
@@ -22,6 +23,6 @@ public class CreatePluginHandler(IPluginRepository repository) : IRequestHandler
         };
 
         await _repository.CreateAsync(plugin, cancellationToken);
-        return plugin;
+        return PluginDto.FromEntity(plugin);
     }
 }

@@ -1,15 +1,16 @@
 using Application.Interfaces;
+using Application.UseCases.ChatSession.Common;
 using Domain.Entities;
 using MediatR;
 
 namespace Application.UseCases.ChatSession.CreateChatSession;
 
 public class CreateChatSessionHandler(IChatSessionRepository repo)
-    : IRequestHandler<CreateChatSessionCommand, ChatSessionEntity>
+    : IRequestHandler<CreateChatSessionCommand, ChatSessionDto>
 {
     private readonly IChatSessionRepository _repo = repo;
 
-    public async Task<ChatSessionEntity> Handle(CreateChatSessionCommand request, CancellationToken cancellationToken)
+    public async Task<ChatSessionDto> Handle(CreateChatSessionCommand request, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
         var entity = new ChatSessionEntity
@@ -24,6 +25,6 @@ public class CreateChatSessionHandler(IChatSessionRepository repo)
             UpdatedAt = now
         };
         await _repo.CreateAsync(entity, cancellationToken);
-        return entity;
+        return ChatSessionDto.FromEntity(entity);
     }
 }

@@ -1,10 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using Application.UseCases.MediaCenter.Common;
 using Application.UseCases.MediaCenter.ListAssets;
-using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +17,7 @@ public class MediaCenterControllerTests
     {
         _mediatorMock = new Mock<IMediator>();
         _controller = new MediaCenterController(_mediatorMock.Object);
-        
+
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
@@ -33,16 +28,16 @@ public class MediaCenterControllerTests
     public async Task GetAssets_ReturnsOk_WithAllAssets_WhenNoMimeTypeFilter()
     {
         // Arrange
-        var expectedAssets = new List<MediaCenterAssetEntity>
+        var expectedAssets = new List<MediaCenterAssetDto>
         {
-            new MediaCenterAssetEntity
+            new()
             {
                 Id = Guid.NewGuid(),
                 Title = "image1.jpg",
                 MimeType = "image/jpeg",
                 FileUrl = "https://example.com/image1.jpg"
             },
-            new MediaCenterAssetEntity
+            new()
             {
                 Id = Guid.NewGuid(),
                 Title = "video1.mp4",
@@ -61,12 +56,12 @@ public class MediaCenterControllerTests
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result);
-        var actualAssets = Assert.IsAssignableFrom<IEnumerable<MediaCenterAssetEntity>>(okResult.Value);
+        var actualAssets = Assert.IsAssignableFrom<IEnumerable<MediaCenterAssetDto>>(okResult.Value);
         Assert.Equal(2, actualAssets.Count());
-        
+
         _mediatorMock.Verify(m => m.Send(
             It.Is<ListMediaCenterAssetsQuery>(q => q.MimeType == null),
-            It.IsAny<CancellationToken>()), 
+            It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -75,9 +70,9 @@ public class MediaCenterControllerTests
     {
         // Arrange
         var mimeTypeFilter = "image/jpeg";
-        var expectedAssets = new List<MediaCenterAssetEntity>
+        var expectedAssets = new List<MediaCenterAssetDto>
         {
-            new MediaCenterAssetEntity
+            new()
             {
                 Id = Guid.NewGuid(),
                 Title = "image1.jpg",
@@ -96,13 +91,13 @@ public class MediaCenterControllerTests
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result);
-        var actualAssets = Assert.IsAssignableFrom<IEnumerable<MediaCenterAssetEntity>>(okResult.Value);
+        var actualAssets = Assert.IsAssignableFrom<IEnumerable<MediaCenterAssetDto>>(okResult.Value);
         Assert.Single(actualAssets);
         Assert.All(actualAssets, asset => Assert.Equal("image/jpeg", asset.MimeType));
-        
+
         _mediatorMock.Verify(m => m.Send(
             It.Is<ListMediaCenterAssetsQuery>(q => q.MimeType == mimeTypeFilter),
-            It.IsAny<CancellationToken>()), 
+            It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -110,7 +105,7 @@ public class MediaCenterControllerTests
     public async Task GetAssets_ReturnsOk_WithEmptyList_WhenNoAssetsFound()
     {
         // Arrange
-        var expectedAssets = new List<MediaCenterAssetEntity>();
+        var expectedAssets = new List<MediaCenterAssetDto>();
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<ListMediaCenterAssetsQuery>(),
@@ -122,7 +117,7 @@ public class MediaCenterControllerTests
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result);
-        var actualAssets = Assert.IsAssignableFrom<IEnumerable<MediaCenterAssetEntity>>(okResult.Value);
+        var actualAssets = Assert.IsAssignableFrom<IEnumerable<MediaCenterAssetDto>>(okResult.Value);
         Assert.Empty(actualAssets);
     }
 }

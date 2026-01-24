@@ -1,4 +1,4 @@
-﻿using Domain.Entities;
+using Application.UseCases.Project.Common;
 using MediatR;
 
 namespace Application.UseCases.Project.CreateProject;
@@ -9,7 +9,7 @@ public class CreateProjectByAudioCommand(
     string contentType,
     long fileSize,
     string url
-) : IRequest<ProjectEntity>
+) : IRequest<ProjectDto>
 {
     public string TargetLanguage { get; } = targetLanguage;
     public string Url { get; } = url;

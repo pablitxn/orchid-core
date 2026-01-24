@@ -1,8 +1,8 @@
 ﻿using System.Text;
 using Application.Interfaces;
+using Application.UseCases.Project.Common;
 using Application.UseCases.Project.CreateProject;
 using Application.UseCases.Project.GetProjectById;
-using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -126,17 +126,22 @@ public class ProjectControllerTests
 
         // Setup mediator to return a dummy project with an Id
         var projectId = Guid.NewGuid();
-        var dummyAudio = new AudioFileEntity
+        var dummyProject = new ProjectDto
         {
-            Id = Guid.NewGuid(),
-            FileName = "test.mp3",
-            ContentType = "audio/mpeg",
-            FileSize = stream.Length,
-            Url = "storedFileUrl"
+            Id = projectId,
+            Name = "Test Project",
+            TargetLanguage = targetLanguage,
+            CreatedAt = DateTime.UtcNow,
+            AudioFile = new AudioFileDto
+            {
+                Id = Guid.NewGuid(),
+                FileName = "test.mp3",
+                ContentType = "audio/mpeg",
+                FileSize = stream.Length,
+                Url = "storedFileUrl",
+                CreatedAt = DateTime.UtcNow
+            }
         };
-        var dummyProject = ProjectEntity.Create(targetLanguage, dummyAudio);
-        typeof(ProjectEntity).GetProperty("Id")?.SetValue(dummyProject, projectId);
-        // Assume TargetLanguage and AudioFile properties are set by the domain logic
 
         _mediatorMock.Setup(m => m.Send(It.IsAny<CreateProjectByAudioCommand>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(dummyProject);
@@ -157,7 +162,7 @@ public class ProjectControllerTests
     {
         // Arrange
         _mediatorMock.Setup(m => m.Send(It.IsAny<GetProjectByIdQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((ProjectEntity)null!);
+            .ReturnsAsync((ProjectDto?)null);
 
         // Act
         var result = await _controller.GetProject(Guid.NewGuid());
@@ -170,9 +175,23 @@ public class ProjectControllerTests
     public async Task GetProject_ReturnsOk_WithProject_WhenProjectExists()
     {
         // Arrange
-        var dummyAudio = new AudioFileEntity();
-        var dummyProject = ProjectEntity.Create("es", dummyAudio);
-        typeof(ProjectEntity).GetProperty("Id")?.SetValue(dummyProject, Guid.NewGuid());
+        var projectId = Guid.NewGuid();
+        var dummyProject = new ProjectDto
+        {
+            Id = projectId,
+            Name = "Test Project",
+            TargetLanguage = "es",
+            CreatedAt = DateTime.UtcNow,
+            AudioFile = new AudioFileDto
+            {
+                Id = Guid.NewGuid(),
+                FileName = "test.mp3",
+                ContentType = "audio/mpeg",
+                FileSize = 1024,
+                Url = "http://example.com/test.mp3",
+                CreatedAt = DateTime.UtcNow
+            }
+        };
 
         _mediatorMock.Setup(m => m.Send(It.IsAny<GetProjectByIdQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(dummyProject);

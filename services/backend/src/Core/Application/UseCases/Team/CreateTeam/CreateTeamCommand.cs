@@ -1,4 +1,4 @@
-using Domain.Entities;
+using Application.UseCases.Team.Common;
 using Domain.Enums;
 using MediatR;
 
@@ -11,7 +11,7 @@ public class CreateTeamCommand(
     string? description,
     TeamInteractionPolicy policy,
     IEnumerable<TeamAgentInput>? agents
-) : IRequest<TeamEntity>
+) : IRequest<TeamDto>
 {
     public string Name { get; } = name;
     public string? Description { get; } = description;

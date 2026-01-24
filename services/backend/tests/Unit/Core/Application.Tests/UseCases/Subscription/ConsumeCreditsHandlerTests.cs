@@ -80,8 +80,7 @@ public class ConsumeCreditsHandlerTests
 
         // Assert
         Assert.Equal(40, result.Credits);
-        Assert.Equal(2, result.Version);
-        
+
         _subscriptionRepositoryMock.Verify(
             x => x.UpdateWithVersionCheckAsync(
                 It.Is<SubscriptionEntity>(s => s.Credits == 40 && s.Version == 2), 
@@ -181,8 +180,7 @@ public class ConsumeCreditsHandlerTests
 
         // Assert
         Assert.Equal(50, result.Credits); // Credits unchanged for unlimited
-        Assert.Equal(2, result.Version); // Version incremented
-        
+
         _creditLimitServiceMock.Verify(
             x => x.CheckLimitsAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), 
             Times.Never);
@@ -246,7 +244,6 @@ public class ConsumeCreditsHandlerTests
 
         // Assert
         Assert.Equal(40, result.Credits);
-        Assert.Equal(2, result.Version); // Version should be 2 after consumption
         Assert.Equal(2, attemptCount);
         Assert.Equal(2, getCallCount); // Should have fetched subscription twice
         _unitOfWorkMock.Verify(x => x.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));

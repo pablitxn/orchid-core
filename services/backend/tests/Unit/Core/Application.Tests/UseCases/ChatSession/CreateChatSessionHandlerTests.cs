@@ -95,7 +95,7 @@ public class CreateChatSessionHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ReturnsEntityPassedToRepo()
+    public async Task Handle_ReturnsDtoMatchingEntityPassedToRepo()
     {
         var cmd = new CreateChatSessionCommand(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid().ToString(), null);
         ChatSessionEntity? saved = null;
@@ -105,7 +105,9 @@ public class CreateChatSessionHandlerTests
 
         var result = await _handler.Handle(cmd, CancellationToken.None);
 
-        Assert.Equal(saved, result);
+        Assert.Equal(saved!.Id, result.Id);
+        Assert.Equal(saved.SessionId, result.SessionId);
+        Assert.Equal(saved.UserId, result.UserId);
     }
 
     [Fact]

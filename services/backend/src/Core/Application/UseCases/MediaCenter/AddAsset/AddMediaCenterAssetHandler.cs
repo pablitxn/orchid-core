@@ -1,4 +1,4 @@
-using Application.Interfaces;
+using Application.UseCases.MediaCenter.Common;
 using Core.Application.Interfaces;
 using Domain.Entities;
 using MediatR;
@@ -6,11 +6,11 @@ using MediatR;
 namespace Application.UseCases.MediaCenter.AddAsset;
 
 public class AddMediaCenterAssetHandler(IMediaCenterAssetRepository repository)
-    : IRequestHandler<AddMediaCenterAssetCommand, MediaCenterAssetEntity>
+    : IRequestHandler<AddMediaCenterAssetCommand, MediaCenterAssetDto>
 {
     private readonly IMediaCenterAssetRepository _repository = repository;
 
-    public async Task<MediaCenterAssetEntity> Handle(AddMediaCenterAssetCommand request,
+    public async Task<MediaCenterAssetDto> Handle(AddMediaCenterAssetCommand request,
         CancellationToken cancellationToken)
     {
         var asset = new MediaCenterAssetEntity
@@ -25,6 +25,6 @@ public class AddMediaCenterAssetHandler(IMediaCenterAssetRepository repository)
         };
 
         await _repository.AddAsync(asset, cancellationToken);
-        return asset;
+        return MediaCenterAssetDto.FromEntity(asset);
     }
 }

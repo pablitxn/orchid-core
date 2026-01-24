@@ -1,19 +1,18 @@
-using Application.Interfaces;
+using Application.UseCases.MediaCenter.Common;
 using Core.Application.Interfaces;
-using Domain.Entities;
 using MediatR;
 
 namespace Application.UseCases.MediaCenter.ListAssets;
 
 public class ListMediaCenterAssetsHandler(IMediaCenterAssetRepository repository)
-    : IRequestHandler<ListMediaCenterAssetsQuery, List<MediaCenterAssetEntity>>
+    : IRequestHandler<ListMediaCenterAssetsQuery, List<MediaCenterAssetDto>>
 {
     private readonly IMediaCenterAssetRepository _repository = repository;
 
-    public async Task<List<MediaCenterAssetEntity>> Handle(ListMediaCenterAssetsQuery request,
+    public async Task<List<MediaCenterAssetDto>> Handle(ListMediaCenterAssetsQuery request,
         CancellationToken cancellationToken)
     {
         var assets = await _repository.SearchAsync(request.MimeType, null, null, cancellationToken);
-        return assets.ToList();
+        return assets.Select(MediaCenterAssetDto.FromEntity).ToList();
     }
 }

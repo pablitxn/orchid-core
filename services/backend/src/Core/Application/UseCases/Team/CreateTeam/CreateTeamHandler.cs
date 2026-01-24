@@ -1,16 +1,17 @@
 using Application.Interfaces;
+using Application.UseCases.Team.Common;
 using Domain.Entities;
 using MediatR;
 
 namespace Application.UseCases.Team.CreateTeam;
 
 public class CreateTeamHandler(ITeamRepository repository, IAgentRepository agentRepository)
-    : IRequestHandler<CreateTeamCommand, TeamEntity>
+    : IRequestHandler<CreateTeamCommand, TeamDto>
 {
     private readonly IAgentRepository _agents = agentRepository;
     private readonly ITeamRepository _repository = repository;
 
-    public async Task<TeamEntity> Handle(CreateTeamCommand request, CancellationToken cancellationToken)
+    public async Task<TeamDto> Handle(CreateTeamCommand request, CancellationToken cancellationToken)
     {
         var team = new TeamEntity
         {
@@ -38,6 +39,6 @@ public class CreateTeamHandler(ITeamRepository repository, IAgentRepository agen
             }
 
         await _repository.CreateAsync(team, cancellationToken);
-        return team;
+        return TeamDto.FromEntity(team);
     }
 }

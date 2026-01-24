@@ -1,6 +1,6 @@
-using Domain.Entities;
+using Application.UseCases.MediaCenter.Common;
 using MediatR;
 
 namespace Application.UseCases.MediaCenter.ListAssets;
 
-public record ListMediaCenterAssetsQuery(string? MimeType) : IRequest<List<MediaCenterAssetEntity>>;
+public record ListMediaCenterAssetsQuery(string? MimeType) : IRequest<List<MediaCenterAssetDto>>;

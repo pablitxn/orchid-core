@@ -1,11 +1,11 @@
 using System.Security.Claims;
 using Application.UseCases.Agent.AddPluginToAgent;
 using Application.UseCases.Agent.RemovePluginFromAgent;
+using Application.UseCases.Plugin.Common;
 using Application.UseCases.Plugin.DeletePlugin;
 using Application.UseCases.Plugin.ListAvailablePlugins;
 using Application.UseCases.Plugin.ListPlugins;
 using Application.UseCases.Plugin.PurchasePlugin;
-using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -58,7 +58,7 @@ public class PluginControllerTests
     public async Task ListPlugins_ReturnsOk_WithPluginList()
     {
         // Arrange
-        var expectedPlugins = new List<PluginEntity>
+        var expectedPlugins = new List<PluginDto>
         {
             new() { Id = Guid.NewGuid(), Name = "Plugin 1" },
             new() { Id = Guid.NewGuid(), Name = "Plugin 2" }
@@ -81,7 +81,7 @@ public class PluginControllerTests
     public async Task ListPlugins_ReturnsOk_WithEmptyList_WhenNoPluginsAvailable()
     {
         // Arrange
-        var emptyList = new List<PluginEntity>();
+        var emptyList = new List<PluginDto>();
 
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<ListPluginsQuery>(),
@@ -93,7 +93,7 @@ public class PluginControllerTests
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result);
-        var list = Assert.IsAssignableFrom<IEnumerable<PluginEntity>>(okResult.Value);
+        var list = Assert.IsAssignableFrom<IEnumerable<PluginDto>>(okResult.Value);
         Assert.Empty(list);
     }
 
@@ -251,7 +251,7 @@ public class PluginControllerTests
 
         var successResult = new AddPluginToAgentDto(true);
         _mediatorMock.Setup(m => m.Send(
-            It.Is<AddPluginToAgentCommand>(c => 
+            It.Is<AddPluginToAgentCommand>(c =>
                 c.UserId == userId && c.AgentId == agentId && c.PluginId == pluginId),
             It.IsAny<CancellationToken>()))
             .ReturnsAsync(successResult);
@@ -322,7 +322,7 @@ public class PluginControllerTests
 
         var successResult = new RemovePluginFromAgentDto(true);
         _mediatorMock.Setup(m => m.Send(
-            It.Is<RemovePluginFromAgentCommand>(c => 
+            It.Is<RemovePluginFromAgentCommand>(c =>
                 c.UserId == userId && c.AgentId == agentId && c.PluginId == pluginId),
             It.IsAny<CancellationToken>()))
             .ReturnsAsync(successResult);

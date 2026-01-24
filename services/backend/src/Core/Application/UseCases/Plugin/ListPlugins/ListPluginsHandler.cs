@@ -1,15 +1,16 @@
 using Application.Interfaces;
-using Domain.Entities;
+using Application.UseCases.Plugin.Common;
 using MediatR;
 
 namespace Application.UseCases.Plugin.ListPlugins;
 
-public class ListPluginsHandler(IPluginRepository repository) : IRequestHandler<ListPluginsQuery, List<PluginEntity>>
+public class ListPluginsHandler(IPluginRepository repository) : IRequestHandler<ListPluginsQuery, List<PluginDto>>
 {
     private readonly IPluginRepository _repository = repository;
 
-    public async Task<List<PluginEntity>> Handle(ListPluginsQuery request, CancellationToken cancellationToken)
+    public async Task<List<PluginDto>> Handle(ListPluginsQuery request, CancellationToken cancellationToken)
     {
-        return await _repository.ListAsync(cancellationToken);
+        var entities = await _repository.ListAsync(cancellationToken);
+        return entities.Select(PluginDto.FromEntity).ToList();
     }
 }

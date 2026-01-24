@@ -1,11 +1,11 @@
 using System.Security.Claims;
 using Application.UseCases.Subscription.AddCredits;
+using Application.UseCases.Subscription.Common;
 using Application.UseCases.Subscription.ConsumeCredits;
 using Application.UseCases.Subscription.CreateSubscription;
 using Application.UseCases.Subscription.GetSubscription;
 using Application.UseCases.Subscription.PurchasePlan;
 using Application.UseCases.Subscription.UpdateAutoRenew;
-using Domain.Entities;
 using FluentAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Http;
@@ -66,9 +66,9 @@ public class SubscriptionControllerTests
         };
     }
 
-    private SubscriptionEntity CreateMockSubscription(Guid userId, int credits = 100, bool autoRenew = true)
+    private SubscriptionDto CreateMockSubscription(Guid userId, int credits = 100, bool autoRenew = true)
     {
-        return new SubscriptionEntity
+        return new SubscriptionDto
         {
             Id = Guid.NewGuid(),
             UserId = userId,
@@ -151,7 +151,7 @@ public class SubscriptionControllerTests
         _mediatorMock.Setup(m => m.Send(It.Is<GetSubscriptionQuery>(q => q.UserId == userId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
         _mediatorMock.Setup(m => m.Send(It.IsAny<ConsumeCreditsCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SubscriptionEntity { UserId = userId, Credits = 90 });
+            .ReturnsAsync(new SubscriptionDto { UserId = userId, Credits = 90 });
 
         // Act
         var result = await _controller.Consume(request);
@@ -168,7 +168,7 @@ public class SubscriptionControllerTests
         var request = new ConsumeCreditsRequest(userId, 10);
 
         _mediatorMock.Setup(m => m.Send(It.Is<GetSubscriptionQuery>(q => q.UserId == userId), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+            .ReturnsAsync((SubscriptionDto?)null);
 
         // Act
         var result = await _controller.Consume(request);
@@ -206,7 +206,7 @@ public class SubscriptionControllerTests
         // Arrange
         var userId = Guid.NewGuid();
         var request = new AddCreditsRequest(userId, 50);
-        var subscription = new SubscriptionEntity { UserId = userId, Credits = 150 };
+        var subscription = new SubscriptionDto { UserId = userId, Credits = 150 };
 
         _mediatorMock.Setup(m => m.Send(It.IsAny<AddCreditsCommand>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
@@ -341,7 +341,7 @@ public class SubscriptionControllerTests
         // Arrange
         var userId = Guid.NewGuid();
         _mediatorMock.Setup(m => m.Send(It.Is<GetSubscriptionQuery>(q => q.UserId == userId), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+            .ReturnsAsync((SubscriptionDto?)null);
 
         // Act
         var result = await _controller.Get(userId);
@@ -380,7 +380,7 @@ public class SubscriptionControllerTests
         SetupAuthenticatedUser(userId);
 
         _mediatorMock.Setup(m => m.Send(It.Is<GetSubscriptionQuery>(q => q.UserId == userId), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+            .ReturnsAsync((SubscriptionDto?)null);
 
         // Act
         var result = await _controller.GetStatus();

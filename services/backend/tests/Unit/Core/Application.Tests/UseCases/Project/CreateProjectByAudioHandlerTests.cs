@@ -53,12 +53,17 @@ public class CreateProjectByAudioHandlerTests
     public async Task Handle_AssignsAudioFileToProject()
     {
         var cmd = new CreateProjectByAudioCommand("en", "file.mp3", "audio/mpeg", 1, "url");
+        ProjectEntity? savedProject = null;
         _projectRepositoryMock.Setup(r => r.SaveAsync(It.IsAny<ProjectEntity>(), It.IsAny<CancellationToken>()))
+            .Callback<ProjectEntity, CancellationToken>((p, _) => savedProject = p)
             .Returns(Task.CompletedTask);
 
         var result = await _handler.Handle(cmd, CancellationToken.None);
 
-        Assert.Equal(result, result.AudioFile!.Project);
+        // Verify that the AudioFile was assigned to the project entity before saving
+        Assert.NotNull(savedProject);
+        Assert.NotNull(savedProject.AudioFile);
+        Assert.Equal(savedProject.Id, savedProject.AudioFile.ProjectId);
     }
 
     [Fact]

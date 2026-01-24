@@ -1,7 +1,7 @@
 using Application.Interfaces;
-using Domain.Entities;
-using Domain.Exceptions;
+using Application.UseCases.Subscription.Common;
 using Domain.Events;
+using Domain.Exceptions;
 using MediatR;
 
 namespace Application.UseCases.Subscription.AddCredits;
@@ -9,12 +9,12 @@ namespace Application.UseCases.Subscription.AddCredits;
 public class AddCreditsHandler(
     ISubscriptionRepository subscriptionRepository,
     IEventPublisher eventPublisher)
-    : IRequestHandler<AddCreditsCommand, SubscriptionEntity>
+    : IRequestHandler<AddCreditsCommand, SubscriptionDto>
 {
     private readonly IEventPublisher _events = eventPublisher;
     private readonly ISubscriptionRepository _subs = subscriptionRepository;
 
-    public async Task<SubscriptionEntity> Handle(AddCreditsCommand request, CancellationToken cancellationToken)
+    public async Task<SubscriptionDto> Handle(AddCreditsCommand request, CancellationToken cancellationToken)
     {
         var subscription = await _subs.GetByUserIdAsync(request.UserId, cancellationToken);
         if (subscription == null)
@@ -24,6 +24,6 @@ public class AddCreditsHandler(
 
         await _subs.UpdateAsync(subscription, cancellationToken);
         await _events.PublishAsync(new CreditsAddedEvent(subscription.Id, subscription.UserId, request.Amount));
-        return subscription;
+        return SubscriptionDto.FromEntity(subscription);
     }
 }

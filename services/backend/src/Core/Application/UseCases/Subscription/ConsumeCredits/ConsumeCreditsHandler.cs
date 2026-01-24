@@ -1,4 +1,5 @@
 using Application.Interfaces;
+using Application.UseCases.Subscription.Common;
 using Domain.Entities;
 using Domain.Events;
 using Domain.Exceptions;
@@ -13,7 +14,7 @@ public class ConsumeCreditsHandler(
     ICreditLimitService creditLimitService,
     IAuditService auditService,
     ILogger<ConsumeCreditsHandler> logger)
-    : IRequestHandler<ConsumeCreditsCommand, SubscriptionEntity>
+    : IRequestHandler<ConsumeCreditsCommand, SubscriptionDto>
 {
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IEventPublisher _events = eventPublisher;
@@ -21,7 +22,7 @@ public class ConsumeCreditsHandler(
     private readonly IAuditService _auditService = auditService;
     private readonly ILogger<ConsumeCreditsHandler> _logger = logger;
 
-    public async Task<SubscriptionEntity> Handle(ConsumeCreditsCommand request, CancellationToken cancellationToken)
+    public async Task<SubscriptionDto> Handle(ConsumeCreditsCommand request, CancellationToken cancellationToken)
     {
         const int MAX_RETRY_ATTEMPTS = 3;
         int retryCount = 0;
@@ -127,8 +128,8 @@ public class ConsumeCreditsHandler(
                     cancellationToken);
                 
                 _logger.LogInformation("Successfully consumed {Amount} credits for user {UserId}", request.Amount, request.UserId);
-                
-                return subscription;
+
+                return SubscriptionDto.FromEntity(subscription);
             }
             catch (ConcurrencyException ex)
             {

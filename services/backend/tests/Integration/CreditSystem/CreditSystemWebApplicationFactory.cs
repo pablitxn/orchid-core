@@ -1,5 +1,6 @@
 using Application.Interfaces;
 using Application.UseCases.Agent.VerifyAgentAccess;
+using Application.UseCases.Subscription.Common;
 using Application.UseCases.Subscription.ConsumeCredits;
 using CreditSystem.IntegrationTests.Mocks;
 using Domain.Entities;
@@ -157,7 +158,7 @@ public class CreditSystemWebApplicationFactory : WebApplicationFactory<Program>
 
             // Remove the actual handlers and their implementations
             var consumeCreditsHandler = services.SingleOrDefault(d =>
-                d.ServiceType == typeof(IRequestHandler<ConsumeCreditsCommand, SubscriptionEntity>));
+                d.ServiceType == typeof(IRequestHandler<ConsumeCreditsCommand, SubscriptionDto>));
             if (consumeCreditsHandler != null)
             {
                 services.Remove(consumeCreditsHandler);
@@ -171,7 +172,7 @@ public class CreditSystemWebApplicationFactory : WebApplicationFactory<Program>
             }
 
             // Register mock handlers that will use the same DbContext instance
-            services.AddScoped<IRequestHandler<ConsumeCreditsCommand, SubscriptionEntity>>(provider =>
+            services.AddScoped<IRequestHandler<ConsumeCreditsCommand, SubscriptionDto>>(provider =>
             {
                 var context = provider.GetRequiredService<ApplicationDbContext>();
                 return new MockConsumeCreditsHandler(context);

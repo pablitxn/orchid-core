@@ -1,6 +1,6 @@
-using Domain.Entities;
+using Application.UseCases.Project.Common;
 using MediatR;
 
 namespace Application.UseCases.Project.GetProjectById;
 
-public record GetProjectByIdQuery(Guid ProjectId) : IRequest<ProjectEntity>;
+public record GetProjectByIdQuery(Guid ProjectId) : IRequest<ProjectDto?>;

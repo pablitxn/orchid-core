@@ -199,7 +199,7 @@ public class EnhancedCreditSystemTests : CreditSystemTestBase
         
         // Assert
         result.Credits.Should().Be(0); // Unlimited plans show 0 credits
-        result.HasUnlimitedCredits().Should().BeTrue();
+        result.IsUnlimited.Should().BeTrue();
     }
 
     [Fact(Skip = "CreditSystem tests require DbContext refactor - shared InMemory DB issues")]

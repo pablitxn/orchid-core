@@ -1,4 +1,4 @@
-using Domain.Entities;
+using Application.UseCases.ChatSession.Common;
 using Domain.Enums;
 using MediatR;
 
@@ -11,4 +11,4 @@ public record ListChatSessionsQuery(
     Guid? TeamId,
     DateTime? StartDate,
     DateTime? EndDate,
-    InteractionType? Type) : IRequest<List<ChatSessionEntity>>;
+    InteractionType? Type) : IRequest<List<ChatSessionDto>>;

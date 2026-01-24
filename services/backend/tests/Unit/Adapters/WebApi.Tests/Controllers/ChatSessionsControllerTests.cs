@@ -1,10 +1,10 @@
 using System.Security.Claims;
 using Application.UseCases.ChatSession.ArchiveChatSession;
+using Application.UseCases.ChatSession.Common;
 using Application.UseCases.ChatSession.CreateChatSession;
 using Application.UseCases.ChatSession.DeleteChatSessions;
 using Application.UseCases.ChatSession.GetChatSessionById;
 using Application.UseCases.ChatSession.ListChatSessions;
-using Domain.Entities;
 using Domain.Enums;
 using FluentAssertions;
 using MediatR;
@@ -120,10 +120,10 @@ public class ChatSessionsControllerTests
         var userId = Guid.NewGuid();
         SetupAuthenticatedUser(userId);
 
-        var expectedSessions = new List<ChatSessionEntity>
+        var expectedSessions = new List<ChatSessionDto>
         {
-            new ChatSessionEntity { Id = Guid.NewGuid(), SessionId = "session-1", UserId = userId },
-            new ChatSessionEntity { Id = Guid.NewGuid(), SessionId = "session-2", UserId = userId }
+            new() { Id = Guid.NewGuid(), SessionId = "session-1", UserId = userId },
+            new() { Id = Guid.NewGuid(), SessionId = "session-2", UserId = userId }
         };
 
         _mediatorMock.Setup(m => m.Send(
@@ -136,7 +136,7 @@ public class ChatSessionsControllerTests
 
         // Assert
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var sessions = okResult.Value.Should().BeAssignableTo<List<ChatSessionEntity>>().Subject;
+        var sessions = okResult.Value.Should().BeAssignableTo<List<ChatSessionDto>>().Subject;
         sessions.Should().HaveCount(2);
         sessions[0].SessionId.Should().Be("session-1");
     }
@@ -148,9 +148,9 @@ public class ChatSessionsControllerTests
         var userId = Guid.NewGuid();
         SetupAuthenticatedUserWithSubClaim(userId);
 
-        var expectedSessions = new List<ChatSessionEntity>
+        var expectedSessions = new List<ChatSessionDto>
         {
-            new ChatSessionEntity { Id = Guid.NewGuid(), SessionId = "session-1", UserId = userId }
+            new() { Id = Guid.NewGuid(), SessionId = "session-1", UserId = userId }
         };
 
         _mediatorMock.Setup(m => m.Send(
@@ -176,7 +176,7 @@ public class ChatSessionsControllerTests
         SetupAuthenticatedUser(userId);
 
         _mediatorMock.Setup(m => m.Send(It.IsAny<ListChatSessionsQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<ChatSessionEntity>());
+            .ReturnsAsync(new List<ChatSessionDto>());
 
         // Act
         await _controller.List();
@@ -208,7 +208,7 @@ public class ChatSessionsControllerTests
         SetupAuthenticatedUser(userId);
 
         _mediatorMock.Setup(m => m.Send(It.IsAny<ListChatSessionsQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<ChatSessionEntity>());
+            .ReturnsAsync(new List<ChatSessionDto>());
 
         // Act
         await _controller.List(archived: true, agentId: agentId, teamId: teamId, startDate: startDate, endDate: endDate, type: type);
@@ -233,9 +233,9 @@ public class ChatSessionsControllerTests
         var userId = Guid.NewGuid();
         SetupAuthenticatedUser(userId);
 
-        var archivedSessions = new List<ChatSessionEntity>
+        var archivedSessions = new List<ChatSessionDto>
         {
-            new ChatSessionEntity { Id = Guid.NewGuid(), SessionId = "archived-1", UserId = userId, IsArchived = true }
+            new() { Id = Guid.NewGuid(), SessionId = "archived-1", UserId = userId, IsArchived = true }
         };
 
         _mediatorMock.Setup(m => m.Send(
@@ -248,7 +248,7 @@ public class ChatSessionsControllerTests
 
         // Assert
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var sessions = okResult.Value.Should().BeAssignableTo<List<ChatSessionEntity>>().Subject;
+        var sessions = okResult.Value.Should().BeAssignableTo<List<ChatSessionDto>>().Subject;
         sessions.Should().HaveCount(1);
         sessions[0].IsArchived.Should().BeTrue();
     }
@@ -350,7 +350,7 @@ public class ChatSessionsControllerTests
         var agentId = Guid.NewGuid();
         var command = new CreateChatSessionCommand(userId, agentId, "test-session", "Test Session");
 
-        var expectedSession = new ChatSessionEntity
+        var expectedSession = new ChatSessionDto
         {
             Id = Guid.NewGuid(),
             SessionId = "new-session-123",
@@ -359,8 +359,8 @@ public class ChatSessionsControllerTests
         };
 
         _mediatorMock.Setup(m => m.Send(
-                It.Is<CreateChatSessionCommand>(c => 
-                    c.UserId == userId && 
+                It.Is<CreateChatSessionCommand>(c =>
+                    c.UserId == userId &&
                     c.AgentId == agentId),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedSession);
@@ -370,7 +370,7 @@ public class ChatSessionsControllerTests
 
         // Assert
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var session = okResult.Value.Should().BeOfType<ChatSessionEntity>().Subject;
+        var session = okResult.Value.Should().BeOfType<ChatSessionDto>().Subject;
         session.UserId.Should().Be(userId);
         session.AgentId.Should().Be(agentId);
     }
@@ -386,7 +386,7 @@ public class ChatSessionsControllerTests
         var command = new CreateChatSessionCommand(userId, agentId, sessionId, title);
 
         _mediatorMock.Setup(m => m.Send(It.IsAny<CreateChatSessionCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ChatSessionEntity { Id = Guid.NewGuid(), SessionId = "test" });
+            .ReturnsAsync(new ChatSessionDto { Id = Guid.NewGuid(), SessionId = "test" });
 
         // Act
         await _controller.Create(command);
@@ -413,7 +413,7 @@ public class ChatSessionsControllerTests
         var command = new CreateChatSessionCommand(userId, agentId, sessionId, title);
 
         _mediatorMock.Setup(m => m.Send(It.IsAny<CreateChatSessionCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ChatSessionEntity { Id = Guid.NewGuid(), SessionId = sessionId });
+            .ReturnsAsync(new ChatSessionDto { Id = Guid.NewGuid(), SessionId = sessionId });
 
         // Act
         var result = await _controller.Create(command);

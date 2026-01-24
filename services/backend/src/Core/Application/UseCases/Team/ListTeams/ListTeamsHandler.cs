@@ -1,15 +1,16 @@
 using Application.Interfaces;
-using Domain.Entities;
+using Application.UseCases.Team.Common;
 using MediatR;
 
 namespace Application.UseCases.Team.ListTeams;
 
-public class ListTeamsHandler(ITeamRepository repository) : IRequestHandler<ListTeamsQuery, List<TeamEntity>>
+public class ListTeamsHandler(ITeamRepository repository) : IRequestHandler<ListTeamsQuery, List<TeamDto>>
 {
     private readonly ITeamRepository _repository = repository;
 
-    public async Task<List<TeamEntity>> Handle(ListTeamsQuery request, CancellationToken cancellationToken)
+    public async Task<List<TeamDto>> Handle(ListTeamsQuery request, CancellationToken cancellationToken)
     {
-        return await _repository.ListAsync(cancellationToken);
+        var entities = await _repository.ListAsync(cancellationToken);
+        return entities.Select(TeamDto.FromEntity).ToList();
     }
 }

@@ -1,4 +1,4 @@
-using Domain.Entities;
+using Application.UseCases.MediaCenter.Common;
 using MediatR;
 
 namespace Application.UseCases.MediaCenter.AddAsset;
@@ -9,4 +9,4 @@ public record AddMediaCenterAssetCommand(
     string Title,
     string FileUrl,
     TimeSpan? Duration
-) : IRequest<MediaCenterAssetEntity>;
+) : IRequest<MediaCenterAssetDto>;

@@ -1,7 +1,7 @@
+using Application.UseCases.Plugin.Common;
 using Application.UseCases.Plugin.CreatePlugin;
 using Application.UseCases.Plugin.ListPlugins;
 using Application.UseCases.Plugin.TogglePlugin;
-using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -26,7 +26,7 @@ public class PluginsControllerTests
     public async Task GetPlugins_ReturnsOk_WithPluginList()
     {
         // Arrange
-        var expectedPlugins = new List<PluginEntity>
+        var expectedPlugins = new List<PluginDto>
         {
             new() { Id = Guid.NewGuid(), Name = "Plugin 1", IsActive = true },
             new() { Id = Guid.NewGuid(), Name = "Plugin 2", IsActive = false }
@@ -49,7 +49,7 @@ public class PluginsControllerTests
     public async Task GetPlugins_ReturnsOk_WithEmptyList_WhenNoPluginsAvailable()
     {
         // Arrange
-        var emptyList = new List<PluginEntity>();
+        var emptyList = new List<PluginDto>();
 
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<ListPluginsQuery>(),
@@ -61,7 +61,7 @@ public class PluginsControllerTests
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result);
-        var list = Assert.IsAssignableFrom<IEnumerable<PluginEntity>>(okResult.Value);
+        var list = Assert.IsAssignableFrom<IEnumerable<PluginDto>>(okResult.Value);
         Assert.Empty(list);
     }
 
@@ -69,7 +69,7 @@ public class PluginsControllerTests
     public async Task GetPlugins_CallsMediatorWithListPluginsQuery()
     {
         // Arrange
-        var expectedPlugins = new List<PluginEntity>();
+        var expectedPlugins = new List<PluginDto>();
 
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<ListPluginsQuery>(),
@@ -97,7 +97,7 @@ public class PluginsControllerTests
         var pluginId = Guid.NewGuid();
         var command = new CreatePluginCommand("New Plugin", "Test Description", null);
 
-        var createdPlugin = new PluginEntity
+        var createdPlugin = new PluginDto
         {
             Id = pluginId,
             Name = "New Plugin",
@@ -116,7 +116,7 @@ public class PluginsControllerTests
         var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(result);
         Assert.Equal(nameof(PluginsController.GetPlugins), createdAtActionResult.ActionName);
         Assert.Equal(createdPlugin, createdAtActionResult.Value);
-        
+
         var routeValues = createdAtActionResult.RouteValues;
         Assert.NotNull(routeValues);
         Assert.True(routeValues.ContainsKey("id"));
@@ -129,7 +129,7 @@ public class PluginsControllerTests
         // Arrange
         var command = new CreatePluginCommand("New Plugin", "Test Description", null);
 
-        var createdPlugin = new PluginEntity { Id = Guid.NewGuid(), Name = "New Plugin" };
+        var createdPlugin = new PluginDto { Id = Guid.NewGuid(), Name = "New Plugin" };
 
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<CreatePluginCommand>(),
@@ -141,8 +141,8 @@ public class PluginsControllerTests
 
         // Assert
         _mediatorMock.Verify(m => m.Send(
-            It.Is<CreatePluginCommand>(c => 
-                c.Name == command.Name && 
+            It.Is<CreatePluginCommand>(c =>
+                c.Name == command.Name &&
                 c.Description == command.Description),
             It.IsAny<CancellationToken>()),
             Times.Once);
