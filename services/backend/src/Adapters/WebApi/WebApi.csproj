@@ -48,6 +48,9 @@
         <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.11.1" />
         <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.11.1" />
         <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.11.2" />
+        <!-- API Versioning -->
+        <PackageReference Include="Asp.Versioning.Mvc" Version="8.1.0" />
+        <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.0" />
     </ItemGroup>
 
     <ItemGroup>

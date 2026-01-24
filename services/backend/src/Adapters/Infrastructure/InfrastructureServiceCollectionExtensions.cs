@@ -14,6 +14,7 @@ using Infrastructure.Storage;
 using Infrastructure.Telemetry.Ai.Langfuse;
 using Infrastructure.Telemetry.Ai.NoOpTelemetryClient;
 using Infrastructure.VectorStore;
+using Infrastructure.Transformers;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -89,6 +90,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<ILoginHistoryRepository, LoginHistoryRepository>();
         services.AddScoped<IUserWorkflowRepository, UserWorkflowRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<IMessageTransformer, LegacyToV2Transformer>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         // services.AddScoped<IAudioJobRepository, AudioJobRepository>();
         
