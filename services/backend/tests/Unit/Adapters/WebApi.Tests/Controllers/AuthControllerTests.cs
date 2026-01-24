@@ -762,7 +762,7 @@ public class AuthControllerTests
         // Arrange - This prevents email enumeration
         SetupAllowedRateLimit();
         _mediatorMock.Setup(x => x.Send(It.IsAny<ForgotPasswordCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string?)null);
+            .ReturnsAsync(new ForgotPasswordDto(null));
         var request = new ForgotPasswordRequest("nonexistent@example.com");
 
         // Act
@@ -782,7 +782,7 @@ public class AuthControllerTests
         // Arrange
         SetupAllowedRateLimit();
         _mediatorMock.Setup(x => x.Send(It.IsAny<ForgotPasswordCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("reset-token-123");
+            .ReturnsAsync(new ForgotPasswordDto("reset-token-123"));
         var request = new ForgotPasswordRequest("existing@example.com");
 
         // Act

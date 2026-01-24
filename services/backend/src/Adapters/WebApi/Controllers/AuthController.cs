@@ -325,11 +325,11 @@ public class AuthController(
         }
 
         // Always process the request, but don't reveal if email exists
-        var token = await _mediator.Send(new ForgotPasswordCommand(request.Email));
+        var result = await _mediator.Send(new ForgotPasswordCommand(request.Email));
 
         // In production, send token via email using IEmailService
         // For now, log it only in development
-        if (token != null && _env.IsDevelopment())
+        if (result.ResetToken != null && _env.IsDevelopment())
         {
             _logger.LogWarning("DEV ONLY - Password reset token generated.");
         }

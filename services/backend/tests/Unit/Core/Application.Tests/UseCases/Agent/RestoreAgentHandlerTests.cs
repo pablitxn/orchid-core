@@ -1,6 +1,7 @@
 using Application.Interfaces;
 using Application.UseCases.Agent.RestoreAgent;
 using Domain.Entities;
+using Domain.Exceptions;
 using Moq;
 using Xunit;
 
@@ -67,7 +68,7 @@ public class RestoreAgentHandlerTests
         var command = new RestoreAgentCommand(agentId, userId);
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+        var exception = await Assert.ThrowsAsync<AgentNotFoundException>(
             () => _handler.Handle(command, CancellationToken.None));
 
         Assert.Contains(agentId.ToString(), exception.Message);
@@ -76,7 +77,7 @@ public class RestoreAgentHandlerTests
     }
 
     [Fact]
-    public async Task Handle_Should_Throw_UnauthorizedAccessException_When_User_Is_Not_Owner()
+    public async Task Handle_Should_Throw_UnauthorizedDomainAccessException_When_User_Is_Not_Owner()
     {
         // Arrange
         var ownerId = Guid.NewGuid();
@@ -98,14 +99,14 @@ public class RestoreAgentHandlerTests
         var command = new RestoreAgentCommand(agentId, attemptingUserId);
 
         // Act & Assert
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+        await Assert.ThrowsAsync<UnauthorizedDomainAccessException>(
             () => _handler.Handle(command, CancellationToken.None));
 
         _agentRepositoryMock.Verify(x => x.UpdateAsync(It.IsAny<AgentEntity>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Handle_Should_Throw_InvalidOperationException_When_Agent_Not_In_RecycleBin()
+    public async Task Handle_Should_Throw_AgentNotInRecycleBinException_When_Agent_Not_In_RecycleBin()
     {
         // Arrange
         var userId = Guid.NewGuid();
@@ -126,10 +127,8 @@ public class RestoreAgentHandlerTests
         var command = new RestoreAgentCommand(agentId, userId);
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<AgentNotInRecycleBinException>(
             () => _handler.Handle(command, CancellationToken.None));
-
-        Assert.Contains("not in recycle bin", exception.Message.ToLower());
 
         _agentRepositoryMock.Verify(x => x.UpdateAsync(It.IsAny<AgentEntity>(), It.IsAny<CancellationToken>()), Times.Never);
     }

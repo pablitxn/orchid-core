@@ -62,11 +62,7 @@ public class PersonalityTemplatesController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> DeleteTemplate(Guid id)
     {
         var command = new DeleteTemplateCommand(id);
-        var result = await mediator.Send(command);
-        
-        if (!result)
-            return NotFound();
-            
+        await mediator.Send(command);
         return NoContent();
     }
 }

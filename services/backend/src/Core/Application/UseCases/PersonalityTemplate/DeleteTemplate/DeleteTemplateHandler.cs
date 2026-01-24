@@ -1,13 +1,19 @@
 using Application.Interfaces;
+using Domain.Exceptions;
 using MediatR;
 
 namespace Application.UseCases.PersonalityTemplate.DeleteTemplate;
 
 public class DeleteTemplateHandler(IPersonalityTemplateRepository repository)
-    : IRequestHandler<DeleteTemplateCommand, bool>
+    : IRequestHandler<DeleteTemplateCommand, Unit>
 {
-    public async Task<bool> Handle(DeleteTemplateCommand request, CancellationToken cancellationToken)
+    public async Task<Unit> Handle(DeleteTemplateCommand request, CancellationToken cancellationToken)
     {
-        return await repository.DeleteAsync(request.Id, cancellationToken);
+        var template = await repository.GetByIdAsync(request.Id, cancellationToken);
+        if (template == null)
+            throw new EntityNotFoundException("PersonalityTemplate", request.Id);
+
+        await repository.DeleteAsync(request.Id, cancellationToken);
+        return Unit.Value;
     }
 }

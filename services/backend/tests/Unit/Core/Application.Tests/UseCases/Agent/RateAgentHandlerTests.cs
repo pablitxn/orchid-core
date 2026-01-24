@@ -1,6 +1,7 @@
 using Application.Interfaces;
 using Application.UseCases.Agent.RateAgent;
 using Domain.Entities;
+using Domain.Exceptions;
 using Moq;
 using Xunit;
 
@@ -114,7 +115,7 @@ public class RateAgentHandlerTests
             .ReturnsAsync((AgentEntity?)null);
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+        var exception = await Assert.ThrowsAsync<AgentNotFoundException>(
             () => _handler.Handle(command, CancellationToken.None));
         Assert.Contains(agentId.ToString(), exception.Message);
     }
@@ -130,7 +131,7 @@ public class RateAgentHandlerTests
         var command = new RateAgentCommand(Guid.NewGuid(), Guid.NewGuid(), invalidRating, null);
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
+        await Assert.ThrowsAsync<ValidationException>(
             () => _handler.Handle(command, CancellationToken.None));
     }
 
@@ -141,7 +142,7 @@ public class RateAgentHandlerTests
         var command = new RateAgentCommand(Guid.Empty, Guid.NewGuid(), 5, null);
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
+        await Assert.ThrowsAsync<ValidationException>(
             () => _handler.Handle(command, CancellationToken.None));
     }
 
@@ -152,7 +153,7 @@ public class RateAgentHandlerTests
         var command = new RateAgentCommand(Guid.NewGuid(), Guid.Empty, 5, null);
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
+        await Assert.ThrowsAsync<ValidationException>(
             () => _handler.Handle(command, CancellationToken.None));
     }
 
@@ -164,7 +165,7 @@ public class RateAgentHandlerTests
         var command = new RateAgentCommand(Guid.NewGuid(), Guid.NewGuid(), 5, longComment);
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
+        await Assert.ThrowsAsync<ValidationException>(
             () => _handler.Handle(command, CancellationToken.None));
     }
 

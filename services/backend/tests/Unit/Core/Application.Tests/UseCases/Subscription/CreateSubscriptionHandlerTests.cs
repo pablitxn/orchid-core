@@ -2,6 +2,7 @@ using Application.Interfaces;
 using Application.UseCases.Subscription.CreateSubscription;
 using Domain.Entities;
 using Domain.Events;
+using Domain.Exceptions;
 using Moq;
 
 namespace Application.Tests.UseCases.Subscription;
@@ -42,7 +43,7 @@ public class CreateSubscriptionHandlerTests
         _users.Setup(r => r.GetByIdAsync(userId, CancellationToken.None)).ReturnsAsync((UserEntity?)null);
 
         var cmd = new CreateSubscriptionCommand(userId, 10, null);
-        await Assert.ThrowsAsync<ArgumentException>(() => _handler.Handle(cmd, CancellationToken.None));
+        await Assert.ThrowsAsync<UserNotFoundException>(() => _handler.Handle(cmd, CancellationToken.None));
     }
 
     [Fact]

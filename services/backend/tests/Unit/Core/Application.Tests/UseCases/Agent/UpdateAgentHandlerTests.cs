@@ -2,6 +2,7 @@ using Application.Interfaces;
 using Application.UseCases.Agent.Common;
 using Application.UseCases.Agent.UpdateAgent;
 using Domain.Entities;
+using Domain.Exceptions;
 using Moq;
 using Xunit;
 
@@ -109,7 +110,7 @@ public class UpdateAgentHandlerTests
             null);
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<KeyNotFoundException>(
+        var exception = await Assert.ThrowsAsync<AgentNotFoundException>(
             () => _handler.Handle(command, CancellationToken.None));
 
         Assert.Contains(agentId.ToString(), exception.Message);
@@ -148,7 +149,7 @@ public class UpdateAgentHandlerTests
             null);
 
         // Act & Assert
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+        await Assert.ThrowsAsync<UnauthorizedDomainAccessException>(
             () => _handler.Handle(command, CancellationToken.None));
 
         _agentRepositoryMock.Verify(x => x.UpdateAsync(It.IsAny<AgentEntity>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -187,7 +188,7 @@ public class UpdateAgentHandlerTests
             null);
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+        var exception = await Assert.ThrowsAsync<AgentDeletedException>(
             () => _handler.Handle(command, CancellationToken.None));
 
         Assert.Contains("deleted", exception.Message.ToLower());

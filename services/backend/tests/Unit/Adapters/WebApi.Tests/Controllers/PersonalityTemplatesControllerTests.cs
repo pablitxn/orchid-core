@@ -9,6 +9,7 @@ using Application.UseCases.PersonalityTemplate.DeleteTemplate;
 using Application.UseCases.PersonalityTemplate.GetTemplate;
 using Application.UseCases.PersonalityTemplate.ListTemplates;
 using Application.UseCases.PersonalityTemplate.UpdateTemplate;
+using Domain.Exceptions;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -318,44 +319,42 @@ public class PersonalityTemplatesControllerTests
         var templateId = Guid.NewGuid();
 
         _mediatorMock
-            .Setup(m => m.Send(It.Is<DeleteTemplateCommand>(c => 
+            .Setup(m => m.Send(It.Is<DeleteTemplateCommand>(c =>
                 c.Id == templateId),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(Unit.Value);
 
         // Act
         var result = await _controller.DeleteTemplate(templateId);
 
         // Assert
         Assert.IsType<NoContentResult>(result);
-        
+
         _mediatorMock.Verify(m => m.Send(
             It.Is<DeleteTemplateCommand>(c => c.Id == templateId),
-            It.IsAny<CancellationToken>()), 
+            It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
     [Fact]
-    public async Task DeleteTemplate_ReturnsNotFound_WhenTemplateDoesNotExist()
+    public async Task DeleteTemplate_ThrowsEntityNotFoundException_WhenTemplateDoesNotExist()
     {
         // Arrange
         var templateId = Guid.NewGuid();
 
         _mediatorMock
-            .Setup(m => m.Send(It.Is<DeleteTemplateCommand>(c => 
+            .Setup(m => m.Send(It.Is<DeleteTemplateCommand>(c =>
                 c.Id == templateId),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+            .ThrowsAsync(new EntityNotFoundException("PersonalityTemplate", templateId));
 
-        // Act
-        var result = await _controller.DeleteTemplate(templateId);
+        // Act & Assert
+        await Assert.ThrowsAsync<EntityNotFoundException>(
+            () => _controller.DeleteTemplate(templateId));
 
-        // Assert
-        Assert.IsType<NotFoundResult>(result);
-        
         _mediatorMock.Verify(m => m.Send(
             It.Is<DeleteTemplateCommand>(c => c.Id == templateId),
-            It.IsAny<CancellationToken>()), 
+            It.IsAny<CancellationToken>()),
             Times.Once);
     }
 }

@@ -1,6 +1,7 @@
 using Application.Interfaces;
 using Application.UseCases.Agent.GetAgentRatings;
 using Domain.Entities;
+using Domain.Exceptions;
 using Moq;
 
 namespace Application.Tests.UseCases.Agent;
@@ -90,7 +91,7 @@ public class GetAgentRatingsHandlerTests
             .ReturnsAsync((AgentEntity?)null);
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+        var exception = await Assert.ThrowsAsync<AgentNotFoundException>(
             () => _handler.Handle(query, CancellationToken.None));
         Assert.Contains(agentId.ToString(), exception.Message);
     }
@@ -102,7 +103,7 @@ public class GetAgentRatingsHandlerTests
         var query = new GetAgentRatingsQuery(Guid.Empty);
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(
+        await Assert.ThrowsAsync<ValidationException>(
             () => _handler.Handle(query, CancellationToken.None));
     }
 

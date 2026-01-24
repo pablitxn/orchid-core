@@ -2,6 +2,7 @@ using Application.UseCases.Plugin.Common;
 using Application.UseCases.Plugin.CreatePlugin;
 using Application.UseCases.Plugin.ListPlugins;
 using Application.UseCases.Plugin.TogglePlugin;
+using Domain.Exceptions;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -161,7 +162,7 @@ public class PluginsControllerTests
         _mediatorMock.Setup(m => m.Send(
             It.Is<TogglePluginCommand>(c => c.Id == pluginId && c.Activate == true),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(Unit.Value);
 
         // Act
         var result = await _controller.Activate(pluginId);
@@ -171,7 +172,7 @@ public class PluginsControllerTests
     }
 
     [Fact]
-    public async Task Activate_ReturnsNotFound_WhenPluginDoesNotExist()
+    public async Task Activate_ThrowsPluginNotFoundException_WhenPluginDoesNotExist()
     {
         // Arrange
         var pluginId = Guid.NewGuid();
@@ -179,13 +180,11 @@ public class PluginsControllerTests
         _mediatorMock.Setup(m => m.Send(
             It.Is<TogglePluginCommand>(c => c.Id == pluginId && c.Activate == true),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+            .ThrowsAsync(new PluginNotFoundException(pluginId));
 
-        // Act
-        var result = await _controller.Activate(pluginId);
-
-        // Assert
-        Assert.IsType<NotFoundResult>(result);
+        // Act & Assert
+        await Assert.ThrowsAsync<PluginNotFoundException>(
+            () => _controller.Activate(pluginId));
     }
 
     [Fact]
@@ -197,7 +196,7 @@ public class PluginsControllerTests
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<TogglePluginCommand>(),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(Unit.Value);
 
         // Act
         await _controller.Activate(pluginId);
@@ -222,7 +221,7 @@ public class PluginsControllerTests
         _mediatorMock.Setup(m => m.Send(
             It.Is<TogglePluginCommand>(c => c.Id == pluginId && c.Activate == false),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(Unit.Value);
 
         // Act
         var result = await _controller.Deactivate(pluginId);
@@ -232,7 +231,7 @@ public class PluginsControllerTests
     }
 
     [Fact]
-    public async Task Deactivate_ReturnsNotFound_WhenPluginDoesNotExist()
+    public async Task Deactivate_ThrowsPluginNotFoundException_WhenPluginDoesNotExist()
     {
         // Arrange
         var pluginId = Guid.NewGuid();
@@ -240,13 +239,11 @@ public class PluginsControllerTests
         _mediatorMock.Setup(m => m.Send(
             It.Is<TogglePluginCommand>(c => c.Id == pluginId && c.Activate == false),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+            .ThrowsAsync(new PluginNotFoundException(pluginId));
 
-        // Act
-        var result = await _controller.Deactivate(pluginId);
-
-        // Assert
-        Assert.IsType<NotFoundResult>(result);
+        // Act & Assert
+        await Assert.ThrowsAsync<PluginNotFoundException>(
+            () => _controller.Deactivate(pluginId));
     }
 
     [Fact]
@@ -258,7 +255,7 @@ public class PluginsControllerTests
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<TogglePluginCommand>(),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(Unit.Value);
 
         // Act
         await _controller.Deactivate(pluginId);

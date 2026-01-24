@@ -29,16 +29,14 @@ public class PluginsController(IMediator mediator) : ControllerBase
     [HttpPost("{id}/activate")]
     public async Task<IActionResult> Activate(Guid id)
     {
-        var result = await _mediator.Send(new TogglePluginCommand(id, true));
-        if (!result) return NotFound();
+        await _mediator.Send(new TogglePluginCommand(id, true));
         return Ok();
     }
 
     [HttpPost("{id}/deactivate")]
     public async Task<IActionResult> Deactivate(Guid id)
     {
-        var result = await _mediator.Send(new TogglePluginCommand(id, false));
-        if (!result) return NotFound();
+        await _mediator.Send(new TogglePluginCommand(id, false));
         return Ok();
     }
 }

@@ -1,6 +1,7 @@
 using Application.Interfaces;
 using Application.UseCases.Agent.SoftDeleteAgent;
 using Domain.Entities;
+using Domain.Exceptions;
 using Moq;
 using Xunit;
 
@@ -53,7 +54,7 @@ public class SoftDeleteAgentHandlerTests
     }
 
     [Fact]
-    public async Task Handle_Should_Throw_UnauthorizedAccessException_When_User_Is_Not_Owner()
+    public async Task Handle_Should_Throw_UnauthorizedDomainAccessException_When_User_Is_Not_Owner()
     {
         // Arrange
         var ownerId = Guid.NewGuid();
@@ -74,17 +75,17 @@ public class SoftDeleteAgentHandlerTests
         var command = new SoftDeleteAgentCommand(agentId, attemptingUserId);
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(
+        var exception = await Assert.ThrowsAsync<UnauthorizedDomainAccessException>(
             () => _handler.Handle(command, CancellationToken.None));
-        
+
         Assert.Contains(attemptingUserId.ToString(), exception.Message);
         Assert.Contains(agentId.ToString(), exception.Message);
-        
+
         _agentRepositoryMock.Verify(x => x.UpdateAsync(It.IsAny<AgentEntity>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Handle_Should_Throw_InvalidOperationException_When_Agent_Not_Found()
+    public async Task Handle_Should_Throw_AgentNotFoundException_When_Agent_Not_Found()
     {
         // Arrange
         var userId = Guid.NewGuid();
@@ -96,11 +97,11 @@ public class SoftDeleteAgentHandlerTests
         var command = new SoftDeleteAgentCommand(agentId, userId);
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+        var exception = await Assert.ThrowsAsync<AgentNotFoundException>(
             () => _handler.Handle(command, CancellationToken.None));
-        
+
         Assert.Contains(agentId.ToString(), exception.Message);
-        
+
         _agentRepositoryMock.Verify(x => x.UpdateAsync(It.IsAny<AgentEntity>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
