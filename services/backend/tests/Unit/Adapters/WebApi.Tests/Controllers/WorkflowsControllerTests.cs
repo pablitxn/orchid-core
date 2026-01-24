@@ -4,7 +4,6 @@ using Application.UseCases.Workflow.CreateWorkflow;
 using Application.UseCases.Workflow.GetWorkflowById;
 using Application.UseCases.Workflow.ListWorkflows;
 using Application.UseCases.Workflow.PurchaseWorkflow;
-using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -120,7 +119,7 @@ public class WorkflowsControllerTests
     {
         // Arrange
         var workflowId = Guid.NewGuid();
-        var workflow = new WorkflowEntity
+        var workflow = new WorkflowDto
         {
             Id = workflowId,
             Name = "Test Workflow"
@@ -146,7 +145,7 @@ public class WorkflowsControllerTests
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<GetWorkflowByIdQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((WorkflowEntity?)null);
+            .ReturnsAsync((WorkflowDto?)null);
 
         // Act
         var result = await _controller.GetById(workflowId);
@@ -163,7 +162,7 @@ public class WorkflowsControllerTests
 
         _mediatorMock
             .Setup(m => m.Send(It.IsAny<GetWorkflowByIdQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((WorkflowEntity?)null);
+            .ReturnsAsync((WorkflowDto?)null);
 
         // Act
         await _controller.GetById(workflowId);

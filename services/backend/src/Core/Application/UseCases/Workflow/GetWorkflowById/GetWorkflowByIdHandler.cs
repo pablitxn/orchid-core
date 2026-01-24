@@ -1,14 +1,15 @@
 using Application.Interfaces;
-using Domain.Entities;
+using Application.UseCases.Workflow.Common;
 using MediatR;
 
 namespace Application.UseCases.Workflow.GetWorkflowById;
 
 public class GetWorkflowByIdHandler(IWorkflowRepository repository)
-    : IRequestHandler<GetWorkflowByIdQuery, WorkflowEntity?>
+    : IRequestHandler<GetWorkflowByIdQuery, WorkflowDto?>
 {
-    public async Task<WorkflowEntity?> Handle(GetWorkflowByIdQuery request, CancellationToken cancellationToken)
+    public async Task<WorkflowDto?> Handle(GetWorkflowByIdQuery request, CancellationToken cancellationToken)
     {
-        return await repository.GetByIdAsync(request.Id, cancellationToken);
+        var entity = await repository.GetByIdAsync(request.Id, cancellationToken);
+        return entity is null ? null : WorkflowDto.FromEntity(entity);
     }
 }

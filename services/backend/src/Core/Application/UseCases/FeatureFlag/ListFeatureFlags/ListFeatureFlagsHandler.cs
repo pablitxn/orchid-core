@@ -3,11 +3,11 @@ using MediatR;
 
 namespace Application.UseCases.FeatureFlag.ListFeatureFlags;
 
-public class ListFeatureFlagsHandler(IFeatureFlagRepository repository) : IRequestHandler<ListFeatureFlagsQuery, ListFeatureFlagsResponse>
+public class ListFeatureFlagsHandler(IFeatureFlagRepository repository) : IRequestHandler<ListFeatureFlagsQuery, ListFeatureFlagsDto>
 {
     private readonly IFeatureFlagRepository _repository = repository;
 
-    public async Task<ListFeatureFlagsResponse> Handle(ListFeatureFlagsQuery request, CancellationToken cancellationToken)
+    public async Task<ListFeatureFlagsDto> Handle(ListFeatureFlagsQuery request, CancellationToken cancellationToken)
     {
         var featureFlags = await _repository.ListEnabledAsync(cancellationToken);
 
@@ -19,7 +19,7 @@ public class ListFeatureFlagsHandler(IFeatureFlagRepository repository) : IReque
             features[flag.Key] = isEnabled;
         }
 
-        return new ListFeatureFlagsResponse(features);
+        return new ListFeatureFlagsDto(features);
     }
 
     private static bool EvaluateFeatureFlag(Domain.Entities.FeatureFlagEntity flag, Guid? userId, string? userPlan)
