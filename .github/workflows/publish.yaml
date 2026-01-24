@@ -1,12 +1,6 @@
 name: Publish to GitHub Container Registry
 
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - "services/backend/**"
-      - "Dockerfile"
-      - ".dockerignore"
   workflow_dispatch:
     inputs:
       environment:
