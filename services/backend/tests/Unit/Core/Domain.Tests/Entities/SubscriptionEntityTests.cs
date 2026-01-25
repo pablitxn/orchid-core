@@ -1,5 +1,6 @@
 using Domain.Entities;
 using Domain.Enums;
+using Domain.Exceptions;
 using Xunit;
 
 namespace Domain.Tests.Entities;
@@ -82,7 +83,7 @@ public class SubscriptionEntityTests
         };
 
         // Act & Assert
-        var exception = Assert.Throws<InvalidOperationException>(() => subscription.ConsumeCredits(15));
+        var exception = Assert.Throws<InsufficientCreditsException>(() => subscription.ConsumeCredits(15));
         Assert.Contains("Insufficient credits", exception.Message);
         Assert.Contains("available 10", exception.Message);
         Assert.Contains("requested 15", exception.Message);
@@ -210,8 +211,8 @@ public class SubscriptionEntityTests
         };
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => subscription.ConsumeCredits(0));
-        Assert.Throws<ArgumentException>(() => subscription.ConsumeCredits(-5));
+        Assert.Throws<ValidationException>(() => subscription.ConsumeCredits(0));
+        Assert.Throws<ValidationException>(() => subscription.ConsumeCredits(-5));
     }
 
     [Fact]
@@ -239,7 +240,7 @@ public class SubscriptionEntityTests
     public void AddCredits_NonPositive_Throws()
     {
         var sub = new SubscriptionEntity { Id = Guid.NewGuid(), UserId = Guid.NewGuid() };
-        Assert.Throws<ArgumentException>(() => sub.AddCredits(0));
-        Assert.Throws<ArgumentException>(() => sub.AddCredits(-5));
+        Assert.Throws<ValidationException>(() => sub.AddCredits(0));
+        Assert.Throws<ValidationException>(() => sub.AddCredits(-5));
     }
 }

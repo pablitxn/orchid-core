@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 
 namespace Domain.Entities;
@@ -19,6 +20,17 @@ public class CalendarArtifactEntity
 
     /// <summary>
     /// Calendar events in JSON format (title, start, end, color, etc.).
+    /// Stored as string for DB compatibility; use EventsJson for JsonDocument access.
     /// </summary>
-    public JsonDocument? Events { get; set; }
+    public string? Events { get; set; }
+
+    /// <summary>
+    /// Gets or sets the events as JsonDocument. Not mapped to DB.
+    /// </summary>
+    [NotMapped]
+    public JsonDocument? EventsDocument
+    {
+        get => string.IsNullOrEmpty(Events) ? null : JsonDocument.Parse(Events);
+        set => Events = value?.RootElement.GetRawText();
+    }
 }

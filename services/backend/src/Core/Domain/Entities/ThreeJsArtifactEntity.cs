@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 
 namespace Domain.Entities;
@@ -19,6 +20,17 @@ public class ThreeJsArtifactEntity
 
     /// <summary>
     /// Scene data in JSON format (objects, lights, camera, materials).
+    /// Stored as string for DB compatibility.
     /// </summary>
-    public JsonDocument? SceneData { get; set; }
+    public string? SceneData { get; set; }
+
+    /// <summary>
+    /// Gets or sets the scene data as JsonDocument. Not mapped to DB.
+    /// </summary>
+    [NotMapped]
+    public JsonDocument? SceneDataDocument
+    {
+        get => string.IsNullOrEmpty(SceneData) ? null : JsonDocument.Parse(SceneData);
+        set => SceneData = value?.RootElement.GetRawText();
+    }
 }

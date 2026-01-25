@@ -20,8 +20,17 @@ public class CreateUserHandlerTests
     public async Task Handle_CreatesUser_AndAssignsRole()
     {
         var command = new CreateUserCommand("test@example.com", new[] { "admin" });
-        _userRepo.Setup(r => r.GetByEmailAsync(command.Email)).ReturnsAsync((UserEntity?)null);
-        _userRepo.Setup(r => r.CreateAsync(It.IsAny<UserEntity>())).ReturnsAsync((UserEntity u) => u);
+        UserEntity? createdUser = null;
+        _userRepo.Setup(r => r.CreateAsync(It.IsAny<UserEntity>()))
+            .ReturnsAsync((UserEntity u) =>
+            {
+                createdUser = u;
+                createdUser.UserRoles = new List<UserRoleEntity>();
+                return u;
+            });
+        _userRepo.SetupSequence(r => r.GetByEmailAsync(command.Email))
+            .ReturnsAsync((UserEntity?)null)
+            .ReturnsAsync(() => createdUser);
         _roleRepo.Setup(r => r.GetByNameAsync("admin")).ReturnsAsync((RoleEntity?)null);
         _roleRepo.Setup(r => r.CreateAsync(It.IsAny<RoleEntity>())).ReturnsAsync((RoleEntity r) => r);
 
@@ -61,8 +70,17 @@ public class CreateUserHandlerTests
     public async Task Handle_CreatesUser_AndUsesExistingRole_WhenRoleAlreadyExists()
     {
         var command = new CreateUserCommand("test2@example.com", new[] { "admin" });
-        _userRepo.Setup(r => r.GetByEmailAsync(command.Email)).ReturnsAsync((UserEntity?)null);
-        _userRepo.Setup(r => r.CreateAsync(It.IsAny<UserEntity>())).ReturnsAsync((UserEntity u) => u);
+        UserEntity? createdUser = null;
+        _userRepo.Setup(r => r.CreateAsync(It.IsAny<UserEntity>()))
+            .ReturnsAsync((UserEntity u) =>
+            {
+                createdUser = u;
+                createdUser.UserRoles = new List<UserRoleEntity>();
+                return u;
+            });
+        _userRepo.SetupSequence(r => r.GetByEmailAsync(command.Email))
+            .ReturnsAsync((UserEntity?)null)
+            .ReturnsAsync(() => createdUser);
         var existingRole = new RoleEntity { Id = Guid.NewGuid(), Name = "admin" };
         _roleRepo.Setup(r => r.GetByNameAsync("admin")).ReturnsAsync(existingRole);
 
@@ -79,8 +97,17 @@ public class CreateUserHandlerTests
     public async Task Handle_DoesNotAssignRoles_WhenNoRolesProvided()
     {
         var command = new CreateUserCommand("nobody@example.com", null);
-        _userRepo.Setup(r => r.GetByEmailAsync(command.Email)).ReturnsAsync((UserEntity?)null);
-        _userRepo.Setup(r => r.CreateAsync(It.IsAny<UserEntity>())).ReturnsAsync((UserEntity u) => u);
+        UserEntity? createdUser = null;
+        _userRepo.Setup(r => r.CreateAsync(It.IsAny<UserEntity>()))
+            .ReturnsAsync((UserEntity u) =>
+            {
+                createdUser = u;
+                createdUser.UserRoles = new List<UserRoleEntity>();
+                return u;
+            });
+        _userRepo.SetupSequence(r => r.GetByEmailAsync(command.Email))
+            .ReturnsAsync((UserEntity?)null)
+            .ReturnsAsync(() => createdUser);
 
         var result = await _handler.Handle(command, CancellationToken.None);
 
@@ -95,8 +122,17 @@ public class CreateUserHandlerTests
     {
         var roles = new[] { "admin", "user", "moderator" };
         var command = new CreateUserCommand("multi@example.com", roles);
-        _userRepo.Setup(r => r.GetByEmailAsync(command.Email)).ReturnsAsync((UserEntity?)null);
-        _userRepo.Setup(r => r.CreateAsync(It.IsAny<UserEntity>())).ReturnsAsync((UserEntity u) => u);
+        UserEntity? createdUser = null;
+        _userRepo.Setup(r => r.CreateAsync(It.IsAny<UserEntity>()))
+            .ReturnsAsync((UserEntity u) =>
+            {
+                createdUser = u;
+                createdUser.UserRoles = new List<UserRoleEntity>();
+                return u;
+            });
+        _userRepo.SetupSequence(r => r.GetByEmailAsync(command.Email))
+            .ReturnsAsync((UserEntity?)null)
+            .ReturnsAsync(() => createdUser);
         foreach (var roleName in roles)
             _roleRepo.Setup(r => r.GetByNameAsync(roleName)).ReturnsAsync((RoleEntity?)null);
         _roleRepo.Setup(r => r.CreateAsync(It.IsAny<RoleEntity>())).ReturnsAsync((RoleEntity r) => r);

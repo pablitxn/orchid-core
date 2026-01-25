@@ -795,7 +795,12 @@ public class ApplicationDbContext(
         {
             b.ToTable("CalendarArtifacts");
             b.HasKey(c => c.ArtifactId);
-            b.Property(c => c.Events).HasColumnType("jsonb");
+
+            // Events is now stored as string, configure as jsonb for PostgreSQL
+            if (Database.IsNpgsql())
+            {
+                b.Property(c => c.Events).HasColumnType("jsonb");
+            }
 
             // 1:1 relationship with MessageArtifact
             b.HasOne(c => c.Artifact)

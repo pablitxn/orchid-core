@@ -26,6 +26,7 @@ public class CreateProjectByAudioHandler(
             CreatedAt = DateTime.UtcNow
         };
         var project = ProjectEntity.Create(request.TargetLanguage, audioFile);
+        audioFile.ProjectId = project.Id;
         audioFile.Project = project;
 
         await _projectRepository.SaveAsync(project, cancellationToken);

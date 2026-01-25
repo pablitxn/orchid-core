@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 
 namespace Domain.Entities;
@@ -19,6 +20,17 @@ public class TableArtifactEntity
 
     /// <summary>
     /// Table data in JSON format (headers, rows).
+    /// Stored as string for DB compatibility.
     /// </summary>
-    public JsonDocument? Data { get; set; }
+    public string? Data { get; set; }
+
+    /// <summary>
+    /// Gets or sets the data as JsonDocument. Not mapped to DB.
+    /// </summary>
+    [NotMapped]
+    public JsonDocument? DataDocument
+    {
+        get => string.IsNullOrEmpty(Data) ? null : JsonDocument.Parse(Data);
+        set => Data = value?.RootElement.GetRawText();
+    }
 }
