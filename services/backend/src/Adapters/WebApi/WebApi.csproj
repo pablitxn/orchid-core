@@ -8,6 +8,9 @@
         <GenerateTestHost>true</GenerateTestHost>
         <ImplicitUsings>enable</ImplicitUsings>
         <UserSecretsId>056078c3-3ae0-4ab5-bf87-5402e063f08c</UserSecretsId>
+        <!-- Generate XML documentation for OpenAPI/Swagger -->
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);1591</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
@@ -33,6 +36,7 @@
         <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="7.3.1">
             <TreatAsUsed>true</TreatAsUsed>
         </PackageReference>
+        <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="7.3.1" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.10.0" />
         <!-- Add RabbitMQ transport for MassTransit -->
         <PackageReference Include="MassTransit.RabbitMQ" Version="8.4.0" />

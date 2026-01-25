@@ -278,7 +278,85 @@ builder.Services.AddLocalization(options => options.ResourcesPath = "Resources")
 // ─── Swagger / OpenAPI ────────────────────────────────────────────────────────
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Playground Dotnet API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Orchid Core API",
+        Version = "v1",
+        Description = """
+            Orchid Core is an AI agent management platform providing:
+            - Agent creation and management with customizable personalities
+            - Real-time chat via SignalR with streaming AI responses
+            - Plugin marketplace for extending agent capabilities
+            - Knowledge base document upload and retrieval-augmented generation
+            - Team-based multi-agent collaboration
+            - Credit system for usage tracking and billing
+            
+            ## Authentication
+            Most endpoints require JWT Bearer authentication. Obtain a token via `/api/auth/login` 
+            or Google OAuth (`/api/auth/google`). Tokens are returned in HttpOnly cookies and 
+            can also be passed via `Authorization: Bearer <token>` header.
+            
+            ## Real-time Communication
+            For chat functionality, connect to SignalR hubs:
+            - `/chatHub` - Primary chat hub (v1)
+            - `/chatHubV2` - Enhanced chat hub with cursor-based pagination
+            - `/hubs/credits` - Real-time credit balance updates
+            """,
+        Contact = new OpenApiContact
+        {
+            Name = "Orchid Labs",
+            Url = new Uri("https://github.com/pablitxn/orchid-core")
+        },
+        License = new OpenApiLicense
+        {
+            Name = "MIT License",
+            Url = new Uri("https://opensource.org/licenses/MIT")
+        }
+    });
+    
+    c.SwaggerDoc("v2", new OpenApiInfo
+    {
+        Title = "Orchid Core API",
+        Version = "v2",
+        Description = "Version 2 APIs with enhanced features including cursor-based pagination and artifacts support."
+    });
+    
+    // Add JWT Bearer security definition
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Enter your token in the text input below.",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    });
+    
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+    
+    // Include XML comments for API documentation
+    var xmlFile = $"{typeof(Program).Assembly.GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        c.IncludeXmlComments(xmlPath);
+    }
+    
+    // Enable annotations
+    c.EnableAnnotations();
 });
 Log.Information("Swagger configured");
 
