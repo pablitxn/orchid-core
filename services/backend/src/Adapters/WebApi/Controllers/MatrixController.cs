@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using Application.UseCases.Matrix.GenerateLinkCode;
+using Application.UseCases.Matrix.ValidateLinkCode;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WebApi.Authorization;
 
 namespace WebApi.Controllers;
 
@@ -41,8 +43,46 @@ public class MatrixController(IMediator mediator) : ControllerBase
 
         return Ok(new GenerateLinkCodeResponse(result.Code!, result.ExpiresAt!.Value));
     }
+
+    /// <summary>
+    /// Validates a link code sent by a Matrix user and creates the account binding.
+    /// This endpoint is intended for the Matrix bridge service.
+    /// </summary>
+    /// <param name="request">The Matrix user ID and verification code</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Success with user info or error code</returns>
+    /// <response code="200">Returns success status with user info or error code</response>
+    /// <response code="401">Service token is missing or invalid</response>
+    /// <response code="403">Service token does not have matrix:write scope</response>
+    [HttpPost("link/validate")]
+    [RequireScope("matrix:write")]
+    [ProducesResponseType(typeof(ValidateLinkCodeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ValidateLinkCode(
+        [FromBody] ValidateLinkCodeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(
+            new ValidateMatrixLinkCodeCommand(request.MatrixUserId, request.Code),
+            cancellationToken);
+
+        return Ok(new ValidateLinkCodeResponse(
+            result.IsSuccess,
+            result.UserId,
+            result.UserName,
+            result.ErrorCode));
+    }
 }
 
 public record GenerateLinkCodeResponse(string Code, DateTime ExpiresAt);
 
 public record AlreadyLinkedResponse(string Error, string MatrixUserId);
+
+public record ValidateLinkCodeRequest(string MatrixUserId, string Code);
+
+public record ValidateLinkCodeResponse(
+    bool Success,
+    Guid? UserId = null,
+    string? UserName = null,
+    string? Error = null);

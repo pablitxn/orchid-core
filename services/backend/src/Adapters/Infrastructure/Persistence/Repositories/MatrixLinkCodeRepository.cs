@@ -13,6 +13,13 @@ public class MatrixLinkCodeRepository(ApplicationDbContext db) : IMatrixLinkCode
         return await _db.MatrixLinkCodes.FindAsync([id], cancellationToken);
     }
 
+    public async Task<MatrixLinkCodeEntity?> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
+    {
+        return await _db.MatrixLinkCodes
+            .Include(c => c.User)
+            .FirstOrDefaultAsync(c => c.Code == code, cancellationToken);
+    }
+
     public async Task<MatrixLinkCodeEntity?> GetValidByCodeAsync(string code, CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;

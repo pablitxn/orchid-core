@@ -13,6 +13,11 @@ public interface IMatrixLinkCodeRepository
     Task<MatrixLinkCodeEntity?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets a link code by code string, regardless of validity state.
+    /// </summary>
+    Task<MatrixLinkCodeEntity?> GetByCodeAsync(string code, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets a valid (not expired, not used) link code by code string.
     /// </summary>
     Task<MatrixLinkCodeEntity?> GetValidByCodeAsync(string code, CancellationToken cancellationToken = default);
