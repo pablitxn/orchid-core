@@ -128,6 +128,9 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IStripeService, StripeService>();
         services.AddScoped<IStripeWebhookEventRepository, StripeWebhookEventRepository>();
 
+        // ─── Stripe webhook retry background service ─────────────────────────────────
+        services.AddHostedService<StripeWebhookRetryService>();
+
         #endregion
 
         #region AI & Embeddings

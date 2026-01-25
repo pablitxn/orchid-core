@@ -38,6 +38,11 @@ public class StripeWebhookEventEntity
     public int RetryCount { get; set; } = 0;
 
     /// <summary>
+    /// When the next retry should be attempted (for exponential backoff).
+    /// </summary>
+    public DateTime? NextRetryAt { get; set; }
+
+    /// <summary>
     /// When the event was received.
     /// </summary>
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
@@ -73,6 +78,41 @@ public class StripeWebhookEventEntity
     {
         return Status == WebhookEventStatus.Failed && RetryCount < maxRetries;
     }
+
+    /// <summary>
+    /// Schedules the event for retry with exponential backoff.
+    /// Base delay: 30 seconds, multiplied by 2^retryCount (30s, 60s, 120s, 240s, ...).
+    /// </summary>
+    public void ScheduleRetry(int maxRetries = 5)
+    {
+        if (RetryCount >= maxRetries)
+        {
+            MoveToDeadLetter();
+            return;
+        }
+
+        Status = WebhookEventStatus.Failed;
+        var backoffSeconds = 30 * Math.Pow(2, RetryCount);
+        NextRetryAt = DateTime.UtcNow.AddSeconds(backoffSeconds);
+    }
+
+    /// <summary>
+    /// Prepares the event for retry processing.
+    /// </summary>
+    public void StartRetryProcessing()
+    {
+        Status = WebhookEventStatus.Processing;
+        NextRetryAt = null;
+    }
+
+    /// <summary>
+    /// Moves the event to dead letter queue after exhausting retries.
+    /// </summary>
+    public void MoveToDeadLetter()
+    {
+        Status = WebhookEventStatus.DeadLetter;
+        NextRetryAt = null;
+    }
 }
 
 /// <summary>
@@ -83,5 +123,6 @@ public enum WebhookEventStatus
     Pending,
     Processing,
     Processed,
-    Failed
+    Failed,
+    DeadLetter
 }

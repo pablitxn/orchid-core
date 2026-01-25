@@ -229,11 +229,13 @@ public class ApplicationDbContext(
                 .HasDefaultValue(WebhookEventStatus.Pending);
             b.Property(e => e.ErrorMessage).HasMaxLength(2000);
             b.Property(e => e.RetryCount).HasDefaultValue(0);
+            b.Property(e => e.NextRetryAt).HasColumnType("timestamp with time zone");
             b.Property(e => e.CreatedAt).HasColumnType("timestamp with time zone");
             b.Property(e => e.ProcessedAt).HasColumnType("timestamp with time zone");
             b.HasIndex(e => e.StripeEventId).IsUnique();
             b.HasIndex(e => e.Status);
             b.HasIndex(e => e.CreatedAt);
+            b.HasIndex(e => e.NextRetryAt);
         });
 
         // Map subscription plan entity with Stripe Price ID

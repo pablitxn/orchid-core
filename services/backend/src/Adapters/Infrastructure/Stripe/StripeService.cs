@@ -302,10 +302,36 @@ public class StripeService : IStripeService
                 null,
                 false,
                 null,
-                null),
+                null,
+                invoice.PaymentIntentId,
+                invoice.AmountPaid,
+                invoice.Currency,
+                invoice.Id),
+
+            "payment_intent.succeeded" or "payment_intent.payment_failed" when dataObject is PaymentIntent pi => new StripeWebhookData(
+                pi.CustomerId,
+                pi.InvoiceId is not null ? GetSubscriptionIdFromInvoice(pi) : null,
+                null,
+                pi.Status,
+                null,
+                null,
+                false,
+                null,
+                null,
+                pi.Id,
+                pi.AmountReceived,
+                pi.Currency,
+                pi.InvoiceId),
 
             _ => new StripeWebhookData(null, null, null, null, null, null, false, null, null)
         };
+    }
+
+    private static string? GetSubscriptionIdFromInvoice(PaymentIntent pi)
+    {
+        // PaymentIntent may have subscription metadata or be linked via Invoice
+        // For now, return null - the handler will look up by customer ID if needed
+        return pi.Metadata?.TryGetValue("subscription_id", out var subId) == true ? subId : null;
     }
 
     private static StripeSubscriptionInfo MapToSubscriptionInfo(Subscription subscription)

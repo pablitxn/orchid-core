@@ -47,4 +47,42 @@ public class StripeWebhookEventRepository(ApplicationDbContext db) : IStripeWebh
             .Take(limit)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IEnumerable<StripeWebhookEventEntity>> GetEventsReadyForRetryAsync(int limit = 50, CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        return await _db.StripeWebhookEvents
+            .Where(e => e.Status == WebhookEventStatus.Failed
+                        && e.NextRetryAt != null
+                        && e.NextRetryAt <= now)
+            .OrderBy(e => e.NextRetryAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<StripeWebhookEventEntity>> GetDeadLetterEventsAsync(int limit = 100, CancellationToken cancellationToken = default)
+    {
+        return await _db.StripeWebhookEvents
+            .Where(e => e.Status == WebhookEventStatus.DeadLetter)
+            .OrderByDescending(e => e.CreatedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<WebhookEventStats> GetStatsAsync(CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        var stats = await _db.StripeWebhookEvents
+            .GroupBy(_ => 1)
+            .Select(g => new WebhookEventStats(
+                g.Count(),
+                g.Count(e => e.Status == WebhookEventStatus.Processed),
+                g.Count(e => e.Status == WebhookEventStatus.Failed),
+                g.Count(e => e.Status == WebhookEventStatus.DeadLetter),
+                g.Count(e => e.Status == WebhookEventStatus.Failed && e.NextRetryAt != null && e.NextRetryAt <= now)
+            ))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return stats ?? new WebhookEventStats(0, 0, 0, 0, 0);
+    }
 }

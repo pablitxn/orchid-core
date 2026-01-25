@@ -110,4 +110,8 @@ public record StripeWebhookData(
     DateTime? CurrentPeriodEnd,
     bool CancelAtPeriodEnd,
     DateTime? CanceledAt,
-    DateTime? TrialEnd);
+    DateTime? TrialEnd,
+    string? PaymentIntentId = null,
+    long? AmountReceived = null,
+    string? Currency = null,
+    string? InvoiceId = null);

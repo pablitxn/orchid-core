@@ -60,10 +60,25 @@ public class ProcessStripeWebhookHandler(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to process webhook event {EventId} of type {EventType}",
-                webhookEvent.EventId, webhookEvent.EventType);
+            logger.LogError(ex, "Failed to process webhook event {EventId} of type {EventType}. Retry count: {RetryCount}",
+                webhookEvent.EventId, webhookEvent.EventType, eventRecord.RetryCount);
 
             eventRecord.MarkFailed(ex.Message);
+            eventRecord.ScheduleRetry(maxRetries: 5);
+
+            if (eventRecord.Status == WebhookEventStatus.DeadLetter)
+            {
+                logger.LogError(
+                    "Webhook event {EventId} moved to dead letter queue after {RetryCount} failed attempts",
+                    webhookEvent.EventId, eventRecord.RetryCount);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "Webhook event {EventId} scheduled for retry at {NextRetryAt}",
+                    webhookEvent.EventId, eventRecord.NextRetryAt);
+            }
+
             await webhookEventRepository.UpdateAsync(eventRecord, cancellationToken);
 
             return new WebhookProcessingResult(false, webhookEvent.EventId, ex.Message);
@@ -95,6 +110,14 @@ public class ProcessStripeWebhookHandler(
 
             case "invoice.payment_failed":
                 await HandleInvoicePaymentFailedAsync(data, cancellationToken);
+                break;
+
+            case "payment_intent.succeeded":
+                await HandlePaymentIntentSucceededAsync(data, cancellationToken);
+                break;
+
+            case "payment_intent.payment_failed":
+                await HandlePaymentIntentFailedAsync(data, cancellationToken);
                 break;
 
             default:
@@ -243,6 +266,61 @@ public class ProcessStripeWebhookHandler(
             cancellationToken);
 
         logger.LogWarning("Payment failed for subscription {SubscriptionId}", subscription.Id);
+    }
+
+    private async Task HandlePaymentIntentSucceededAsync(StripeWebhookData data, CancellationToken cancellationToken)
+    {
+        logger.LogInformation(
+            "Payment intent {PaymentIntentId} succeeded. Amount: {Amount} {Currency}",
+            data.PaymentIntentId,
+            data.AmountReceived,
+            data.Currency?.ToUpperInvariant());
+
+        // If this payment is associated with a subscription (via invoice), ensure subscription is active
+        if (!string.IsNullOrEmpty(data.CustomerId))
+        {
+            var subscription = await subscriptionRepository.GetByStripeCustomerIdAsync(data.CustomerId, cancellationToken);
+            if (subscription is not null && subscription.Status == SubscriptionStatus.PastDue)
+            {
+                // Payment succeeded, reactivate the subscription
+                subscription.Status = SubscriptionStatus.Active;
+                await subscriptionRepository.UpdateAsync(subscription, cancellationToken);
+                await eventPublisher.PublishAsync(new SubscriptionUpdatedEvent(subscription.Id, subscription.UserId));
+
+                logger.LogInformation(
+                    "Subscription {SubscriptionId} reactivated after successful payment",
+                    subscription.Id);
+            }
+        }
+    }
+
+    private async Task HandlePaymentIntentFailedAsync(StripeWebhookData data, CancellationToken cancellationToken)
+    {
+        logger.LogWarning(
+            "Payment intent {PaymentIntentId} failed. Customer: {CustomerId}",
+            data.PaymentIntentId,
+            data.CustomerId);
+
+        if (!string.IsNullOrEmpty(data.CustomerId))
+        {
+            var subscription = await subscriptionRepository.GetByStripeCustomerIdAsync(data.CustomerId, cancellationToken);
+            if (subscription is not null && subscription.Status == SubscriptionStatus.Active)
+            {
+                // Mark subscription as past due
+                subscription.Status = SubscriptionStatus.PastDue;
+                await subscriptionRepository.UpdateAsync(subscription, cancellationToken);
+
+                // Notify user of payment failure
+                await notificationService.SendSubscriptionExpiringAlertAsync(
+                    subscription.UserId,
+                    subscription.CurrentPeriodEnd ?? DateTime.UtcNow.AddDays(3),
+                    cancellationToken);
+
+                logger.LogWarning(
+                    "Subscription {SubscriptionId} marked as past due after payment failure",
+                    subscription.Id);
+            }
+        }
     }
 
     private static SubscriptionStatus MapStripeStatus(string status) => status switch

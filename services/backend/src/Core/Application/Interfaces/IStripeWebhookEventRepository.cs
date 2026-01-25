@@ -31,4 +31,29 @@ public interface IStripeWebhookEventRepository
     /// Gets failed events that can be retried.
     /// </summary>
     Task<IEnumerable<StripeWebhookEventEntity>> GetRetryableEventsAsync(int maxRetries = 3, int limit = 100, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets failed events that are due for retry (NextRetryAt <= now).
+    /// </summary>
+    Task<IEnumerable<StripeWebhookEventEntity>> GetEventsReadyForRetryAsync(int limit = 50, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets events that have been moved to the dead letter queue.
+    /// </summary>
+    Task<IEnumerable<StripeWebhookEventEntity>> GetDeadLetterEventsAsync(int limit = 100, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets webhook event statistics for monitoring.
+    /// </summary>
+    Task<WebhookEventStats> GetStatsAsync(CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Statistics about webhook event processing.
+/// </summary>
+public record WebhookEventStats(
+    int TotalEvents,
+    int ProcessedEvents,
+    int FailedEvents,
+    int DeadLetterEvents,
+    int PendingRetryEvents);
