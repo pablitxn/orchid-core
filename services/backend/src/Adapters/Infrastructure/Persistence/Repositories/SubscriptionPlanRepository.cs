@@ -9,11 +9,29 @@ public class SubscriptionPlanRepository(ApplicationDbContext db) : ISubscription
 {
     private readonly ApplicationDbContext _db = db;
 
+    public async Task<SubscriptionPlanEntity?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _db.SubscriptionPlans.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+    }
+
     public async Task<SubscriptionPlanEntity?> GetByPlanAsync(SubscriptionPlanEnum planEnum,
         CancellationToken cancellationToken = default)
     {
         return await _db.SubscriptionPlans.AsNoTracking()
             .FirstOrDefaultAsync(p => p.PlanEnum == planEnum, cancellationToken);
+    }
+
+    public async Task<SubscriptionPlanEntity?> GetByStripePriceIdAsync(string stripePriceId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.SubscriptionPlans.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.StripePriceId == stripePriceId, cancellationToken);
+    }
+
+    public async Task<IEnumerable<SubscriptionPlanEntity>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _db.SubscriptionPlans.AsNoTracking().ToListAsync(cancellationToken);
     }
 
     public async Task<SubscriptionPlanEntity> CreateAsync(SubscriptionPlanEntity plan,

@@ -50,6 +50,8 @@
         <PackageReference Include="Google.Cloud.Storage.V1" Version="4.10.0" />
         <!-- Prometheus metrics for observability -->
         <PackageReference Include="prometheus-net" Version="8.2.1" />
+        <!-- Stripe payment processing -->
+        <PackageReference Include="Stripe.net" Version="47.4.0" />
     </ItemGroup>
 
     <ItemGroup>

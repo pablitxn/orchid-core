@@ -8,5 +8,12 @@ public class SubscriptionPlanNotFoundException : EntityNotFoundException
         PlanName = planName;
     }
 
-    public string PlanName { get; }
+    public SubscriptionPlanNotFoundException(Guid planId)
+        : base($"Subscription plan with ID '{planId}' not found.")
+    {
+        PlanId = planId;
+    }
+
+    public string? PlanName { get; }
+    public Guid? PlanId { get; }
 }

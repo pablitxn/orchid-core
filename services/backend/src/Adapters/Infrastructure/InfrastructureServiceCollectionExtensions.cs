@@ -11,6 +11,7 @@ using Infrastructure.Persistence;
 using Infrastructure.Persistence.Repositories;
 using Infrastructure.Providers;
 using Infrastructure.Storage;
+using Infrastructure.Stripe;
 using Infrastructure.Telemetry.Ai.Langfuse;
 using Infrastructure.Telemetry.Ai.NoOpTelemetryClient;
 using Infrastructure.VectorStore;
@@ -117,6 +118,15 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<INotificationService, Services.NotificationService>();
         services.AddScoped<ICreditValidationService, Services.CreditValidationService>();
         services.AddScoped<IAuditService, Services.AuditService>();
+
+        #endregion
+
+        #region Stripe Payment Services
+
+        // ─── Stripe configuration and services ───────────────────────────────────────
+        services.Configure<StripeSettings>(configuration.GetSection(StripeSettings.SectionName));
+        services.AddScoped<IStripeService, StripeService>();
+        services.AddScoped<IStripeWebhookEventRepository, StripeWebhookEventRepository>();
 
         #endregion
 

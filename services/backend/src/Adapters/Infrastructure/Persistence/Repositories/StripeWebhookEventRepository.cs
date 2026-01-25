@@ -1,0 +1,50 @@
+using Application.Interfaces;
+using Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace Infrastructure.Persistence.Repositories;
+
+public class StripeWebhookEventRepository(ApplicationDbContext db) : IStripeWebhookEventRepository
+{
+    private readonly ApplicationDbContext _db = db;
+
+    public async Task<bool> ExistsAsync(string stripeEventId, CancellationToken cancellationToken = default)
+    {
+        return await _db.StripeWebhookEvents
+            .AnyAsync(e => e.StripeEventId == stripeEventId, cancellationToken);
+    }
+
+    public async Task<StripeWebhookEventEntity?> GetByStripeEventIdAsync(string stripeEventId, CancellationToken cancellationToken = default)
+    {
+        return await _db.StripeWebhookEvents
+            .FirstOrDefaultAsync(e => e.StripeEventId == stripeEventId, cancellationToken);
+    }
+
+    public async Task<StripeWebhookEventEntity> CreateAsync(StripeWebhookEventEntity webhookEvent, CancellationToken cancellationToken = default)
+    {
+        _db.StripeWebhookEvents.Add(webhookEvent);
+        await _db.SaveChangesAsync(cancellationToken);
+        return webhookEvent;
+    }
+
+    public async Task UpdateAsync(StripeWebhookEventEntity webhookEvent, CancellationToken cancellationToken = default)
+    {
+        var entry = _db.Entry(webhookEvent);
+        if (entry.State == EntityState.Detached)
+        {
+            _db.StripeWebhookEvents.Attach(webhookEvent);
+            entry.State = EntityState.Modified;
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<StripeWebhookEventEntity>> GetRetryableEventsAsync(int maxRetries = 3, int limit = 100, CancellationToken cancellationToken = default)
+    {
+        return await _db.StripeWebhookEvents
+            .Where(e => e.Status == WebhookEventStatus.Failed && e.RetryCount < maxRetries)
+            .OrderBy(e => e.CreatedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
+}

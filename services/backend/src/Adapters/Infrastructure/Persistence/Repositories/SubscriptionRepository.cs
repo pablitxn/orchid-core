@@ -17,6 +17,22 @@ public class SubscriptionRepository(ApplicationDbContext db) : ISubscriptionRepo
             .FirstOrDefaultAsync(s => s.UserId == userId, cancellationToken);
     }
 
+    public async Task<SubscriptionEntity?> GetByStripeCustomerIdAsync(string stripeCustomerId, CancellationToken cancellationToken = default)
+    {
+        return await _db.Subscriptions
+            .Include(s => s.SubscriptionPlan)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.StripeCustomerId == stripeCustomerId, cancellationToken);
+    }
+
+    public async Task<SubscriptionEntity?> GetByStripeSubscriptionIdAsync(string stripeSubscriptionId, CancellationToken cancellationToken = default)
+    {
+        return await _db.Subscriptions
+            .Include(s => s.SubscriptionPlan)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.StripeSubscriptionId == stripeSubscriptionId, cancellationToken);
+    }
+
     public async Task<SubscriptionEntity> CreateAsync(SubscriptionEntity subscription,
         CancellationToken cancellationToken = default)
     {

@@ -16,6 +16,15 @@ public sealed record SubscriptionDto
     public string? PlanName { get; init; }
     public bool IsUnlimited { get; init; }
 
+    // Stripe integration fields
+    public SubscriptionStatus Status { get; init; }
+    public DateTime? CurrentPeriodStart { get; init; }
+    public DateTime? CurrentPeriodEnd { get; init; }
+    public bool CancelAtPeriodEnd { get; init; }
+    public DateTime? CanceledAt { get; init; }
+    public bool IsActive { get; init; }
+    public bool CanReactivate { get; init; }
+
     public static SubscriptionDto FromEntity(SubscriptionEntity entity) => new()
     {
         Id = entity.Id,
@@ -27,6 +36,13 @@ public sealed record SubscriptionDto
         AutoRenew = entity.AutoRenew,
         SubscriptionPlanId = entity.SubscriptionPlanId,
         PlanName = entity.SubscriptionPlan?.Name,
-        IsUnlimited = entity.SubscriptionPlan?.PlanEnum == SubscriptionPlanEnum.Unlimited
+        IsUnlimited = entity.SubscriptionPlan?.PlanEnum == SubscriptionPlanEnum.Unlimited,
+        Status = entity.Status,
+        CurrentPeriodStart = entity.CurrentPeriodStart,
+        CurrentPeriodEnd = entity.CurrentPeriodEnd,
+        CancelAtPeriodEnd = entity.CancelAtPeriodEnd,
+        CanceledAt = entity.CanceledAt,
+        IsActive = entity.IsActive(),
+        CanReactivate = entity.CanReactivate()
     };
 }

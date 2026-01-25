@@ -75,6 +75,7 @@ public class ApplicationDbContext(
     public DbSet<ThreeJsArtifactEntity> ThreeJsArtifacts { get; set; }
     public DbSet<CalendarArtifactEntity> CalendarArtifacts { get; set; }
     public DbSet<ReactionEntity> Reactions { get; set; }
+    public DbSet<StripeWebhookEventEntity> StripeWebhookEvents { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -190,6 +191,20 @@ public class ApplicationDbContext(
             b.Property(s => s.Version)
                 .IsConcurrencyToken()
                 .HasDefaultValue(0);
+            // Stripe integration fields
+            b.Property(s => s.StripeCustomerId).HasMaxLength(100);
+            b.Property(s => s.StripeSubscriptionId).HasMaxLength(100);
+            b.Property(s => s.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasDefaultValue(SubscriptionStatus.Incomplete);
+            b.Property(s => s.CurrentPeriodStart).HasColumnType("timestamp with time zone");
+            b.Property(s => s.CurrentPeriodEnd).HasColumnType("timestamp with time zone");
+            b.Property(s => s.CancelAtPeriodEnd).HasDefaultValue(false);
+            b.Property(s => s.CanceledAt).HasColumnType("timestamp with time zone");
+            b.Property(s => s.TrialEndsAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(s => s.StripeCustomerId);
+            b.HasIndex(s => s.StripeSubscriptionId);
             b.HasOne(s => s.User)
                 .WithOne()
                 .HasForeignKey<SubscriptionEntity>(s => s.UserId)
@@ -198,6 +213,47 @@ public class ApplicationDbContext(
                 .WithMany()
                 .HasForeignKey(s => s.SubscriptionPlanId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Map Stripe webhook event entity
+        modelBuilder.Entity<StripeWebhookEventEntity>(b =>
+        {
+            b.ToTable("StripeWebhookEvents");
+            b.HasKey(e => e.Id);
+            b.Property(e => e.StripeEventId).IsRequired().HasMaxLength(100);
+            b.Property(e => e.EventType).IsRequired().HasMaxLength(100);
+            b.Property(e => e.Payload).IsRequired();
+            b.Property(e => e.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasDefaultValue(WebhookEventStatus.Pending);
+            b.Property(e => e.ErrorMessage).HasMaxLength(2000);
+            b.Property(e => e.RetryCount).HasDefaultValue(0);
+            b.Property(e => e.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(e => e.ProcessedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(e => e.StripeEventId).IsUnique();
+            b.HasIndex(e => e.Status);
+            b.HasIndex(e => e.CreatedAt);
+        });
+
+        // Map subscription plan entity with Stripe Price ID
+        modelBuilder.Entity<SubscriptionPlanEntity>(b =>
+        {
+            b.ToTable("SubscriptionPlans");
+            b.HasKey(p => p.Id);
+            b.Property(p => p.PlanEnum)
+                .HasConversion<string>()
+                .HasMaxLength(50)
+                .IsRequired();
+            b.Property(p => p.Price).IsRequired();
+            b.Property(p => p.Credits).IsRequired();
+            b.Property(p => p.PaymentUnit)
+                .HasConversion<string>()
+                .HasMaxLength(20);
+            b.Property(p => p.StripePriceId).HasMaxLength(100);
+            b.Property(p => p.IsRecurring).HasDefaultValue(true);
+            b.HasIndex(p => p.PlanEnum).IsUnique();
+            b.HasIndex(p => p.StripePriceId);
         });
         modelBuilder.Entity<AgentEntity>(b =>
         {
