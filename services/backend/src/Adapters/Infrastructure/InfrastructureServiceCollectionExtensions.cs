@@ -128,6 +128,10 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IStripeService, StripeService>();
         services.AddScoped<IStripeWebhookEventRepository, StripeWebhookEventRepository>();
 
+        // ─── Matrix Bridge repositories ────────────────────────────────────────────────
+        services.AddScoped<IMatrixUserLinkRepository, MatrixUserLinkRepository>();
+        services.AddScoped<IMatrixLinkCodeRepository, MatrixLinkCodeRepository>();
+
         // ─── Stripe webhook retry background service ─────────────────────────────────
         services.AddHostedService<StripeWebhookRetryService>();
 

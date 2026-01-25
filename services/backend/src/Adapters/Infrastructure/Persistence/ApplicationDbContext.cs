@@ -76,6 +76,8 @@ public class ApplicationDbContext(
     public DbSet<CalendarArtifactEntity> CalendarArtifacts { get; set; }
     public DbSet<ReactionEntity> Reactions { get; set; }
     public DbSet<StripeWebhookEventEntity> StripeWebhookEvents { get; set; }
+    public DbSet<MatrixUserLinkEntity> MatrixUserLinks { get; set; }
+    public DbSet<MatrixLinkCodeEntity> MatrixLinkCodes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -895,6 +897,55 @@ public class ApplicationDbContext(
             // manually in application code since EF Core doesn't natively support
             // polymorphic FKs. The TargetType discriminator indicates which entity
             // the TargetId references ('message' or 'artifact').
+        });
+
+        // Map Matrix user link entity
+        modelBuilder.Entity<MatrixUserLinkEntity>(b =>
+        {
+            b.ToTable("MatrixUserLinks");
+            b.HasKey(l => l.Id);
+            b.Property(l => l.UserId).IsRequired();
+            b.Property(l => l.MatrixUserId).IsRequired().HasMaxLength(255);
+            b.Property(l => l.LinkedAt).HasColumnType("timestamp with time zone");
+            b.Property(l => l.IsActive).IsRequired().HasDefaultValue(true);
+
+            // Unique constraint: one Matrix user ID can only be linked once
+            b.HasIndex(l => l.MatrixUserId).IsUnique();
+
+            // Index for efficient lookup by user
+            b.HasIndex(l => new { l.UserId, l.IsActive });
+
+            // Relationship with User
+            b.HasOne(l => l.User)
+                .WithMany()
+                .HasForeignKey(l => l.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map Matrix link code entity
+        modelBuilder.Entity<MatrixLinkCodeEntity>(b =>
+        {
+            b.ToTable("MatrixLinkCodes");
+            b.HasKey(c => c.Id);
+            b.Property(c => c.UserId).IsRequired();
+            b.Property(c => c.Code).IsRequired().HasMaxLength(20);
+            b.Property(c => c.ExpiresAt).HasColumnType("timestamp with time zone");
+            b.Property(c => c.UsedAt).HasColumnType("timestamp with time zone");
+
+            // Unique constraint: codes must be unique
+            b.HasIndex(c => c.Code).IsUnique();
+
+            // Index for efficient lookup by user
+            b.HasIndex(c => c.UserId);
+
+            // Index for cleanup of expired codes
+            b.HasIndex(c => c.ExpiresAt);
+
+            // Relationship with User
+            b.HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
