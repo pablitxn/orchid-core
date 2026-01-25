@@ -27,7 +27,7 @@ public static class ClaimsPrincipalExtensions
     public static string GetUserEmail(this ClaimsPrincipal principal)
     {
         var email = principal.FindFirst(ClaimTypes.Email)?.Value;
-        
+
         if (string.IsNullOrWhiteSpace(email))
         {
             throw new UnauthorizedAccessException("User email not found in claims");
@@ -35,4 +35,10 @@ public static class ClaimsPrincipalExtensions
 
         return email;
     }
+
+    public static bool IsServiceAccount(this ClaimsPrincipal principal)
+        => principal.FindFirst("type")?.Value == "service_account";
+
+    public static string? GetClientId(this ClaimsPrincipal principal)
+        => principal.FindFirst("client_id")?.Value;
 }

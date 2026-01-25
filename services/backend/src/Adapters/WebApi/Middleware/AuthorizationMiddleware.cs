@@ -138,7 +138,16 @@ public class AuthorizationMiddleware(RequestDelegate next, ILogger<Authorization
                 }
             }
 
-            // Verify email claim exists
+            // Service accounts don't have Email claim - validate by type instead
+            var tokenType = principal.FindFirst("type")?.Value;
+            if (tokenType == "service_account")
+            {
+                context.User = principal;
+                await _next(context);
+                return;
+            }
+
+            // Regular users require Email claim
             var emailClaim = principal.FindFirst(ClaimTypes.Email);
             if (emailClaim == null)
             {
