@@ -211,24 +211,29 @@ public class AuthController(
             return Unauthorized(new { error = "Refresh token is no longer valid" });
         }
 
+        // Determine if original login was with "remember me" based on token expiration
+        // If the token was created with 30-day expiration, it was a remember me login
+        var tokenLifespanDays = (existingToken.ExpiresAt - existingToken.CreatedAt).TotalDays;
+        var rememberMe = tokenLifespanDays > RefreshTokenExpirationDays;
+
         // Revoke current token and create new one (rotation)
         existingToken.RevokedAt = DateTime.UtcNow;
         existingToken.RevokedByIp = ipAddress;
         existingToken.RevokeReason = "Replaced by new token";
 
-        var newRefreshToken = await GenerateRefreshTokenAsync(existingToken.UserId, ipAddress);
+        var newRefreshToken = await GenerateRefreshTokenAsync(existingToken.UserId, ipAddress, rememberMe);
         existingToken.ReplacedByToken = newRefreshToken.Token;
 
         await _refreshTokenRepository.UpdateAsync(existingToken);
 
-        // Generate new access token
+        // Generate new access token with same remember me setting
         var user = existingToken.User;
         var roles = user.UserRoles?.Select(ur => ur.Role.Name) ?? Array.Empty<string>();
-        var newAccessToken = _tokenService.GenerateToken(user, roles);
+        var newAccessToken = _tokenService.GenerateToken(user, roles, rememberMe);
 
-        var expireHours = double.TryParse(_config["Jwt:ExpireHours"], out var hours) ? hours : 4;
+        var expireHours = _tokenService.GetTokenExpirationHours(rememberMe);
         SetTokenCookie(newAccessToken, expireHours);
-        SetRefreshTokenCookie(newRefreshToken.Token);
+        SetRefreshTokenCookie(newRefreshToken.Token, rememberMe);
 
         return Ok(new
         {
@@ -485,11 +490,13 @@ public class AuthController(
         }
 
         // Generate JWT using the centralized token service (not hardcoded secret)
+        // OAuth logins use default expiration (not "remember me") since the OAuth flow
+        // doesn't support passing a remember me preference
         var roles = userFromDb?.Roles ?? ["User"];
-        var jwtTokenString = _tokenService.GenerateToken(userFromDb!, roles);
+        var jwtTokenString = _tokenService.GenerateToken(userFromDb!, roles, rememberMe: false);
 
-        // Set secure cookie
-        var expireHours = double.TryParse(_config["Jwt:ExpireHours"], out var hours) ? hours : 24;
+        // Set secure cookie with standard expiration (OAuth doesn't support remember me)
+        var expireHours = _tokenService.GetTokenExpirationHours(rememberMe: false);
         Response.Cookies.Append("token", jwtTokenString, new CookieOptions
         {
             HttpOnly = true,
