@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Application.UseCases.Matrix.GenerateLinkCode;
 using Application.UseCases.Matrix.GetUserLink;
+using Application.UseCases.Matrix.SendMessage;
 using Application.UseCases.Matrix.ValidateLinkCode;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -103,6 +104,56 @@ public class MatrixController(IMediator mediator) : ControllerBase
             result.UserId,
             result.UserName));
     }
+
+    /// <summary>
+    /// Sends a message from a Matrix user to an Orchid agent.
+    /// This endpoint is intended for the Matrix bridge service.
+    /// </summary>
+    /// <param name="request">The message details including Matrix user, agent, room, and content</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Response with agent reply or error information</returns>
+    /// <response code="200">Returns success with agent response or structured error</response>
+    /// <response code="401">Service token is missing or invalid</response>
+    /// <response code="403">Service token does not have matrix:write scope</response>
+    /// <response code="429">Rate limit exceeded (also returned in body with success=false)</response>
+    [HttpPost("message")]
+    [RequireScope("matrix:write")]
+    [ProducesResponseType(typeof(SendMatrixMessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(SendMatrixMessageResponse), StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> SendMessage(
+        [FromBody] SendMatrixMessageRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(
+            new SendMatrixMessageCommand(
+                request.MatrixUserId,
+                request.AgentId,
+                request.RoomId,
+                request.Content,
+                request.ReplyToEventId,
+                request.TriggerType),
+            cancellationToken);
+
+        var response = new SendMatrixMessageResponse(
+            result.Success,
+            result.Response,
+            result.SessionId,
+            result.CreditsUsed,
+            result.CreditsRemaining,
+            result.Error,
+            result.Message,
+            result.RetryAfter);
+
+        // Return 429 status code for rate limited requests
+        if (result.Error == "RATE_LIMITED")
+        {
+            return StatusCode(StatusCodes.Status429TooManyRequests, response);
+        }
+
+        return Ok(response);
+    }
 }
 
 public record GenerateLinkCodeResponse(string Code, DateTime ExpiresAt);
@@ -121,3 +172,21 @@ public record GetUserLinkResponse(
     bool Linked,
     Guid? UserId = null,
     string? UserName = null);
+
+public record SendMatrixMessageRequest(
+    string MatrixUserId,
+    Guid AgentId,
+    string RoomId,
+    string Content,
+    string? ReplyToEventId = null,
+    string? TriggerType = null);
+
+public record SendMatrixMessageResponse(
+    bool Success,
+    string? Response = null,
+    string? SessionId = null,
+    int? CreditsUsed = null,
+    int? CreditsRemaining = null,
+    string? Error = null,
+    string? Message = null,
+    int? RetryAfter = null);
