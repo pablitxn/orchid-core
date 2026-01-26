@@ -69,6 +69,11 @@ public interface IStripeService
     StripeWebhookEvent? ValidateAndParseWebhook(string payload, string signature);
 
     /// <summary>
+    /// Parses a webhook payload without signature validation (for retrying stored events).
+    /// </summary>
+    StripeWebhookEvent? ParseWebhookPayload(string payload);
+
+    /// <summary>
     /// Creates a Stripe Checkout session for a one-time credit package purchase.
     /// </summary>
     Task<CheckoutSessionResult> CreateCreditPurchaseCheckoutSessionAsync(

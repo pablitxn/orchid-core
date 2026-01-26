@@ -325,6 +325,31 @@ public class StripeService : IStripeService
         }
     }
 
+    public StripeWebhookEvent? ParseWebhookPayload(string payload)
+    {
+        try
+        {
+            // Parse the event without signature validation (for retrying stored events)
+            var stripeEvent = Event.FromJson(payload);
+
+            _logger.LogInformation(
+                "Parsed stored webhook event {EventId} of type {EventType}",
+                stripeEvent.Id, stripeEvent.Type);
+
+            var webhookData = ParseWebhookData(stripeEvent.Type, stripeEvent.Data.Object);
+
+            return new StripeWebhookEvent(
+                stripeEvent.Id,
+                stripeEvent.Type,
+                webhookData);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse webhook payload");
+            return null;
+        }
+    }
+
     private static StripeWebhookData ParseWebhookData(string eventType, IHasObject dataObject)
     {
         return eventType switch

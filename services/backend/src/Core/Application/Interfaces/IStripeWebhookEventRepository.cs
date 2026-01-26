@@ -13,6 +13,11 @@ public interface IStripeWebhookEventRepository
     Task<bool> ExistsAsync(string stripeEventId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets an event by its ID.
+    /// </summary>
+    Task<StripeWebhookEventEntity?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets an event by its Stripe event ID.
     /// </summary>
     Task<StripeWebhookEventEntity?> GetByStripeEventIdAsync(string stripeEventId, CancellationToken cancellationToken = default);
@@ -46,6 +51,18 @@ public interface IStripeWebhookEventRepository
     /// Gets webhook event statistics for monitoring.
     /// </summary>
     Task<WebhookEventStats> GetStatsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets webhook events with pagination and optional filters for admin purposes.
+    /// </summary>
+    Task<(IEnumerable<StripeWebhookEventEntity> Items, int TotalCount)> GetAllAsync(
+        WebhookEventStatus? status = null,
+        string? eventType = null,
+        DateTime? startDate = null,
+        DateTime? endDate = null,
+        int page = 1,
+        int pageSize = 50,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>

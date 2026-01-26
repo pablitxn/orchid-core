@@ -101,4 +101,34 @@ public class SubscriptionRepository(ApplicationDbContext db) : ISubscriptionRepo
                 actualVersion);
         }
     }
+
+    public async Task<(IEnumerable<SubscriptionEntity> Items, int TotalCount)> GetAllAsync(
+        int page = 1,
+        int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _db.Subscriptions
+            .Include(s => s.SubscriptionPlan)
+            .Include(s => s.User)
+            .AsNoTracking();
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .OrderByDescending(s => s.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
+    public async Task<SubscriptionEntity?> GetByUserIdWithPlanAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await _db.Subscriptions
+            .Include(s => s.SubscriptionPlan)
+            .Include(s => s.User)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.UserId == userId, cancellationToken);
+    }
 }

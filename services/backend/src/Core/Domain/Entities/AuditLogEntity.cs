@@ -117,4 +117,10 @@ public static class AuditActionTypes
     public const string SubscriptionCreate = "SUBSCRIPTION_CREATE";
     public const string SubscriptionUpdate = "SUBSCRIPTION_UPDATE";
     public const string SubscriptionCancel = "SUBSCRIPTION_CANCEL";
+
+    // Admin Billing Operations
+    public const string AdminCreditAdjust = "ADMIN_CREDIT_ADJUST";
+    public const string AdminWebhookRetry = "ADMIN_WEBHOOK_RETRY";
+    public const string AdminViewSubscription = "ADMIN_VIEW_SUBSCRIPTION";
+    public const string AdminViewWebhookLogs = "ADMIN_VIEW_WEBHOOK_LOGS";
 }

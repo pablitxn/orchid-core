@@ -85,4 +85,44 @@ public class StripeWebhookEventRepository(ApplicationDbContext db) : IStripeWebh
 
         return stats ?? new WebhookEventStats(0, 0, 0, 0, 0);
     }
+
+    public async Task<StripeWebhookEventEntity?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _db.StripeWebhookEvents
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+    }
+
+    public async Task<(IEnumerable<StripeWebhookEventEntity> Items, int TotalCount)> GetAllAsync(
+        WebhookEventStatus? status = null,
+        string? eventType = null,
+        DateTime? startDate = null,
+        DateTime? endDate = null,
+        int page = 1,
+        int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _db.StripeWebhookEvents.AsNoTracking();
+
+        if (status.HasValue)
+            query = query.Where(e => e.Status == status.Value);
+
+        if (!string.IsNullOrWhiteSpace(eventType))
+            query = query.Where(e => e.EventType.Contains(eventType));
+
+        if (startDate.HasValue)
+            query = query.Where(e => e.CreatedAt >= startDate.Value);
+
+        if (endDate.HasValue)
+            query = query.Where(e => e.CreatedAt <= endDate.Value);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .OrderByDescending(e => e.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
 }
