@@ -4,7 +4,7 @@
 
 | Requirement | Version | Purpose |
 |-------------|---------|---------|
-| .NET SDK | 9.0+ | Build and run |
+| .NET SDK | 10.0+ | Build and run |
 | Node.js | 22+ | Frontend (apps/web) |
 | Docker | Latest | Local services |
 | PostgreSQL | 17+ | Database (via Docker) |
@@ -51,12 +51,16 @@ dotnet ef database update --project src/Adapters/Infrastructure --startup-projec
 dotnet run --project services/backend/src/Adapters/WebApi
 ```
 
-API available at: `https://localhost:5001` (or `http://localhost:5000`)
+API available at: `http://localhost:8080` (main port)
+Management endpoints at: `http://localhost:9090` (metrics, health checks)
 
 ### 6. Verify Health
 ```bash
-curl http://localhost:5000/health
+curl http://localhost:9090/health
 ```
+
+### 7. Access API Documentation
+Open your browser to `http://localhost:8080/swagger` for interactive API documentation.
 
 ---
 
@@ -418,3 +422,35 @@ docker-compose -f docker-compose.dev.yaml down -v
 docker-compose -f docker-compose.dev.yaml up -d database
 dotnet ef database update --project src/Adapters/Infrastructure --startup-project src/Adapters/WebApi
 ```
+
+---
+
+## API Documentation
+
+### OpenAPI/Swagger
+
+When running in development mode, interactive API documentation is available at:
+
+```
+http://localhost:8080/swagger
+```
+
+The API documentation includes:
+- All REST endpoints with request/response schemas
+- JWT Bearer authentication configuration
+- Try-it-out functionality for testing endpoints
+
+### API Contracts
+
+For offline reference, see `docs/api-contracts.md` which contains the complete API specification including:
+- All controller endpoints
+- Request/response formats
+- SignalR hub documentation
+- Rate limiting information
+
+### Generating OpenAPI Spec
+
+The OpenAPI JSON specification is available at `/swagger/v1/swagger.json` and can be used with tools like:
+- Postman for API testing
+- OpenAPI Generator for client SDK generation
+- Redoc for alternative documentation rendering

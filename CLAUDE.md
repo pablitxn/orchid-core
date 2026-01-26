@@ -1,6 +1,6 @@
 # Orchid Labs Core – LLM Agent Context Guide
 
-*Version 1.2 – 2025-01-20*
+*Version 1.3 – 2026-01-25*
 
 ---
 
@@ -35,27 +35,49 @@ Keep this file up-to-date—**it is the single source of truth** for automated c
 A trimmed, tech-agnostic layout:
 
 ```plaintext
-src/
-├── Core/
-│   ├── Domain/
-│   └── Application/
-├── Adapters/
-│   ├── Infrastructure/
-│   ├── WebApi/
-│   └── Workers/
-└── tests/
+services/backend/
+├── src/
+│   ├── Core/
+│   │   ├── Domain/           # Entities, Value Objects, Domain Events
+│   │   └── Application/      # Use Cases, Interfaces (Ports), DTOs
+│   └── Adapters/
+│       ├── Infrastructure/   # Repositories, External Services, AI
+│       ├── WebApi/           # Controllers, Hubs, Middleware
+│       └── Workers/          # Background job processors
+└── tests/                    # Unit and Integration tests
 ```
 
 Any new code **must** fit one of these slots. If none apply, open an ADR first.
 
 ### 3.1 Key REST Endpoints
 
-| Route             | Purpose                                       |
-|-------------------|-----------------------------------------------|
-| `/knowledge-base` | Upload documents to build the retrieval store |
+| Route | Purpose |
+|-------|---------|
+| `/api/auth/*` | Authentication (register, login, OAuth, tokens) |
+| `/api/agents` | Agent CRUD, ratings, access verification |
+| `/api/chatsessions` | Chat session management |
+| `/api/v2/chat-sessions/{id}/messages` | V2 Messages with cursor pagination |
+| `/api/knowledge-base` | Document upload and RAG store |
+| `/api/teams` | Multi-agent team collaboration |
+| `/api/plugins` | Plugin management |
+| `/api/plugin` | User plugin operations |
+| `/api/workflows` | Workflow CRUD and purchases |
+| `/api/marketplace` | User marketplace items and purchases |
+| `/api/public/marketplace` | Public plugin/workflow browsing |
+| `/api/subscription` | Credits and subscription management |
+| `/api/billingpreference` | Billing settings |
+| `/api/credit-validation` | Pre-validate credit costs |
+| `/api/credithistory` | Credit consumption history |
+| `/api/dashboard` | Analytics and metrics |
+| `/api/personality-templates` | Agent personality presets |
+| `/api/features` | Feature flags |
+| `/api/files` | File upload/download |
+| `/api/media-center` | Media asset management |
+| `/api/activities` | Backend activity history |
+| `/api/user` | User profile |
+| `/health` | Health checks (management port) |
 
-| `/auth/register` | Create a new user with roles |
-| `/auth/login` | Obtain JWT token |
+> 📚 Full API documentation: see `docs/api-contracts.md`
 ---
 
 ## 4  Feature Implementation Playbook
