@@ -102,6 +102,8 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         services.AddScoped<IFeatureFlagRepository, FeatureFlagRepository>();
         services.AddScoped<IServiceAccountRepository, ServiceAccountRepository>();
+        services.AddScoped<ICreditPackageRepository, CreditPackageRepository>();
+        services.AddScoped<ICreditPurchaseRepository, CreditPurchaseRepository>();
 
         // ─── Unit of Work pattern ────────────────────────────────────────────────────
         services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -118,6 +120,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<INotificationService, Services.NotificationService>();
         services.AddScoped<ICreditValidationService, Services.CreditValidationService>();
         services.AddScoped<IAuditService, Services.AuditService>();
+        services.AddScoped<IFreeTierCreditService, Services.FreeTierCreditService>();
 
         #endregion
 

@@ -51,16 +51,16 @@ public class CreditPurchaseRepository(ApplicationDbContext db) : ICreditPurchase
 
     public async Task UpdateAsync(CreditPurchaseEntity purchase, CancellationToken cancellationToken = default)
     {
-        // Detach navigation property to avoid tracking conflicts
-        purchase.CreditPackage = null;
-        purchase.User = null;
-
         var entry = _db.Entry(purchase);
         if (entry.State == EntityState.Detached)
         {
             _db.CreditPurchases.Attach(purchase);
             entry.State = EntityState.Modified;
         }
+
+        // Ignore navigation properties to avoid tracking conflicts
+        entry.Reference(p => p.CreditPackage).IsModified = false;
+        entry.Reference(p => p.User).IsModified = false;
 
         await _db.SaveChangesAsync(cancellationToken);
     }

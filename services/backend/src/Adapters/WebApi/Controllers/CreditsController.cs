@@ -9,6 +9,7 @@ using Domain.Exceptions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ValidationException = Domain.Exceptions.ValidationException;
 
 namespace WebApi.Controllers;
 

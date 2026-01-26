@@ -17,6 +17,7 @@ public class ProcessStripeWebhookHandlerTests
     private readonly Mock<ISubscriptionPlanRepository> _planRepo = new();
     private readonly Mock<IEventPublisher> _eventPublisher = new();
     private readonly Mock<INotificationService> _notificationService = new();
+    private readonly Mock<ICreditPurchaseRepository> _creditPurchaseRepo = new();
     private readonly Mock<ILogger<ProcessStripeWebhookHandler>> _logger = new();
 
     public ProcessStripeWebhookHandlerTests()
@@ -26,6 +27,7 @@ public class ProcessStripeWebhookHandlerTests
             _webhookRepo.Object,
             _subscriptionRepo.Object,
             _planRepo.Object,
+            _creditPurchaseRepo.Object,
             _eventPublisher.Object,
             _notificationService.Object,
             _logger.Object);

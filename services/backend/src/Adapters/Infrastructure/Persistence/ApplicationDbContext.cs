@@ -78,6 +78,8 @@ public class ApplicationDbContext(
     public DbSet<StripeWebhookEventEntity> StripeWebhookEvents { get; set; }
     public DbSet<MatrixUserLinkEntity> MatrixUserLinks { get; set; }
     public DbSet<MatrixLinkCodeEntity> MatrixLinkCodes { get; set; }
+    public DbSet<CreditPackageEntity> CreditPackages { get; set; }
+    public DbSet<CreditPurchaseEntity> CreditPurchases { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -946,6 +948,61 @@ public class ApplicationDbContext(
                 .WithMany()
                 .HasForeignKey(c => c.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map CreditPackage entity
+        modelBuilder.Entity<CreditPackageEntity>(b =>
+        {
+            b.ToTable("CreditPackages");
+            b.HasKey(p => p.Id);
+            b.Property(p => p.Name).IsRequired().HasMaxLength(100);
+            b.Property(p => p.Credits).IsRequired();
+            b.Property(p => p.PriceInCents).IsRequired();
+            b.Property(p => p.Currency).IsRequired().HasMaxLength(3).HasDefaultValue("usd");
+            b.Property(p => p.StripePriceId).HasMaxLength(100);
+            b.Property(p => p.IsActive).IsRequired().HasDefaultValue(true);
+            b.Property(p => p.ExpirationDays);
+            b.Property(p => p.DisplayOrder).IsRequired().HasDefaultValue(0);
+            b.Property(p => p.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(p => p.UpdatedAt).HasColumnType("timestamp with time zone");
+
+            b.HasIndex(p => p.StripePriceId);
+            b.HasIndex(p => p.IsActive);
+        });
+
+        // Map CreditPurchase entity
+        modelBuilder.Entity<CreditPurchaseEntity>(b =>
+        {
+            b.ToTable("CreditPurchases");
+            b.HasKey(p => p.Id);
+            b.Property(p => p.UserId).IsRequired();
+            b.Property(p => p.CreditPackageId).IsRequired();
+            b.Property(p => p.CreditsGranted).IsRequired();
+            b.Property(p => p.PricePaidCents).IsRequired();
+            b.Property(p => p.Currency).IsRequired().HasMaxLength(3).HasDefaultValue("usd");
+            b.Property(p => p.StripeCheckoutSessionId).HasMaxLength(100);
+            b.Property(p => p.StripePaymentIntentId).HasMaxLength(100);
+            b.Property(p => p.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasDefaultValue(CreditPurchaseStatus.Pending);
+            b.Property(p => p.PurchasedAt).HasColumnType("timestamp with time zone");
+            b.Property(p => p.CreditsExpiresAt).HasColumnType("timestamp with time zone");
+
+            b.HasIndex(p => p.UserId);
+            b.HasIndex(p => p.StripeCheckoutSessionId);
+            b.HasIndex(p => p.StripePaymentIntentId);
+            b.HasIndex(p => p.Status);
+
+            // Relationships
+            b.HasOne(p => p.User)
+                .WithMany()
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(p => p.CreditPackage)
+                .WithMany()
+                .HasForeignKey(p => p.CreditPackageId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
