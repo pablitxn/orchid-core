@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Application.UseCases.Matrix.GenerateLinkCode;
+using Application.UseCases.Matrix.GetUserLink;
 using Application.UseCases.Matrix.ValidateLinkCode;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -73,6 +74,35 @@ public class MatrixController(IMediator mediator) : ControllerBase
             result.UserName,
             result.ErrorCode));
     }
+
+    /// <summary>
+    /// Checks if a Matrix user is linked to an Orchid account.
+    /// This endpoint is intended for the Matrix bridge service.
+    /// </summary>
+    /// <param name="matrixUserId">The Matrix user ID (e.g., @user:matrix.orchid-labs.xyz)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Link status and user info if linked</returns>
+    /// <response code="200">Returns link status</response>
+    /// <response code="401">Service token is missing or invalid</response>
+    /// <response code="403">Service token does not have matrix:read scope</response>
+    [HttpGet("user")]
+    [RequireScope("matrix:read")]
+    [ProducesResponseType(typeof(GetUserLinkResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetUserLink(
+        [FromQuery] string matrixUserId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(
+            new GetMatrixUserLinkQuery(matrixUserId),
+            cancellationToken);
+
+        return Ok(new GetUserLinkResponse(
+            result.Linked,
+            result.UserId,
+            result.UserName));
+    }
 }
 
 public record GenerateLinkCodeResponse(string Code, DateTime ExpiresAt);
@@ -86,3 +116,8 @@ public record ValidateLinkCodeResponse(
     Guid? UserId = null,
     string? UserName = null,
     string? Error = null);
+
+public record GetUserLinkResponse(
+    bool Linked,
+    Guid? UserId = null,
+    string? UserName = null);

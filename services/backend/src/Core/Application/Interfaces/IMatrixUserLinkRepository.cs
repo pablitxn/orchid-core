@@ -23,6 +23,11 @@ public interface IMatrixUserLinkRepository
     Task<MatrixUserLinkEntity?> GetByMatrixUserIdAsync(string matrixUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets a link by Matrix user ID including the related User entity.
+    /// </summary>
+    Task<MatrixUserLinkEntity?> GetByMatrixUserIdWithUserAsync(string matrixUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Creates a new Matrix user link.
     /// </summary>
     Task CreateAsync(MatrixUserLinkEntity link, CancellationToken cancellationToken = default);

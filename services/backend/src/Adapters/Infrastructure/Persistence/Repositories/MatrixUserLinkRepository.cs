@@ -25,6 +25,13 @@ public class MatrixUserLinkRepository(ApplicationDbContext db) : IMatrixUserLink
             .FirstOrDefaultAsync(l => l.MatrixUserId == matrixUserId && l.IsActive, cancellationToken);
     }
 
+    public async Task<MatrixUserLinkEntity?> GetByMatrixUserIdWithUserAsync(string matrixUserId, CancellationToken cancellationToken = default)
+    {
+        return await _db.MatrixUserLinks
+            .Include(l => l.User)
+            .FirstOrDefaultAsync(l => l.MatrixUserId == matrixUserId && l.IsActive, cancellationToken);
+    }
+
     public async Task CreateAsync(MatrixUserLinkEntity link, CancellationToken cancellationToken = default)
     {
         _db.MatrixUserLinks.Add(link);
