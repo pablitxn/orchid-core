@@ -27,6 +27,7 @@ using WebApi;
 using WebApi.Services;
 using Serilog;
 using Serilog.Events;
+using Serilog.Formatting.Compact;
 using Serilog.Templates;
 using Infrastructure.Messaging.RabbitMq;
 using Sentry.Profiling;
@@ -139,10 +140,11 @@ if (!string.IsNullOrEmpty(sentryDsn))
 
 #region Logging Configuration
 
-// ─── Serilog with Correlation ID ──────────────────────────────────────────────
-// Configure Serilog with environment-appropriate log levels
+// ─── Serilog with Environment-Specific Configuration ──────────────────────────
+// Production: JSON structured output for Loki/ELK/Datadog parsing
+// Development: Human-readable format for easier debugging
 // Framework noise is suppressed to Warning level to improve log readability
-Log.Logger = new LoggerConfiguration()
+var loggerConfig = new LoggerConfiguration()
     .MinimumLevel.Information()
     // Microsoft framework logging - reduce noise
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
@@ -157,12 +159,26 @@ Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Override("MassTransit", LogEventLevel.Warning)
     // Suppress noisy Data Protection warnings (expected in containerized environments)
     .MinimumLevel.Override("Microsoft.AspNetCore.DataProtection", LogEventLevel.Error)
-    // Enrich with correlation ID and context
+    // Enrich with context for all environments
     .Enrich.FromLogContext()
     .Enrich.WithCorrelationId()
-    .WriteTo.Console(new ExpressionTemplate(
-        "[{@t:HH:mm:ss} {@l:u3}]{#if CorrelationId is not null} [{CorrelationId}]{#end} {@m}\n{@x}"))
-    .CreateLogger();
+    .Enrich.WithMachineName()
+    .Enrich.WithEnvironmentName();
+
+// Environment-specific console output format
+if (env.IsProduction())
+{
+    // Production: JSON structured output for log aggregation systems (Loki/ELK/Datadog)
+    loggerConfig.WriteTo.Console(new CompactJsonFormatter());
+}
+else
+{
+    // Development/Testing: Human-readable format for easier debugging
+    loggerConfig.WriteTo.Console(new ExpressionTemplate(
+        "[{@t:HH:mm:ss} {@l:u3}]{#if CorrelationId is not null} [{CorrelationId}]{#end} {@m}\n{@x}"));
+}
+
+Log.Logger = loggerConfig.CreateLogger();
 
 builder.Host.UseSerilog();
 
