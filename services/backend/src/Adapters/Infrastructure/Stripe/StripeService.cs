@@ -5,6 +5,8 @@ using Stripe;
 using Stripe.Checkout;
 using BillingPortalSessionService = Stripe.BillingPortal.SessionService;
 using BillingPortalSessionCreateOptions = Stripe.BillingPortal.SessionCreateOptions;
+using PaymentMethodService = Stripe.PaymentMethodService;
+using InvoiceService = Stripe.InvoiceService;
 
 namespace Infrastructure.Stripe;
 
@@ -19,6 +21,8 @@ public class StripeService : IStripeService
     private readonly SessionService _sessionService;
     private readonly SubscriptionService _subscriptionService;
     private readonly BillingPortalSessionService _portalSessionService;
+    private readonly InvoiceService _invoiceService;
+    private readonly PaymentMethodService _paymentMethodService;
 
     public StripeService(
         IOptions<StripeSettings> settings,
@@ -33,6 +37,8 @@ public class StripeService : IStripeService
         _sessionService = new SessionService();
         _subscriptionService = new SubscriptionService();
         _portalSessionService = new BillingPortalSessionService();
+        _invoiceService = new InvoiceService();
+        _paymentMethodService = new PaymentMethodService();
     }
 
     public async Task<string> GetOrCreateCustomerAsync(
@@ -408,5 +414,108 @@ public class StripeService : IStripeService
             subscription.CancelAtPeriodEnd,
             subscription.CanceledAt,
             subscription.TrialEnd);
+    }
+
+    public async Task<List<StripeInvoiceInfo>> GetInvoicesAsync(
+        string customerId,
+        int limit = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var options = new InvoiceListOptions
+        {
+            Customer = customerId,
+            Limit = limit
+        };
+
+        var invoices = await _invoiceService.ListAsync(options, cancellationToken: cancellationToken);
+
+        _logger.LogInformation(
+            "Retrieved {Count} invoices for customer {CustomerId}",
+            invoices.Data.Count, customerId);
+
+        return invoices.Data.Select(MapToInvoiceInfo).ToList();
+    }
+
+    public async Task<List<StripePaymentMethodInfo>> GetPaymentMethodsAsync(
+        string customerId,
+        CancellationToken cancellationToken = default)
+    {
+        var options = new PaymentMethodListOptions
+        {
+            Customer = customerId,
+            Type = "card"
+        };
+
+        var paymentMethods = await _paymentMethodService.ListAsync(options, cancellationToken: cancellationToken);
+
+        _logger.LogInformation(
+            "Retrieved {Count} payment methods for customer {CustomerId}",
+            paymentMethods.Data.Count, customerId);
+
+        return paymentMethods.Data.Select(MapToPaymentMethodInfo).ToList();
+    }
+
+    public async Task<string?> GetDefaultPaymentMethodIdAsync(
+        string customerId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var customer = await _customerService.GetAsync(customerId, cancellationToken: cancellationToken);
+            return customer.InvoiceSettings?.DefaultPaymentMethodId;
+        }
+        catch (StripeException ex) when (ex.StripeError?.Code == "resource_missing")
+        {
+            _logger.LogWarning("Customer {CustomerId} not found in Stripe", customerId);
+            return null;
+        }
+    }
+
+    private static StripeInvoiceInfo MapToInvoiceInfo(Invoice invoice)
+    {
+        var lineItems = invoice.Lines?.Data?
+            .Select(line => new StripeInvoiceLineItem(
+                line.Id,
+                line.Description,
+                line.Amount,
+                (int)(line.Quantity ?? 1),
+                line.Price?.Id))
+            .ToList() ?? new List<StripeInvoiceLineItem>();
+
+        return new StripeInvoiceInfo(
+            invoice.Id,
+            invoice.Number,
+            invoice.Status ?? "unknown",
+            invoice.AmountDue,
+            invoice.AmountPaid,
+            invoice.Currency ?? "usd",
+            invoice.Created,
+            invoice.StatusTransitions?.PaidAt,
+            invoice.DueDate,
+            invoice.InvoicePdf,
+            invoice.HostedInvoiceUrl,
+            invoice.Description,
+            lineItems);
+    }
+
+    private static StripePaymentMethodInfo MapToPaymentMethodInfo(PaymentMethod pm)
+    {
+        StripeCardInfo? cardInfo = null;
+        if (pm.Card is not null)
+        {
+            cardInfo = new StripeCardInfo(
+                pm.Card.Brand ?? "unknown",
+                pm.Card.Last4 ?? "****",
+                (int)pm.Card.ExpMonth,
+                (int)pm.Card.ExpYear,
+                pm.Card.Funding,
+                pm.Card.Country);
+        }
+
+        return new StripePaymentMethodInfo(
+            pm.Id,
+            pm.Type ?? "unknown",
+            pm.Created,
+            cardInfo);
     }
 }

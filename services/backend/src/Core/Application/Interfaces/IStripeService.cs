@@ -79,6 +79,28 @@ public interface IStripeService
         string cancelUrl,
         string? idempotencyKey = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves invoices for a customer.
+    /// </summary>
+    Task<List<StripeInvoiceInfo>> GetInvoicesAsync(
+        string customerId,
+        int limit = 10,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves payment methods for a customer.
+    /// </summary>
+    Task<List<StripePaymentMethodInfo>> GetPaymentMethodsAsync(
+        string customerId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the default payment method for a customer.
+    /// </summary>
+    Task<string?> GetDefaultPaymentMethodIdAsync(
+        string customerId,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -130,3 +152,51 @@ public record StripeWebhookData(
     string? SessionId = null,
     string? Mode = null,
     Dictionary<string, string>? Metadata = null);
+
+/// <summary>
+/// Invoice information from Stripe.
+/// </summary>
+public record StripeInvoiceInfo(
+    string Id,
+    string? Number,
+    string Status,
+    long AmountDue,
+    long AmountPaid,
+    string Currency,
+    DateTime? Created,
+    DateTime? PaidAt,
+    DateTime? DueDate,
+    string? PdfUrl,
+    string? HostedInvoiceUrl,
+    string? Description,
+    List<StripeInvoiceLineItem> LineItems);
+
+/// <summary>
+/// Invoice line item from Stripe.
+/// </summary>
+public record StripeInvoiceLineItem(
+    string Id,
+    string? Description,
+    long Amount,
+    int Quantity,
+    string? PriceId);
+
+/// <summary>
+/// Payment method information from Stripe.
+/// </summary>
+public record StripePaymentMethodInfo(
+    string Id,
+    string Type,
+    DateTime Created,
+    StripeCardInfo? Card);
+
+/// <summary>
+/// Card details from Stripe.
+/// </summary>
+public record StripeCardInfo(
+    string Brand,
+    string Last4,
+    int ExpMonth,
+    int ExpYear,
+    string? Funding,
+    string? Country);
