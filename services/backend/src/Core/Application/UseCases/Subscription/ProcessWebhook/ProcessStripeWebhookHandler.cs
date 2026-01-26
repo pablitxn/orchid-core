@@ -12,6 +12,7 @@ public class ProcessStripeWebhookHandler(
     IStripeWebhookEventRepository webhookEventRepository,
     ISubscriptionRepository subscriptionRepository,
     ISubscriptionPlanRepository planRepository,
+    ICreditPurchaseRepository creditPurchaseRepository,
     IEventPublisher eventPublisher,
     INotificationService notificationService,
     ILogger<ProcessStripeWebhookHandler> logger)
@@ -128,6 +129,14 @@ public class ProcessStripeWebhookHandler(
 
     private async Task HandleCheckoutSessionCompletedAsync(StripeWebhookData data, CancellationToken cancellationToken)
     {
+        // Check if this is a credit package purchase (one-time payment)
+        if (data.Mode == "payment" && data.Metadata?.TryGetValue("type", out var purchaseType) == true && purchaseType == "credit_purchase")
+        {
+            await HandleCreditPurchaseCompletedAsync(data, cancellationToken);
+            return;
+        }
+
+        // Handle subscription checkout
         if (string.IsNullOrEmpty(data.CustomerId) || string.IsNullOrEmpty(data.SubscriptionId))
             return;
 
@@ -167,6 +176,59 @@ public class ProcessStripeWebhookHandler(
 
         logger.LogInformation("Checkout completed for subscription {SubscriptionId}, linked to Stripe subscription {StripeSubscriptionId}",
             subscription.Id, data.SubscriptionId);
+    }
+
+    private async Task HandleCreditPurchaseCompletedAsync(StripeWebhookData data, CancellationToken cancellationToken)
+    {
+        if (data.Metadata is null || !data.Metadata.TryGetValue("creditPurchaseId", out var purchaseIdStr) ||
+            !Guid.TryParse(purchaseIdStr, out var purchaseId))
+        {
+            logger.LogWarning("Credit purchase webhook missing creditPurchaseId in metadata");
+            return;
+        }
+
+        var purchase = await creditPurchaseRepository.GetByIdAsync(purchaseId, cancellationToken);
+        if (purchase is null)
+        {
+            logger.LogWarning("Credit purchase {PurchaseId} not found", purchaseId);
+            return;
+        }
+
+        if (purchase.Status != Domain.Enums.CreditPurchaseStatus.Pending)
+        {
+            logger.LogInformation("Credit purchase {PurchaseId} already processed with status {Status}", purchaseId, purchase.Status);
+            return;
+        }
+
+        // Mark purchase as completed
+        purchase.MarkCompleted(data.PaymentIntentId ?? string.Empty);
+        await creditPurchaseRepository.UpdateAsync(purchase, cancellationToken);
+
+        // Add credits to user's subscription
+        var subscription = await subscriptionRepository.GetByUserIdAsync(purchase.UserId, cancellationToken);
+        if (subscription is not null)
+        {
+            subscription.AddCredits(purchase.CreditsGranted);
+            await subscriptionRepository.UpdateAsync(subscription, cancellationToken);
+
+            // Publish credits added event
+            await eventPublisher.PublishAsync(new CreditsAddedEvent(
+                subscription.Id,
+                purchase.UserId,
+                purchase.CreditsGranted));
+        }
+
+        // Publish credits purchased event
+        await eventPublisher.PublishAsync(new CreditsPurchasedEvent(
+            purchase.Id,
+            purchase.UserId,
+            purchase.CreditPackageId,
+            purchase.CreditsGranted,
+            purchase.PricePaidCents));
+
+        logger.LogInformation(
+            "Credit purchase {PurchaseId} completed: {Credits} credits added to user {UserId}",
+            purchase.Id, purchase.CreditsGranted, purchase.UserId);
     }
 
     private async Task HandleSubscriptionUpdatedAsync(StripeWebhookData data, CancellationToken cancellationToken)

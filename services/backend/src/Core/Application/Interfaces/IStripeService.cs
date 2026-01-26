@@ -67,6 +67,18 @@ public interface IStripeService
     /// Validates a webhook signature and parses the event.
     /// </summary>
     StripeWebhookEvent? ValidateAndParseWebhook(string payload, string signature);
+
+    /// <summary>
+    /// Creates a Stripe Checkout session for a one-time credit package purchase.
+    /// </summary>
+    Task<CheckoutSessionResult> CreateCreditPurchaseCheckoutSessionAsync(
+        string customerId,
+        string priceId,
+        Guid creditPurchaseId,
+        string successUrl,
+        string cancelUrl,
+        string? idempotencyKey = null,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -114,4 +126,7 @@ public record StripeWebhookData(
     string? PaymentIntentId = null,
     long? AmountReceived = null,
     string? Currency = null,
-    string? InvoiceId = null);
+    string? InvoiceId = null,
+    string? SessionId = null,
+    string? Mode = null,
+    Dictionary<string, string>? Metadata = null);

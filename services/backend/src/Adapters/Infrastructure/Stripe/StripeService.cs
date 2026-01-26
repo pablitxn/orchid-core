@@ -239,6 +239,59 @@ public class StripeService : IStripeService
         }
     }
 
+    public async Task<CheckoutSessionResult> CreateCreditPurchaseCheckoutSessionAsync(
+        string customerId,
+        string priceId,
+        Guid creditPurchaseId,
+        string successUrl,
+        string cancelUrl,
+        string? idempotencyKey = null,
+        CancellationToken cancellationToken = default)
+    {
+        var options = new SessionCreateOptions
+        {
+            Customer = customerId,
+            Mode = "payment", // One-time payment, not subscription
+            LineItems = new List<SessionLineItemOptions>
+            {
+                new()
+                {
+                    Price = priceId,
+                    Quantity = 1
+                }
+            },
+            SuccessUrl = successUrl,
+            CancelUrl = cancelUrl,
+            Metadata = new Dictionary<string, string>
+            {
+                ["creditPurchaseId"] = creditPurchaseId.ToString(),
+                ["type"] = "credit_purchase"
+            },
+            PaymentIntentData = new SessionPaymentIntentDataOptions
+            {
+                Metadata = new Dictionary<string, string>
+                {
+                    ["creditPurchaseId"] = creditPurchaseId.ToString(),
+                    ["type"] = "credit_purchase"
+                }
+            }
+        };
+
+        var requestOptions = new RequestOptions();
+        if (!string.IsNullOrEmpty(idempotencyKey))
+        {
+            requestOptions.IdempotencyKey = idempotencyKey;
+        }
+
+        var session = await _sessionService.CreateAsync(options, requestOptions, cancellationToken);
+
+        _logger.LogInformation(
+            "Created credit purchase checkout session {SessionId} for customer {CustomerId}, purchase {PurchaseId}",
+            session.Id, customerId, creditPurchaseId);
+
+        return new CheckoutSessionResult(session.Id, session.Url);
+    }
+
     public StripeWebhookEvent? ValidateAndParseWebhook(string payload, string signature)
     {
         try
@@ -274,12 +327,19 @@ public class StripeService : IStripeService
                 session.CustomerId,
                 session.SubscriptionId,
                 null,
-                null,
+                session.Status,
                 null,
                 null,
                 false,
                 null,
-                null),
+                null,
+                session.PaymentIntentId,
+                session.AmountTotal,
+                session.Currency,
+                null,
+                session.Id,
+                session.Mode,
+                session.Metadata?.ToDictionary(k => k.Key, v => v.Value)),
 
             "customer.subscription.created" or "customer.subscription.updated" or "customer.subscription.deleted"
                 when dataObject is Subscription sub => new StripeWebhookData(
