@@ -6,6 +6,7 @@ public record LoginCommand(
     string Email,
     string Password,
     string? IpAddress = null,
-    string? UserAgent = null) : IRequest<LoginDto>;
+    string? UserAgent = null,
+    bool Remember = false) : IRequest<LoginDto>;
 
 public record LoginDto(bool IsSuccess, string Token, IEnumerable<string> Roles, Guid UserId = default, string ErrorMessage = "");

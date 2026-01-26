@@ -14,8 +14,13 @@ public class JwtTokenService : ITokenService
 {
     private readonly string _audience;
     private readonly double _expireHours;
+    private readonly double _rememberMeExpireHours;
     private readonly string _issuer;
     private readonly SymmetricSecurityKey _key;
+
+    // Default expiration times
+    private const double DefaultExpireHours = 24;
+    private const double DefaultRememberMeExpireHours = 720; // 30 days
 
     public JwtTokenService(IConfiguration config)
     {
@@ -27,20 +32,32 @@ public class JwtTokenService : ITokenService
                   ?? throw new InvalidOperationException("JWT issuer 'Jwt:Issuer' is not configured.");
         _audience = config["Jwt:Audience"]
                     ?? throw new InvalidOperationException("JWT audience 'Jwt:Audience' is not configured.");
-        if (!double.TryParse(config["Jwt:ExpireHours"], out _expireHours)) _expireHours = 24; // default 24 hours
+        
+        // Standard token expiration (when remember me is false)
+        if (!double.TryParse(config["Jwt:ExpireHours"], out _expireHours))
+            _expireHours = DefaultExpireHours;
+        
+        // Extended token expiration (when remember me is true)
+        if (!double.TryParse(config["Jwt:RememberMeExpireHours"], out _rememberMeExpireHours))
+            _rememberMeExpireHours = DefaultRememberMeExpireHours;
     }
 
-    public string GenerateToken(UserEntity user, IEnumerable<string> roles)
+    public string GenerateToken(UserEntity user, IEnumerable<string> roles, bool rememberMe = false)
     {
-        return GenerateTokenInternal(user.Id, user.Email, roles);
+        return GenerateTokenInternal(user.Id, user.Email, roles, rememberMe);
     }
 
-    public string GenerateToken(UserDto user, IEnumerable<string> roles)
+    public string GenerateToken(UserDto user, IEnumerable<string> roles, bool rememberMe = false)
     {
-        return GenerateTokenInternal(user.Id, user.Email, roles);
+        return GenerateTokenInternal(user.Id, user.Email, roles, rememberMe);
     }
 
-    private string GenerateTokenInternal(Guid userId, string? email, IEnumerable<string> roles)
+    public double GetTokenExpirationHours(bool rememberMe)
+    {
+        return rememberMe ? _rememberMeExpireHours : _expireHours;
+    }
+
+    private string GenerateTokenInternal(Guid userId, string? email, IEnumerable<string> roles, bool rememberMe)
     {
         var claims = new List<Claim>
         {
@@ -53,12 +70,13 @@ public class JwtTokenService : ITokenService
         foreach (var role in roles) claims.Add(new Claim(ClaimTypes.Role, role));
 
         var creds = new SigningCredentials(_key, SecurityAlgorithms.HmacSha256);
+        var expirationHours = GetTokenExpirationHours(rememberMe);
 
         var token = new JwtSecurityToken(
             _issuer,
             _audience,
             claims,
-            expires: DateTime.UtcNow.AddHours(_expireHours),
+            expires: DateTime.UtcNow.AddHours(expirationHours),
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

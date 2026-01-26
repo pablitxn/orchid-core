@@ -428,6 +428,104 @@ public class AuthControllerTests
         _controller.Response.Headers.Should().ContainKey("Set-Cookie");
     }
 
+    [Fact]
+    public async Task Login_PassesRememberFlagToLoginCommand()
+    {
+        // Arrange
+        SetupAllowedRateLimit();
+        SetupJwtConfig();
+        var userId = Guid.NewGuid();
+        LoginCommand? capturedCommand = null;
+        _mediatorMock.Setup(x => x.Send(It.IsAny<LoginCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<LoginDto>, CancellationToken>((cmd, _) => capturedCommand = cmd as LoginCommand)
+            .ReturnsAsync(new LoginDto(true, "test-jwt-token", new[] { "User" }, userId, string.Empty));
+        _refreshTokenRepositoryMock.Setup(x => x.CreateAsync(It.IsAny<RefreshTokenEntity>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((RefreshTokenEntity t, CancellationToken _) => t);
+        _tokenServiceMock.Setup(x => x.GetTokenExpirationHours(true)).Returns(720);
+        var request = new LoginRequest("test@example.com", "correctpassword", true);
+
+        // Act
+        await _controller.Login(request);
+
+        // Assert
+        capturedCommand.Should().NotBeNull();
+        capturedCommand!.Remember.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Login_UsesTokenServiceExpirationHours_WithRememberMe()
+    {
+        // Arrange
+        SetupAllowedRateLimit();
+        SetupJwtConfig();
+        var userId = Guid.NewGuid();
+        _mediatorMock.Setup(x => x.Send(It.IsAny<LoginCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LoginDto(true, "test-jwt-token", new[] { "User" }, userId, string.Empty));
+        _refreshTokenRepositoryMock.Setup(x => x.CreateAsync(It.IsAny<RefreshTokenEntity>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((RefreshTokenEntity t, CancellationToken _) => t);
+        _tokenServiceMock.Setup(x => x.GetTokenExpirationHours(true)).Returns(720);
+        var request = new LoginRequest("test@example.com", "correctpassword", true);
+
+        // Act
+        var result = await _controller.Login(request);
+
+        // Assert
+        _tokenServiceMock.Verify(x => x.GetTokenExpirationHours(true), Times.Once);
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var value = okResult.Value;
+        var expiresAtProperty = value?.GetType().GetProperty("expiresAt");
+        var expiresAt = (DateTime?)expiresAtProperty?.GetValue(value);
+        expiresAt.Should().BeCloseTo(DateTime.UtcNow.AddHours(720), TimeSpan.FromMinutes(1));
+    }
+
+    [Fact]
+    public async Task Login_CreatesRefreshTokenWith30DaysExpiration_WhenRememberMeTrue()
+    {
+        // Arrange
+        SetupAllowedRateLimit();
+        SetupJwtConfig();
+        var userId = Guid.NewGuid();
+        RefreshTokenEntity? capturedRefreshToken = null;
+        _mediatorMock.Setup(x => x.Send(It.IsAny<LoginCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LoginDto(true, "test-jwt-token", new[] { "User" }, userId, string.Empty));
+        _refreshTokenRepositoryMock.Setup(x => x.CreateAsync(It.IsAny<RefreshTokenEntity>(), It.IsAny<CancellationToken>()))
+            .Callback<RefreshTokenEntity, CancellationToken>((token, _) => capturedRefreshToken = token)
+            .ReturnsAsync((RefreshTokenEntity t, CancellationToken _) => t);
+        _tokenServiceMock.Setup(x => x.GetTokenExpirationHours(true)).Returns(720);
+        var request = new LoginRequest("test@example.com", "correctpassword", true);
+
+        // Act
+        await _controller.Login(request);
+
+        // Assert
+        capturedRefreshToken.Should().NotBeNull();
+        capturedRefreshToken!.ExpiresAt.Should().BeCloseTo(DateTime.UtcNow.AddDays(30), TimeSpan.FromMinutes(1));
+    }
+
+    [Fact]
+    public async Task Login_CreatesRefreshTokenWith7DaysExpiration_WhenRememberMeFalse()
+    {
+        // Arrange
+        SetupAllowedRateLimit();
+        SetupJwtConfig();
+        var userId = Guid.NewGuid();
+        RefreshTokenEntity? capturedRefreshToken = null;
+        _mediatorMock.Setup(x => x.Send(It.IsAny<LoginCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LoginDto(true, "test-jwt-token", new[] { "User" }, userId, string.Empty));
+        _refreshTokenRepositoryMock.Setup(x => x.CreateAsync(It.IsAny<RefreshTokenEntity>(), It.IsAny<CancellationToken>()))
+            .Callback<RefreshTokenEntity, CancellationToken>((token, _) => capturedRefreshToken = token)
+            .ReturnsAsync((RefreshTokenEntity t, CancellationToken _) => t);
+        _tokenServiceMock.Setup(x => x.GetTokenExpirationHours(false)).Returns(24);
+        var request = new LoginRequest("test@example.com", "correctpassword", false);
+
+        // Act
+        await _controller.Login(request);
+
+        // Assert
+        capturedRefreshToken.Should().NotBeNull();
+        capturedRefreshToken!.ExpiresAt.Should().BeCloseTo(DateTime.UtcNow.AddDays(7), TimeSpan.FromMinutes(1));
+    }
+
     #endregion
 
     #region Refresh Token Endpoint Tests

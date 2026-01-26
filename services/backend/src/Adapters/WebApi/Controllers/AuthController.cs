@@ -44,6 +44,7 @@ public class AuthController(
     private readonly IJwtBlacklistService _jwtBlacklistService = jwtBlacklistService;
 
     private const int RefreshTokenExpirationDays = 7;
+    private const int RememberMeRefreshTokenExpirationDays = 30;
 
     [HttpGet("mode")]
     [AllowAnonymous]
@@ -158,17 +159,18 @@ public class AuthController(
             request.Email,
             request.Password,
             ipAddress,
-            userAgent));
+            userAgent,
+            request.Remember));
 
         if (!result.IsSuccess)
             return Unauthorized(new { error = result.ErrorMessage });
 
-        // Generate refresh token
-        var refreshToken = await GenerateRefreshTokenAsync(result.UserId, ipAddress);
+        // Generate refresh token with expiration based on remember flag
+        var refreshToken = await GenerateRefreshTokenAsync(result.UserId, ipAddress, request.Remember);
 
-        var expireHours = double.TryParse(_config["Jwt:ExpireHours"], out var hours) ? hours : 4;
+        var expireHours = _tokenService.GetTokenExpirationHours(request.Remember);
         SetTokenCookie(result.Token, expireHours);
-        SetRefreshTokenCookie(refreshToken.Token);
+        SetRefreshTokenCookie(refreshToken.Token, request.Remember);
 
         return Ok(new
         {
@@ -505,17 +507,18 @@ public class AuthController(
         return Redirect(_config["FrontendUrl"]!);
     }
 
-    private async Task<RefreshTokenEntity> GenerateRefreshTokenAsync(Guid userId, string? ipAddress)
+    private async Task<RefreshTokenEntity> GenerateRefreshTokenAsync(Guid userId, string? ipAddress, bool rememberMe = false)
     {
         var tokenBytes = RandomNumberGenerator.GetBytes(64);
         var tokenString = Convert.ToBase64String(tokenBytes);
+        var expirationDays = rememberMe ? RememberMeRefreshTokenExpirationDays : RefreshTokenExpirationDays;
 
         var refreshToken = new RefreshTokenEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
             Token = tokenString,
-            ExpiresAt = DateTime.UtcNow.AddDays(RefreshTokenExpirationDays),
+            ExpiresAt = DateTime.UtcNow.AddDays(expirationDays),
             CreatedAt = DateTime.UtcNow,
             CreatedByIp = ipAddress
         };
@@ -535,21 +538,22 @@ public class AuthController(
         });
     }
 
-    private void SetRefreshTokenCookie(string refreshToken)
+    private void SetRefreshTokenCookie(string refreshToken, bool rememberMe = false)
     {
+        var expirationDays = rememberMe ? RememberMeRefreshTokenExpirationDays : RefreshTokenExpirationDays;
         Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
         {
             HttpOnly = true,
             Secure = !_env.IsDevelopment(),
             SameSite = SameSiteMode.Strict,
-            Expires = DateTimeOffset.UtcNow.AddDays(RefreshTokenExpirationDays)
+            Expires = DateTimeOffset.UtcNow.AddDays(expirationDays)
         });
     }
 }
 
 public record RegisterRequest(string? Name, string? Email, string? Password);
 
-public record LoginRequest(string Email, string Password);
+public record LoginRequest(string Email, string Password, bool Remember = false);
 
 public record ForgotPasswordRequest(string Email);
 

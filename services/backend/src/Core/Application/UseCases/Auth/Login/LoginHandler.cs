@@ -71,7 +71,7 @@ public class LoginHandler(
 
         var roles = user.UserRoles?.Select(ur => ur.Role.Name) ?? [];
         var enumerable = roles as string[] ?? roles.ToArray();
-        var token = _tokenService.GenerateToken(user, enumerable);
+        var token = _tokenService.GenerateToken(user, enumerable, request.Remember);
         return new LoginDto(true, token, enumerable, user.Id);
     }
 
