@@ -52,6 +52,9 @@
         <PackageReference Include="prometheus-net" Version="8.2.1" />
         <!-- Stripe payment processing -->
         <PackageReference Include="Stripe.net" Version="47.4.0" />
+        <!-- OpenAPI spec parsing for dynamic plugin integration -->
+        <PackageReference Include="Microsoft.OpenApi" Version="1.6.23" />
+        <PackageReference Include="Microsoft.OpenApi.Readers" Version="1.6.23" />
     </ItemGroup>
 
     <ItemGroup>

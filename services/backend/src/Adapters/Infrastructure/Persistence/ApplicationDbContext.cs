@@ -329,8 +329,20 @@ public class ApplicationDbContext(
             b.Property(p => p.Description);
             b.Property(p => p.SourceUrl);
             b.Property(p => p.IsActive).IsRequired();
+
+            // OpenAPI Plugin Support
+            b.Property(p => p.PluginType).IsRequired().HasMaxLength(20).HasDefaultValue("builtin");
+            b.Property(p => p.BaseUrl).HasMaxLength(2048);
+            b.Property(p => p.OpenApiSpecUrl).HasMaxLength(500);
+            b.Property(p => p.OpenApiSpecCache); // No max length - stores full JSON spec
+            b.Property(p => p.SpecCachedAt).HasColumnType("timestamp with time zone");
+            b.Property(p => p.TimeoutSeconds);
+
             b.Property(p => p.CreatedAt).HasColumnType("timestamp with time zone");
             b.Property(p => p.UpdatedAt).HasColumnType("timestamp with time zone");
+
+            // Index for filtering by plugin type
+            b.HasIndex(p => p.PluginType);
         });
 
         modelBuilder.Entity<WorkflowEntity>(b =>

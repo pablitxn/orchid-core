@@ -546,6 +546,123 @@ namespace Infrastructure.Migrations
                     b.ToTable("CreditConsumptions", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.CreditPackageEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Credits")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("usd");
+
+                    b.Property<int>("DisplayOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<int?>("ExpirationDays")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("PriceInCents")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StripePriceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("StripePriceId");
+
+                    b.ToTable("CreditPackages", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.CreditPurchaseEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CreditPackageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CreditsExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CreditsGranted")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("usd");
+
+                    b.Property<int>("PricePaidCents")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("PurchasedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Pending");
+
+                    b.Property<string>("StripeCheckoutSessionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("StripePaymentIntentId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreditPackageId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("StripeCheckoutSessionId");
+
+                    b.HasIndex("StripePaymentIntentId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CreditPurchases", (string)null);
+                });
+
             modelBuilder.Entity("Domain.Entities.DocumentEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1009,6 +1126,10 @@ namespace Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("BaseUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1025,19 +1146,41 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("OpenApiSpecCache")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OpenApiSpecUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("PluginType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("builtin");
+
                     b.Property<int>("PriceCredits")
                         .HasColumnType("integer");
 
                     b.Property<string>("SourceUrl")
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("SpecCachedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("SystemName")
                         .HasColumnType("text");
+
+                    b.Property<int?>("TimeoutSeconds")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PluginType");
 
                     b.ToTable("Plugins", (string)null);
                 });
@@ -1941,6 +2084,25 @@ namespace Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Domain.Entities.CreditPurchaseEntity", b =>
+                {
+                    b.HasOne("Domain.Entities.CreditPackageEntity", "CreditPackage")
+                        .WithMany()
+                        .HasForeignKey("CreditPackageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.UserEntity", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreditPackage");
 
                     b.Navigation("User");
                 });
