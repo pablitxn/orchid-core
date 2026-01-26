@@ -16,7 +16,14 @@ public class ServiceAccountSeeder
     /// PBKDF2-SHA256 with 100,000 iterations.
     /// Format: iterations.salt.key
     /// </summary>
-    private const string MatrixBridgeSecretHash = "100000.K8r7xvQ1P5N3jY2L0M4W6A==.5hFdT9uW2vC1xZ8yB3nK7pR4mJ6oL0aS9eQ2iU5wG1c=";
+    private const string DevMatrixBridgeSecretHash = "100000.K8r7xvQ1P5N3jY2L0M4W6A==.5hFdT9uW2vC1xZ8yB3nK7pR4mJ6oL0aS9eQ2iU5wG1c=";
+
+    /// <summary>
+    /// Environment variable name for production Matrix Bridge secret hash.
+    /// If set, this hash will be used instead of the dev hash.
+    /// Generate with: dotnet run --project tools/HashGenerator -- "your-secret"
+    /// </summary>
+    private const string MatrixBridgeSecretHashEnvVar = "MATRIX_BRIDGE_SECRET_HASH";
 
     public ServiceAccountSeeder(
         ApplicationDbContext db,
@@ -36,14 +43,25 @@ public class ServiceAccountSeeder
             return;
         }
 
-        _logger.LogInformation("Seeding development service accounts...");
+        var secretHash = Environment.GetEnvironmentVariable(MatrixBridgeSecretHashEnvVar);
+        var isProduction = !string.IsNullOrEmpty(secretHash);
+
+        if (!isProduction)
+        {
+            secretHash = DevMatrixBridgeSecretHash;
+            _logger.LogInformation("Seeding development service accounts (using dev secret)...");
+        }
+        else
+        {
+            _logger.LogInformation("Seeding service accounts with production secret...");
+        }
 
         var matrixBridge = new ServiceAccountEntity
         {
             Id = Guid.NewGuid(),
             ClientId = "matrix-bridge",
-            ClientSecretHash = MatrixBridgeSecretHash,
-            Name = "Matrix Bridge Development",
+            ClientSecretHash = secretHash,
+            Name = isProduction ? "Matrix Bridge" : "Matrix Bridge Development",
             Scopes = new[] { "matrix:read", "matrix:write" },
             IsActive = true,
             CreatedAt = DateTime.UtcNow
@@ -52,6 +70,6 @@ public class ServiceAccountSeeder
         _db.ServiceAccounts.Add(matrixBridge);
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation("Seeded 1 development service account: matrix-bridge");
+        _logger.LogInformation("Seeded service account: matrix-bridge (production: {IsProduction})", isProduction);
     }
 }
