@@ -66,7 +66,13 @@ public static class AgentFrameworkServiceCollectionExtensions
             defaultModel));
 
         // ─── 6. Tool registry for tool discovery ───────────────────────────
-        services.AddScoped<IToolRegistry, Services.ToolRegistry>();
+        // Use factory to inject optional OpenAPI dependencies for dynamic tool resolution
+        services.AddScoped<IToolRegistry>(sp => new Services.ToolRegistry(
+            sp,
+            sp.GetRequiredService<ILogger<Services.ToolRegistry>>(),
+            sp.GetService<IOpenApiToolFactory>(),      // Optional: enables OpenAPI tool resolution
+            sp.GetService<IPluginRepository>()         // Optional: enables DB lookup for plugins
+        ));
 
         // ─── 7. Tool loader for dynamic agent tools ───────────────────────
         // Use factory to inject optional telemetry client for tool invocation tracking,
