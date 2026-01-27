@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using OpenAI;
 using Application.Interfaces;
 using Infrastructure.Ai.AgentFramework.Abstractions;
+using Infrastructure.Ai.AgentFramework.Tools;
 using Infrastructure.Http;
 
 namespace Infrastructure.Ai.AgentFramework;
@@ -68,14 +69,15 @@ public static class AgentFrameworkServiceCollectionExtensions
         services.AddScoped<IToolRegistry, Services.ToolRegistry>();
 
         // ─── 7. Tool loader for dynamic agent tools ───────────────────────
-        // Use factory to inject optional telemetry client for tool invocation tracking
-        // and optional credit tracking service for billing
+        // Use factory to inject optional telemetry client for tool invocation tracking,
+        // optional credit tracking service for billing, and OpenAPI tool factory
         services.AddScoped<IAgentToolLoader>(sp => new Services.AgentToolLoader(
             sp.GetRequiredService<IPluginRepository>(),
             sp.GetRequiredService<IToolRegistry>(),
             sp.GetRequiredService<ILogger<Services.AgentToolLoader>>(),
             sp.GetService<IEnhancedTelemetryClient>(), // Optional telemetry client
             sp.GetService<ICreditTrackingService>(),   // Optional credit tracking service
+            sp.GetService<IOpenApiToolFactory>(),      // Optional OpenAPI tool factory
             enableSafeWrapping: true,
             enableTelemetryWrapping: true,
             enableCreditTracking: true
@@ -99,7 +101,8 @@ public static class AgentFrameworkServiceCollectionExtensions
     public static IServiceCollection AddAgentFrameworkTools(this IServiceCollection services)
     {
         return services
-            .AddTransient<Tools.VectorStoreTool>()
-            .AddTransient<Tools.WebSearchTool>();
+            .AddTransient<VectorStoreTool>()
+            .AddTransient<WebSearchTool>()
+            .AddTransient<IOpenApiToolFactory, OpenApiToolFactory>();
     }
 }
