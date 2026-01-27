@@ -1,6 +1,6 @@
 # Orchid Labs Core – LLM Agent Context Guide
 
-*Version 1.3 – 2026-01-25*
+*Version 1.4 – 2026-01-27*
 
 ---
 
@@ -312,6 +312,118 @@ await _activity.PublishAsync("tool_invocation",
 ```
 
 The generic ActivityMessage component will detect `payload.tool` and render the tool name, parameters, and result automatically.
+
+### 8.4 OpenAPI Plugin Integration
+
+The Agent Framework supports **dynamic tool creation** via OpenAPI 3.0 specifications. This allows adding new API integrations without code changes.
+
+> See ADR-0003 for architectural details: `docs/adr/adr-0003-openapi-plugin-integration.md`
+
+#### Key Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `OpenApiTool` | `Infrastructure/Ai/Tools/` | Dynamic tool from OpenAPI spec |
+| `OpenApiToolFactory` | `Infrastructure/Ai/Tools/` | Creates tools with spec caching |
+| `IToolRegistry` | `Infrastructure/Ai/Abstractions/` | Unified tool resolution |
+| `AdminOpenApiPluginsController` | `WebApi/Controllers/` | Admin CRUD endpoints |
+
+#### Creating an OpenAPI Plugin
+
+1. **Prepare your OpenAPI spec** (must be accessible via HTTP):
+
+```yaml
+openapi: 3.0.0
+info:
+  title: My Custom API
+  version: 1.0.0
+paths:
+  /analyze:
+    post:
+      operationId: analyzeData
+      summary: Analyze input data
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+      responses:
+        '200':
+          description: Analysis result
+```
+
+2. **Register the plugin via Admin API**:
+
+```http
+POST /api/admin/openapi-plugins
+Content-Type: application/json
+
+{
+  "name": "My Custom API",
+  "systemName": "my_custom_api",
+  "description": "Performs custom analysis",
+  "baseUrl": "https://api.myservice.com",
+  "openApiSpecUrl": "/openapi.json",
+  "priceCredits": 2,
+  "isActive": true
+}
+```
+
+3. **Assign to an agent** by adding the plugin ID to the agent's `PluginIds` array.
+
+#### How It Works
+
+1. **Tool Resolution**: `ToolRegistry` first checks builtin tools (sync), then queries the database for OpenAPI plugins (async)
+2. **Spec Caching**: Specs are cached for 1 hour; expired cache is used as fallback on fetch failure
+3. **Function Generation**: Each operation in the spec becomes an `AIFunction` the AI can invoke
+4. **HTTP Execution**: The tool executes actual HTTP requests to the target API
+
+#### Plugin Entity Fields
+
+```csharp
+public class PluginEntity
+{
+    // Standard fields...
+    public string? PluginType { get; set; }        // "openapi" for OpenAPI plugins
+    public string? BaseUrl { get; set; }           // API base URL
+    public string? OpenApiSpecUrl { get; set; }    // Path to spec (default: /openapi.json)
+    public string? OpenApiSpecCache { get; set; }  // Cached spec JSON
+    public DateTime? SpecCachedAt { get; set; }    // Cache timestamp
+    public int? TimeoutSeconds { get; set; }       // HTTP timeout (default: 30)
+}
+```
+
+#### Admin API Endpoints
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| GET | `/api/admin/openapi-plugins` | List all plugins |
+| GET | `/api/admin/openapi-plugins/{id}` | Get plugin with functions |
+| POST | `/api/admin/openapi-plugins` | Create plugin |
+| PUT | `/api/admin/openapi-plugins/{id}` | Update plugin |
+| DELETE | `/api/admin/openapi-plugins/{id}` | Delete plugin |
+| POST | `/api/admin/openapi-plugins/{id}/refresh` | Force cache refresh |
+| POST | `/api/admin/openapi-plugins/validate` | Validate spec URL |
+
+#### Example: Python Plugin Server
+
+See `docs/examples/openapi-plugin/` for a complete example using FastAPI:
+
+```python
+from fastapi import FastAPI
+app = FastAPI()
+
+@app.post("/analyze")
+async def analyze(data: dict):
+    return {"result": "analyzed", "sentiment": "positive"}
+
+@app.get("/status")
+async def status():
+    return {"status": "healthy"}
+```
 
 ---
 
