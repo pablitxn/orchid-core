@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using OpenAI;
 using Application.Interfaces;
 using Infrastructure.Ai.AgentFramework.Abstractions;
+using Infrastructure.Ai.AgentFramework.Services;
 using Infrastructure.Ai.AgentFramework.Tools;
 using Infrastructure.Http;
 
@@ -114,6 +115,10 @@ public static class AgentFrameworkServiceCollectionExtensions
                 sp.GetRequiredService<IActivityPublisher>(),
                 sp.GetRequiredService<IPluginRepository>(),
                 sp.GetRequiredService<ILogger<OpenApiToolFactory>>(),
-                sp.GetRequiredService<ILogger<OpenApiTool>>()));
+                sp.GetRequiredService<ILogger<OpenApiTool>>()))
+            .AddScoped<IOpenApiSpecService>(sp => new OpenApiSpecService(
+                sp.GetRequiredService<IOpenApiToolFactory>(),
+                sp.GetRequiredService<IHttpClientFactory>(),
+                sp.GetRequiredService<ILogger<OpenApiSpecService>>()));
     }
 }
