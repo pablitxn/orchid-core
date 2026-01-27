@@ -46,7 +46,34 @@ public sealed class OpenApiTool : ITool
     }
 
     /// <summary>
+    /// Creates an OpenApiTool instance from an already parsed OpenAPI document.
+    /// This is the preferred factory method when the spec is managed by OpenApiToolFactory.
+    /// </summary>
+    public static OpenApiTool Create(
+        PluginEntity plugin,
+        OpenApiDocument openApiDocument,
+        IHttpClientFactory httpClientFactory,
+        IActivityPublisher activity,
+        ILogger<OpenApiTool> logger)
+    {
+        ArgumentNullException.ThrowIfNull(plugin);
+        ArgumentNullException.ThrowIfNull(openApiDocument);
+        ArgumentNullException.ThrowIfNull(httpClientFactory);
+
+        var httpClient = httpClientFactory.CreateClient(string.Empty);
+        httpClient.Timeout = TimeSpan.FromSeconds(plugin.TimeoutSeconds ?? 30);
+
+        if (!string.IsNullOrEmpty(plugin.BaseUrl))
+        {
+            httpClient.BaseAddress = new Uri(plugin.BaseUrl);
+        }
+
+        return new OpenApiTool(plugin, openApiDocument, httpClient, activity, logger);
+    }
+
+    /// <summary>
     /// Creates an OpenApiTool instance asynchronously by fetching and parsing the OpenAPI spec.
+    /// Consider using OpenApiToolFactory.CreateToolAsync for proper caching support.
     /// </summary>
     public static async Task<OpenApiTool> CreateAsync(
         PluginEntity plugin,
@@ -58,7 +85,7 @@ public sealed class OpenApiTool : ITool
         ArgumentNullException.ThrowIfNull(plugin);
         ArgumentNullException.ThrowIfNull(httpClientFactory);
 
-        var httpClient = httpClientFactory.CreateClient();
+        var httpClient = httpClientFactory.CreateClient(string.Empty);
         httpClient.Timeout = TimeSpan.FromSeconds(plugin.TimeoutSeconds ?? 30);
 
         if (!string.IsNullOrEmpty(plugin.BaseUrl))
@@ -78,10 +105,10 @@ public sealed class OpenApiTool : ITool
     {
         string specContent;
 
-        // Use cached spec if available and not too old (24 hours)
+        // Use cached spec if available and not too old (1 hour)
         if (!string.IsNullOrEmpty(plugin.OpenApiSpecCache) &&
             plugin.SpecCachedAt.HasValue &&
-            DateTime.UtcNow - plugin.SpecCachedAt.Value < TimeSpan.FromHours(24))
+            DateTime.UtcNow - plugin.SpecCachedAt.Value < TimeSpan.FromHours(1))
         {
             specContent = plugin.OpenApiSpecCache;
         }

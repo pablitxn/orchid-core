@@ -103,6 +103,11 @@ public static class AgentFrameworkServiceCollectionExtensions
         return services
             .AddTransient<VectorStoreTool>()
             .AddTransient<WebSearchTool>()
-            .AddTransient<IOpenApiToolFactory, OpenApiToolFactory>();
+            .AddScoped<IOpenApiToolFactory>(sp => new OpenApiToolFactory(
+                sp.GetRequiredService<IHttpClientFactory>(),
+                sp.GetRequiredService<IActivityPublisher>(),
+                sp.GetRequiredService<IPluginRepository>(),
+                sp.GetRequiredService<ILogger<OpenApiToolFactory>>(),
+                sp.GetRequiredService<ILogger<OpenApiTool>>()));
     }
 }

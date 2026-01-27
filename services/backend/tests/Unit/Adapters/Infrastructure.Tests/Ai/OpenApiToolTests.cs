@@ -160,7 +160,7 @@ public class OpenApiToolTests
     {
         // Arrange
         var plugin = CreateTestPlugin();
-        plugin.SpecCachedAt = DateTime.UtcNow.AddHours(-25); // Expired (>24h)
+        plugin.SpecCachedAt = DateTime.UtcNow.AddHours(-2); // Expired (>1h)
 
         var handlerMock = CreateMockHandler(PetStoreSpec);
         var httpClient = new HttpClient(handlerMock.Object) { BaseAddress = new Uri(plugin.BaseUrl!) };
