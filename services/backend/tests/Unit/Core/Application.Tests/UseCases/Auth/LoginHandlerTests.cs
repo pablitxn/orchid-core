@@ -180,4 +180,31 @@ public class LoginHandlerTests
                 h.FailureReason == "Invalid password"),
             It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Handle_PassesRememberFlagToTokenService(bool rememberMe)
+    {
+        var email = "foo@bar.com";
+        var password = "secret";
+        _userRepo.Setup(r => r.GetByEmailAsync(email))
+            .ReturnsAsync(new UserEntity
+            {
+                Id = Guid.NewGuid(),
+                Email = email,
+                PasswordHash = password,
+                UserRoles = new List<UserRoleEntity>()
+            });
+        _tokenService.Setup(s => s.GenerateToken(It.IsAny<UserEntity>(), It.IsAny<IEnumerable<string>>(), rememberMe))
+            .Returns("token123");
+        _passwordHasher.Setup(h => h.VerifyPassword(It.IsAny<string>(), password))
+            .Returns(true);
+
+        var result = await _handler.Handle(new LoginCommand(email, password, null, null, rememberMe), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("token123", result.Token);
+        _tokenService.Verify(s => s.GenerateToken(It.IsAny<UserEntity>(), It.IsAny<IEnumerable<string>>(), rememberMe), Times.Once);
+    }
 }
