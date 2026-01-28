@@ -152,7 +152,12 @@ public sealed class PurchasePluginHandler(
 
                     await _unitOfWork.UserPlugins.CreateAsync(userPlugin, cancellationToken);
                 }
-                
+
+                // Increment InstallCount for tracking (covers both new installs and reactivations)
+                plugin.InstallCount++;
+                plugin.UpdatedAt = DateTime.UtcNow;
+                await _unitOfWork.Plugins.UpdateAsync(plugin, cancellationToken);
+
                 // Save all changes within the transaction
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 

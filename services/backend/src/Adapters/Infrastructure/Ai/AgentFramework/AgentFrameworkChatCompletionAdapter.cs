@@ -1,8 +1,11 @@
 using System.Diagnostics;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using Application.Interfaces;
+using Application.Models;
+using Domain.Enums;
 using Infrastructure.Ai.AgentFramework.Middleware;
 using Infrastructure.Telemetry;
 using Microsoft.Agents.AI;
@@ -15,12 +18,16 @@ namespace Infrastructure.Ai.AgentFramework;
 
 /// <summary>
 /// Agent Framework adapter implementing IChatCompletionPort with Langfuse telemetry.
+/// Supports automatic model fallback via circuit breaker and credit-aware resolution.
 /// </summary>
 public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
 {
     private readonly IChatClient _chatClient;
     private readonly IAgentFactory _agentFactory;
     private readonly IAgentRepository _agentRepository;
+    private readonly IModelResolver _modelResolver;
+    private readonly IModelCircuitBreaker _circuitBreaker;
+    private readonly IModelDegradationNotificationPort? _degradationNotification;
     private readonly IEnhancedTelemetryClient? _telemetry;
     private readonly ILogger<AgentFrameworkChatCompletionAdapter>? _logger;
     private readonly string _defaultModelId;
@@ -30,22 +37,30 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
         IChatClient chatClient,
         IAgentFactory agentFactory,
         IAgentRepository agentRepository,
+        IModelResolver modelResolver,
+        IModelCircuitBreaker circuitBreaker,
         IServiceProvider serviceProvider,
         IEnhancedTelemetryClient? telemetry = null,
+        IModelDegradationNotificationPort? degradationNotification = null,
         ILogger<AgentFrameworkChatCompletionAdapter>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(chatClient);
         ArgumentNullException.ThrowIfNull(agentFactory);
         ArgumentNullException.ThrowIfNull(agentRepository);
+        ArgumentNullException.ThrowIfNull(modelResolver);
+        ArgumentNullException.ThrowIfNull(circuitBreaker);
         ArgumentNullException.ThrowIfNull(serviceProvider);
 
         _chatClient = chatClient;
         _agentFactory = agentFactory;
         _agentRepository = agentRepository;
+        _modelResolver = modelResolver;
+        _circuitBreaker = circuitBreaker;
         _serviceProvider = serviceProvider;
         _telemetry = telemetry;
+        _degradationNotification = degradationNotification;
         _logger = logger;
-        _defaultModelId = "gpt-5-nano-2025-08-07";
+        _defaultModelId = modelResolver.GetSystemDefault();
     }
 
     public async Task<string> CompleteAsync(
@@ -169,8 +184,10 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
             throw new InvalidOperationException($"Agent with ID {agentId} not found.");
         }
 
-        // Determine model: use agent's configured model or fall back to default
-        var modelId = agentEntity.Model ?? _defaultModelId;
+        // Resolve model using hierarchical resolution service
+        var resolutionContext = ModelResolutionContext.ForAgent(agentId, userId);
+        var resolution = await _modelResolver.ResolveAsync(resolutionContext, cancellationToken);
+        var modelId = resolution.ModelId;
         metricsModelId = modelId;
 
         string? traceId = null;
@@ -180,7 +197,7 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
                 $"Agent Completion - {agentId}",
                 sessionId,
                 userId: userId?.ToString(),
-                metadata: new { adapter = "AgentFramework", model = modelId, agentId, agentName = agentEntity.Name },
+                metadata: new { adapter = "AgentFramework", model = modelId, modelSource = resolution.Source.ToString(), agentId, agentName = agentEntity.Name },
                 cancellationToken: cancellationToken);
         }
 
@@ -407,9 +424,50 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
             throw new InvalidOperationException($"Agent with ID {agentId} not found.");
         }
 
-        // Determine model: use agent's configured model or fall back to default
-        var modelId = agentEntity.Model ?? _defaultModelId;
+        // Resolve model using hierarchical resolution service
+        var resolutionContext = ModelResolutionContext.ForAgent(agentId, userId);
+        var resolution = await _modelResolver.ResolveAsync(resolutionContext, cancellationToken);
+        var modelId = resolution.ModelId;
+        var originalModelId = modelId;
+        var isDegraded = false;
         metricsModelId = modelId;
+
+        // Check circuit breaker and switch to fallback if needed
+        if (await _circuitBreaker.IsCircuitOpenAsync(modelId, cancellationToken))
+        {
+            _logger?.LogWarning(
+                "Circuit breaker open for model {ModelId}, attempting fallback resolution",
+                modelId);
+
+            var fallbackContext = resolutionContext with
+            {
+                ExcludedModels = new HashSet<string> { modelId }
+            };
+            var fallbackResolution = await _modelResolver.ResolveAsync(fallbackContext, cancellationToken);
+
+            if (fallbackResolution.ModelId != modelId)
+            {
+                modelId = fallbackResolution.ModelId;
+                metricsModelId = modelId;
+                isDegraded = true;
+
+                _logger?.LogInformation(
+                    "Degraded from {Original} to {Fallback} due to circuit breaker",
+                    originalModelId, modelId);
+
+                // Notify user of degradation
+                if (userId.HasValue && _degradationNotification != null)
+                {
+                    await _degradationNotification.NotifyModelDegradedAsync(
+                        userId.Value,
+                        originalModelId,
+                        modelId,
+                        ModelDegradationReason.CircuitOpen,
+                        sessionId,
+                        cancellationToken);
+                }
+            }
+        }
 
         string? traceId = null;
         if (_telemetry != null && !string.IsNullOrEmpty(sessionId))
@@ -418,7 +476,7 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
                 $"Agent Streaming - {agentId}",
                 sessionId,
                 userId: userId?.ToString(),
-                metadata: new { adapter = "AgentFramework", model = modelId, agentId, agentName = agentEntity.Name, streaming = true },
+                metadata: new { adapter = "AgentFramework", model = modelId, modelSource = resolution.Source.ToString(), agentId, agentName = agentEntity.Name, streaming = true, isDegraded, originalModelId = isDegraded ? originalModelId : null },
                 cancellationToken: cancellationToken);
         }
 
@@ -479,7 +537,9 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
                 Tools = tools.Cast<AITool>().ToList()
             };
 
-            // Stream the response
+            // Stream the response - collect chunks for later yielding
+            // Note: yield return cannot be inside try-catch in C#
+            var chunks = new List<string>();
             await foreach (var update in chatClient.GetStreamingResponseAsync(
                                chatMessages,
                                chatOptions,
@@ -488,8 +548,14 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
                 if (!string.IsNullOrEmpty(update.Text))
                 {
                     fullResponse.Append(update.Text);
-                    yield return update.Text;
+                    chunks.Add(update.Text);
                 }
+            }
+
+            // Yield chunks outside of try-catch
+            foreach (var chunk in chunks)
+            {
+                yield return chunk;
             }
 
             var duration = DateTime.UtcNow - startTime;
@@ -510,6 +576,9 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
             _logger?.LogInformation(
                 "Agent {AgentId} ({AgentName}) streaming completed with {ToolCount} tools using model {Model} in {DurationMs}ms",
                 agentId, agentEntity.Name, tools.Count, modelId, duration.TotalMilliseconds);
+
+            // Record success in circuit breaker (fire and forget to avoid issues in iterator)
+            _ = _circuitBreaker.RecordSuccessAsync(modelId, CancellationToken.None);
 
             // Record Prometheus metrics for successful agent streaming
             metricsStopwatch.Stop();
@@ -589,5 +658,39 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
 
         var messagesHash = string.Join("|", messages.Take(3).Select(m => m.Content)).GetHashCode();
         return $"auto-{Math.Abs(messagesHash)}";
+    }
+
+    /// <summary>
+    /// Classifies an HTTP exception into a circuit breaker failure type.
+    /// </summary>
+    private static ModelFailureType ClassifyHttpFailure(HttpRequestException ex)
+    {
+        // Check for rate limiting (429 Too Many Requests)
+        if (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+        {
+            return ModelFailureType.RateLimit;
+        }
+
+        // Check for service unavailable (503)
+        if (ex.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+        {
+            return ModelFailureType.Unavailable;
+        }
+
+        // Check for timeout-related messages
+        if (ex.Message.Contains("timeout", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("timed out", StringComparison.OrdinalIgnoreCase))
+        {
+            return ModelFailureType.Timeout;
+        }
+
+        // Check for deprecated model errors
+        if (ex.Message.Contains("deprecated", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+        {
+            return ModelFailureType.Deprecated;
+        }
+
+        return ModelFailureType.ApiError;
     }
 }

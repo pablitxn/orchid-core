@@ -2,12 +2,14 @@ using System.Diagnostics;
 using System.Security.Claims;
 using System.Text;
 using Application.Interfaces;
+using Application.Models;
 using Application.UseCases.Agent.VerifyAgentAccess;
 using Application.UseCases.ChatV2.Common;
 using Application.UseCases.ChatV2.ListMessages;
 using Application.UseCases.ChatV2.SendMessage;
 using Application.UseCases.ChatV2.ToggleReaction;
 using Application.UseCases.Subscription.ConsumeCredits;
+using Domain.Enums;
 using Domain.Exceptions;
 using Infrastructure.Telemetry;
 using MediatR;
@@ -23,6 +25,7 @@ namespace WebApi.Hubs;
 /// <summary>
 /// SignalR Hub V2 for chat streaming with enhanced message structure, artifacts, and reactions.
 /// This is a separate hub from ChatHub to avoid breaking changes.
+/// Supports automatic model degradation when user has insufficient credits.
 /// </summary>
 [Authorize]
 public sealed class ChatHubV2(
@@ -36,7 +39,10 @@ public sealed class ChatHubV2(
     IOptions<CreditSystemConfiguration> creditConfig,
     IDistributedLockService distributedLock,
     IRateLimitService rateLimitService,
-    ICreditTrackingService creditTrackingService) : Hub
+    ICreditTrackingService creditTrackingService,
+    IModelResolver modelResolver,
+    ISubscriptionRepository subscriptionRepository,
+    IUserRepository userRepository) : Hub
 {
     private readonly ICacheStore _cache =
         cache ?? throw new ArgumentNullException(nameof(cache));
@@ -70,6 +76,15 @@ public sealed class ChatHubV2(
 
     private readonly ICreditTrackingService _creditTrackingService =
         creditTrackingService ?? throw new ArgumentNullException(nameof(creditTrackingService));
+
+    private readonly IModelResolver _modelResolver =
+        modelResolver ?? throw new ArgumentNullException(nameof(modelResolver));
+
+    private readonly ISubscriptionRepository _subscriptionRepository =
+        subscriptionRepository ?? throw new ArgumentNullException(nameof(subscriptionRepository));
+
+    private readonly IUserRepository _userRepository =
+        userRepository ?? throw new ArgumentNullException(nameof(userRepository));
 
     #region Connection Lifecycle
 
@@ -162,11 +177,47 @@ public sealed class ChatHubV2(
             return;
         }
 
-        // Calculate credits
-        var credits = _creditConfig.MinimumCreditsPerMessage;
+        // Get user's subscription and preferences for credit-aware model resolution
+        var subscription = await _subscriptionRepository.GetByUserIdAsync(userId, Context.ConnectionAborted);
+        if (subscription == null)
+        {
+            RecordMetrics("subscription_not_found");
+            await SendErrorAsync("SubscriptionNotFound", _localizer["SubscriptionNotFound"]);
+            return;
+        }
+
+        var user = await _userRepository.GetByIdAsync(userId, Context.ConnectionAborted);
+        var allowDegradation = user?.AllowAutoDegradation ?? true;
+        var availableCredits = subscription.Credits;
         var tokens = _tokenCounter.CountTokens(request.Content);
-        credits = Math.Max(_creditConfig.MinimumCreditsPerMessage,
-            (int)Math.Ceiling((double)tokens / _creditConfig.TokensPerCredit));
+
+        // Pre-resolve the model considering available credits
+        // This allows us to degrade to a cheaper model if the user can't afford the preferred one
+        var resolutionContext = agentId.HasValue
+            ? ModelResolutionContext.ForAgent(agentId.Value, userId) with { AllowAutoDegradation = allowDegradation }
+            : ModelResolutionContext.ForUser(userId) with { AllowAutoDegradation = allowDegradation };
+
+        var modelResolution = await _modelResolver.ResolveAffordableModelAsync(
+            resolutionContext,
+            availableCredits,
+            tokens,
+            Context.ConnectionAborted);
+
+        // Use the estimated cost from model resolution, or fallback to minimum
+        var credits = modelResolution.EstimatedCreditCost ?? _creditConfig.MinimumCreditsPerMessage;
+
+        // Notify user if model was degraded due to insufficient credits
+        if (modelResolution.IsDegraded)
+        {
+            await Clients.Caller.SendAsync("ModelDegraded", new
+            {
+                originalModel = modelResolution.OriginalModelId,
+                currentModel = modelResolution.ModelId,
+                reason = modelResolution.DegradationReason?.ToString(),
+                message = GetDegradationMessage(modelResolution.DegradationReason),
+                timestamp = DateTime.UtcNow
+            }, Context.ConnectionAborted);
+        }
 
         try
         {
@@ -180,6 +231,7 @@ public sealed class ChatHubV2(
         }
         catch (InsufficientCreditsException)
         {
+            // Even the cheapest model is too expensive
             RecordMetrics("insufficient_credits");
             await SendErrorAsync("InsufficientCredits", _localizer["InsufficientCredits"]);
             return;
@@ -433,6 +485,24 @@ public sealed class ChatHubV2(
     {
         await Clients.Caller.SendAsync("Error", new { Code = errorCode, Message = message }, Context.ConnectionAborted);
     }
+
+    /// <summary>
+    /// Gets a user-friendly message explaining why the model was degraded.
+    /// </summary>
+    private static string GetDegradationMessage(ModelDegradationReason? reason) => reason switch
+    {
+        ModelDegradationReason.InsufficientCredits =>
+            "Using a more cost-efficient model due to credit balance.",
+        ModelDegradationReason.RateLimited =>
+            "Temporarily using an alternative model due to high demand.",
+        ModelDegradationReason.Timeout =>
+            "Switched to a faster model for better responsiveness.",
+        ModelDegradationReason.CircuitOpen =>
+            "Using an alternative model while primary recovers.",
+        ModelDegradationReason.ModelUnavailable =>
+            "Using an alternative model as the preferred model is temporarily unavailable.",
+        _ => "Using an alternative AI model."
+    };
 
     #endregion
 }

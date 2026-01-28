@@ -13,6 +13,7 @@ public static class ServiceCollectionExtensions
         // Register SignalR adapters
         services.AddScoped<ICreditNotificationPort, SignalRCreditNotificationAdapter>();
         services.AddScoped<IRealtimeNotificationPort, SignalRNotificationAdapter>();
+        services.AddScoped<IModelDegradationNotificationPort, SignalRModelDegradationAdapter>();
         return services;
     }
 }

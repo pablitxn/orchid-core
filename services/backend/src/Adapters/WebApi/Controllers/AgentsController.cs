@@ -1,9 +1,12 @@
+using Application.UseCases.Agent.AddPluginToAgent;
 using Application.UseCases.Agent.CreateAgent;
+using Application.UseCases.Agent.GetAgentPlugins;
 using Application.UseCases.Agent.GetAgentRatings;
 using Application.UseCases.Agent.ListAgents;
 using Application.UseCases.Agent.ListRecycleBinAgents;
 using Application.UseCases.Agent.PermanentDeleteAgent;
 using Application.UseCases.Agent.RateAgent;
+using Application.UseCases.Agent.RemovePluginFromAgent;
 using Application.UseCases.Agent.RestoreAgent;
 using Application.UseCases.Agent.SoftDeleteAgent;
 using Application.UseCases.Agent.UpdateAgent;
@@ -251,5 +254,77 @@ public class AgentsController(IMediator mediator) : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Get all plugins enabled for an agent
+    /// </summary>
+    [HttpGet("{id:guid}/plugins")]
+    [Authorize]
+    public async Task<IActionResult> GetAgentPlugins(Guid id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+        {
+            return Unauthorized("Invalid user identity");
+        }
+
+        var query = new GetAgentPluginsQuery(id, userGuid);
+        var result = await _mediator.Send(query);
+
+        if (!result.Success)
+        {
+            return BadRequest(new { error = result.ErrorMessage });
+        }
+
+        return Ok(result.Plugins);
+    }
+
+    /// <summary>
+    /// Enable a plugin for an agent
+    /// </summary>
+    [HttpPost("{agentId:guid}/plugins/{pluginId:guid}/enable")]
+    [Authorize]
+    public async Task<IActionResult> EnablePluginForAgent(Guid agentId, Guid pluginId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+        {
+            return Unauthorized("Invalid user identity");
+        }
+
+        var command = new AddPluginToAgentCommand(userGuid, agentId, pluginId);
+        var result = await _mediator.Send(command);
+
+        if (!result.Success)
+        {
+            return BadRequest(new { error = result.ErrorMessage });
+        }
+
+        return Ok(new { message = "Plugin enabled for agent successfully" });
+    }
+
+    /// <summary>
+    /// Disable a plugin for an agent
+    /// </summary>
+    [HttpDelete("{agentId:guid}/plugins/{pluginId:guid}/disable")]
+    [Authorize]
+    public async Task<IActionResult> DisablePluginForAgent(Guid agentId, Guid pluginId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+        {
+            return Unauthorized("Invalid user identity");
+        }
+
+        var command = new RemovePluginFromAgentCommand(userGuid, agentId, pluginId);
+        var result = await _mediator.Send(command);
+
+        if (!result.Success)
+        {
+            return BadRequest(new { error = result.ErrorMessage });
+        }
+
+        return Ok(new { message = "Plugin disabled for agent successfully" });
     }
 }

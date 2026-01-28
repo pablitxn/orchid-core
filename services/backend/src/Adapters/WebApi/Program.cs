@@ -814,12 +814,16 @@ app.UseCors("MyPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Only apply AuthorizationMiddleware on the main API port (8080)
+// Only apply AuthorizationMiddleware and MfaEnforcementMiddleware on the main API port (8080)
 // Management port (9090) is for internal observability tools (Prometheus, k8s probes)
 var mainPort = app.Configuration.GetValue<int>("Ports:Main", 8080);
 app.UseWhen(
     context => context.Connection.LocalPort == mainPort,
-    appBuilder => appBuilder.UseMiddleware<AuthorizationMiddleware>()
+    appBuilder =>
+    {
+        appBuilder.UseMiddleware<AuthorizationMiddleware>();
+        appBuilder.UseMiddleware<MfaEnforcementMiddleware>();
+    }
 );
 
 #endregion

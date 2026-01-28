@@ -80,6 +80,15 @@ public class ApplicationDbContext(
     public DbSet<MatrixLinkCodeEntity> MatrixLinkCodes { get; set; }
     public DbSet<CreditPackageEntity> CreditPackages { get; set; }
     public DbSet<CreditPurchaseEntity> CreditPurchases { get; set; }
+    public DbSet<WorkspaceEntity> Workspaces { get; set; }
+    public DbSet<WorkspaceMemberEntity> WorkspaceMembers { get; set; }
+    public DbSet<WorkspaceSubscriptionEntity> WorkspaceSubscriptions { get; set; }
+    public DbSet<PluginReviewEntity> PluginReviews { get; set; }
+    public DbSet<PluginReviewFlagEntity> PluginReviewFlags { get; set; }
+    public DbSet<PluginReviewHelpfulVoteEntity> PluginReviewHelpfulVotes { get; set; }
+    public DbSet<UserSocialIdentityEntity> UserSocialIdentities { get; set; }
+    public DbSet<PublisherEntity> Publishers { get; set; }
+    public DbSet<PluginSubmissionEntity> PluginSubmissions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -113,6 +122,32 @@ public class ApplicationDbContext(
             .HasIndex(u => u.Auth0UserId)
             .IsUnique()
             .HasFilter("\"Auth0UserId\" IS NOT NULL");
+
+        // Model preference for user-level defaults
+        modelBuilder.Entity<UserEntity>()
+            .Property(u => u.ModelPreference)
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
+        // Auth0 migration status fields
+        modelBuilder.Entity<UserEntity>()
+            .Property(u => u.Auth0MigrationStatus)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(Auth0MigrationStatus.NotMigrated);
+        modelBuilder.Entity<UserEntity>()
+            .Property(u => u.Auth0MigratedAt)
+            .HasColumnType("timestamp with time zone");
+        modelBuilder.Entity<UserEntity>()
+            .Property(u => u.Auth0MigrationError)
+            .HasMaxLength(1000);
+        modelBuilder.Entity<UserEntity>()
+            .HasIndex(u => u.Auth0MigrationStatus);
+
+        // AllowAutoDegradation preference for automatic model fallback
+        modelBuilder.Entity<UserEntity>()
+            .Property(u => u.AllowAutoDegradation)
+            .HasDefaultValue(true);
 
         modelBuilder.Entity<ProjectEntity>()
             .HasOne(p => p.AudioFile)
@@ -287,6 +322,10 @@ public class ApplicationDbContext(
             b.Property(a => a.PersonalityTemplateId);
             b.Property(a => a.Language);
             b.Property(a => a.Model).HasMaxLength(100);
+            b.Property(a => a.FallbackModel).HasMaxLength(100);
+            b.Property(a => a.ModelPreference)
+                .HasConversion<string>()
+                .HasMaxLength(20);
             b.Property(a => a.PluginIds).HasColumnType("uuid[]");
             b.Property(a => a.UserId);
             b.Property(a => a.IsPublic).IsRequired().HasDefaultValue(false);
@@ -370,6 +409,13 @@ public class ApplicationDbContext(
             b.Property(p => p.Version).HasMaxLength(50);
             b.Property(p => p.Compatibility).HasMaxLength(200);
 
+            // Publisher association
+            b.Property(p => p.PublisherId);
+            b.HasOne(p => p.Publisher)
+                .WithMany(pub => pub.Plugins)
+                .HasForeignKey(p => p.PublisherId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             // Indexes for filtering
             b.HasIndex(p => p.PluginType);
             b.HasIndex(p => p.Category);
@@ -377,6 +423,7 @@ public class ApplicationDbContext(
             b.HasIndex(p => p.InstallCount);
             b.HasIndex(p => p.IsFeatured);
             b.HasIndex(p => p.IsPublic);
+            b.HasIndex(p => p.PublisherId);
         });
 
         modelBuilder.Entity<WorkflowEntity>(b =>
@@ -441,6 +488,7 @@ public class ApplicationDbContext(
             b.Property(up => up.PurchasedAt).HasColumnType("timestamp with time zone");
             b.Property(up => up.ExpiresAt).HasColumnType("timestamp with time zone");
             b.Property(up => up.IsActive).IsRequired();
+            b.Property(up => up.Settings).HasColumnType("jsonb");
             b.HasIndex(up => new { up.UserId, up.PluginId }).IsUnique();
             b.HasOne(up => up.User)
                 .WithMany()
@@ -718,6 +766,80 @@ public class ApplicationDbContext(
             b.HasOne(r => r.User)
                 .WithMany()
                 .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map plugin review entity
+        modelBuilder.Entity<PluginReviewEntity>(b =>
+        {
+            b.ToTable("PluginReviews");
+            b.HasKey(r => r.Id);
+            b.Property(r => r.PluginId).IsRequired();
+            b.Property(r => r.UserId).IsRequired();
+            b.Property(r => r.Rating).IsRequired();
+            b.Property(r => r.Title).HasMaxLength(100);
+            b.Property(r => r.Body).HasMaxLength(2000);
+            b.Property(r => r.HelpfulCount).IsRequired().HasDefaultValue(0);
+            b.Property(r => r.IsVerified).IsRequired().HasDefaultValue(false);
+            b.Property(r => r.IsDeleted).IsRequired().HasDefaultValue(false);
+            b.Property(r => r.DeletedAt).HasColumnType("timestamp with time zone");
+            b.Property(r => r.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(r => r.UpdatedAt).HasColumnType("timestamp with time zone");
+            // Unique constraint: one review per user per plugin
+            b.HasIndex(r => new { r.PluginId, r.UserId }).IsUnique();
+            // Index for efficient queries by plugin
+            b.HasIndex(r => r.PluginId);
+            // Index for soft delete filtering
+            b.HasIndex(r => r.IsDeleted);
+            b.HasOne(r => r.Plugin)
+                .WithMany()
+                .HasForeignKey(r => r.PluginId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map plugin review flag entity
+        modelBuilder.Entity<PluginReviewFlagEntity>(b =>
+        {
+            b.ToTable("PluginReviewFlags");
+            b.HasKey(f => f.Id);
+            b.Property(f => f.ReviewId).IsRequired();
+            b.Property(f => f.UserId).IsRequired();
+            b.Property(f => f.Reason).IsRequired().HasMaxLength(100);
+            b.Property(f => f.Details).HasMaxLength(1000);
+            b.Property(f => f.CreatedAt).HasColumnType("timestamp with time zone");
+            // Unique constraint: one flag per user per review
+            b.HasIndex(f => new { f.ReviewId, f.UserId }).IsUnique();
+            b.HasOne(f => f.Review)
+                .WithMany()
+                .HasForeignKey(f => f.ReviewId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(f => f.User)
+                .WithMany()
+                .HasForeignKey(f => f.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map plugin review helpful vote entity
+        modelBuilder.Entity<PluginReviewHelpfulVoteEntity>(b =>
+        {
+            b.ToTable("PluginReviewHelpfulVotes");
+            b.HasKey(v => v.Id);
+            b.Property(v => v.ReviewId).IsRequired();
+            b.Property(v => v.UserId).IsRequired();
+            b.Property(v => v.CreatedAt).HasColumnType("timestamp with time zone");
+            // Unique constraint: one vote per user per review
+            b.HasIndex(v => new { v.ReviewId, v.UserId }).IsUnique();
+            b.HasOne(v => v.Review)
+                .WithMany()
+                .HasForeignKey(v => v.ReviewId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(v => v.User)
+                .WithMany()
+                .HasForeignKey(v => v.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -1049,6 +1171,220 @@ public class ApplicationDbContext(
                 .WithMany()
                 .HasForeignKey(p => p.CreditPackageId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Map Workspace entity
+        modelBuilder.Entity<WorkspaceEntity>(b =>
+        {
+            b.ToTable("Workspaces");
+            b.HasKey(w => w.Id);
+            b.Property(w => w.Name).IsRequired().HasMaxLength(200);
+            b.Property(w => w.Description).HasMaxLength(1000);
+            b.Property(w => w.AvatarUrl).HasMaxLength(500);
+            b.Property(w => w.Slug).IsRequired().HasMaxLength(100);
+            b.Property(w => w.OwnerId).IsRequired();
+            b.Property(w => w.IsPersonal).IsRequired().HasDefaultValue(false);
+            b.Property(w => w.DeletedAt).HasColumnType("timestamp with time zone");
+            b.Property(w => w.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(w => w.UpdatedAt).HasColumnType("timestamp with time zone");
+
+            // Unique slug constraint
+            b.HasIndex(w => w.Slug).IsUnique();
+
+            // Index for user's workspaces query
+            b.HasIndex(w => w.OwnerId);
+
+            // Soft delete filter
+            b.HasIndex(w => w.DeletedAt);
+
+            // Relationship with Owner
+            b.HasOne(w => w.Owner)
+                .WithMany()
+                .HasForeignKey(w => w.OwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Map WorkspaceMember entity
+        modelBuilder.Entity<WorkspaceMemberEntity>(b =>
+        {
+            b.ToTable("WorkspaceMembers");
+            b.HasKey(m => m.Id);
+            b.Property(m => m.WorkspaceId).IsRequired();
+            b.Property(m => m.UserId).IsRequired();
+            b.Property(m => m.Role)
+                .HasConversion<int>()
+                .IsRequired();
+            b.Property(m => m.JoinedAt).HasColumnType("timestamp with time zone");
+            b.Property(m => m.LeftAt).HasColumnType("timestamp with time zone");
+
+            // Unique constraint: user can only be member once per workspace
+            b.HasIndex(m => new { m.WorkspaceId, m.UserId }).IsUnique();
+
+            // Index for user's memberships query
+            b.HasIndex(m => m.UserId);
+
+            // Relationships
+            b.HasOne(m => m.Workspace)
+                .WithMany(w => w.Members)
+                .HasForeignKey(m => m.WorkspaceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(m => m.User)
+                .WithMany()
+                .HasForeignKey(m => m.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(m => m.InvitedBy)
+                .WithMany()
+                .HasForeignKey(m => m.InvitedById)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Map WorkspaceSubscription entity
+        modelBuilder.Entity<WorkspaceSubscriptionEntity>(b =>
+        {
+            b.ToTable("WorkspaceSubscriptions");
+            b.HasKey(s => s.Id);
+            b.Property(s => s.WorkspaceId).IsRequired();
+            b.Property(s => s.Credits).IsRequired();
+            b.Property(s => s.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(s => s.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.Property(s => s.ExpiresAt).HasColumnType("timestamp with time zone");
+            b.Property(s => s.AutoRenew).HasDefaultValue(true);
+            b.Property(s => s.Version)
+                .IsConcurrencyToken()
+                .HasDefaultValue(0);
+            b.Property(s => s.StripeCustomerId).HasMaxLength(100);
+            b.Property(s => s.StripeSubscriptionId).HasMaxLength(100);
+            b.Property(s => s.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasDefaultValue(SubscriptionStatus.Incomplete);
+            b.Property(s => s.CurrentPeriodStart).HasColumnType("timestamp with time zone");
+            b.Property(s => s.CurrentPeriodEnd).HasColumnType("timestamp with time zone");
+            b.Property(s => s.CancelAtPeriodEnd).HasDefaultValue(false);
+            b.Property(s => s.CanceledAt).HasColumnType("timestamp with time zone");
+            b.Property(s => s.TrialEndsAt).HasColumnType("timestamp with time zone");
+
+            b.HasIndex(s => s.StripeCustomerId);
+            b.HasIndex(s => s.StripeSubscriptionId);
+
+            b.HasOne(s => s.Workspace)
+                .WithOne()
+                .HasForeignKey<WorkspaceSubscriptionEntity>(s => s.WorkspaceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(s => s.SubscriptionPlan)
+                .WithMany()
+                .HasForeignKey(s => s.SubscriptionPlanId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Map UserSocialIdentity entity
+        modelBuilder.Entity<UserSocialIdentityEntity>(b =>
+        {
+            b.ToTable("UserSocialIdentities");
+            b.HasKey(i => i.Id);
+            b.Property(i => i.UserId).IsRequired();
+            b.Property(i => i.Provider).IsRequired().HasMaxLength(50);
+            b.Property(i => i.ProviderUserId).IsRequired().HasMaxLength(255);
+            b.Property(i => i.Email).HasMaxLength(255);
+            b.Property(i => i.DisplayName).HasMaxLength(200);
+            b.Property(i => i.AvatarUrl).HasMaxLength(500);
+            b.Property(i => i.IsPrimary).IsRequired();
+            b.Property(i => i.LinkedAt).HasColumnType("timestamp with time zone");
+            b.Property(i => i.LastUsedAt).HasColumnType("timestamp with time zone");
+            b.Property(i => i.UnlinkedAt).HasColumnType("timestamp with time zone");
+
+            // Unique constraint: one provider per user (for active identities)
+            b.HasIndex(i => new { i.UserId, i.Provider })
+                .IsUnique()
+                .HasFilter("\"UnlinkedAt\" IS NULL");
+
+            // Unique constraint: provider user ID (for active identities)
+            b.HasIndex(i => new { i.Provider, i.ProviderUserId })
+                .IsUnique()
+                .HasFilter("\"UnlinkedAt\" IS NULL");
+
+            // Index for user lookups
+            b.HasIndex(i => i.UserId);
+
+            // Relationship with User
+            b.HasOne(i => i.User)
+                .WithMany()
+                .HasForeignKey(i => i.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map Publisher entity
+        modelBuilder.Entity<PublisherEntity>(b =>
+        {
+            b.ToTable("Publishers");
+            b.HasKey(p => p.Id);
+            b.Property(p => p.UserId).IsRequired();
+            b.Property(p => p.Name).IsRequired().HasMaxLength(200);
+            b.Property(p => p.Bio).HasMaxLength(2000);
+            b.Property(p => p.WebsiteUrl).HasMaxLength(500);
+            b.Property(p => p.LogoUrl).HasMaxLength(500);
+            b.Property(p => p.SupportEmail).HasMaxLength(255);
+            b.Property(p => p.IsVerified).IsRequired().HasDefaultValue(false);
+            b.Property(p => p.VerifiedAt).HasColumnType("timestamp with time zone");
+            b.Property(p => p.Status)
+                .HasConversion<int>()
+                .IsRequired()
+                .HasDefaultValue(PublisherStatus.Pending);
+            b.Property(p => p.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(p => p.UpdatedAt).HasColumnType("timestamp with time zone");
+
+            // Unique constraint: one publisher per user
+            b.HasIndex(p => p.UserId).IsUnique();
+
+            // Relationship with User
+            b.HasOne(p => p.User)
+                .WithMany()
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Map PluginSubmission entity
+        modelBuilder.Entity<PluginSubmissionEntity>(b =>
+        {
+            b.ToTable("PluginSubmissions");
+            b.HasKey(s => s.Id);
+            b.Property(s => s.PublisherId).IsRequired();
+            b.Property(s => s.PluginId);
+            b.Property(s => s.Name).IsRequired().HasMaxLength(200);
+            b.Property(s => s.Slug).IsRequired().HasMaxLength(100);
+            b.Property(s => s.ShortDescription).IsRequired().HasMaxLength(500);
+            b.Property(s => s.FullDescription);
+            b.Property(s => s.Category).IsRequired().HasMaxLength(100);
+            b.Property(s => s.Tags).HasMaxLength(500);
+            b.Property(s => s.Version).IsRequired().HasMaxLength(50);
+            b.Property(s => s.ManifestUrl).HasMaxLength(500);
+            b.Property(s => s.RepositoryUrl).HasMaxLength(500);
+            b.Property(s => s.Compatibility).HasMaxLength(500);
+            b.Property(s => s.Status)
+                .HasConversion<int>()
+                .IsRequired()
+                .HasDefaultValue(SubmissionStatus.Pending);
+            b.Property(s => s.ReviewedBy);
+            b.Property(s => s.ReviewNotes).HasMaxLength(2000);
+            b.Property(s => s.ReviewedAt).HasColumnType("timestamp with time zone");
+            b.Property(s => s.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(s => s.UpdatedAt).HasColumnType("timestamp with time zone");
+
+            // Indexes
+            b.HasIndex(s => s.PublisherId);
+            b.HasIndex(s => s.PluginId);
+            b.HasIndex(s => s.Status);
+            b.HasIndex(s => s.Slug);
+
+            // Relationships
+            b.HasOne(s => s.Publisher)
+                .WithMany()
+                .HasForeignKey(s => s.PublisherId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(s => s.Plugin)
+                .WithMany()
+                .HasForeignKey(s => s.PluginId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

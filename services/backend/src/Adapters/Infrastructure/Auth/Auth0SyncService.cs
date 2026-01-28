@@ -20,7 +20,8 @@ public class Auth0SyncService(IMediator mediator) : IAuth0SyncService
             userData.Name,
             userData.AvatarUrl,
             userData.Connection,
-            userData.Roles);
+            userData.Roles,
+            Array.Empty<Auth0IdentityDto>());
 
         return await mediator.Send(command, cancellationToken);
     }

@@ -5,6 +5,8 @@ using Core.Application.Interfaces;
 using Google.Cloud.Storage.V1;
 using Infrastructure.Ai.AgentFramework;
 using Infrastructure.Ai.AgentFramework.Services;
+using Orchid.Infrastructure.Ai.AgentFramework;
+using Orchid.Infrastructure.Ai.AgentFramework.Services;
 using Infrastructure.Auth;
 using Infrastructure.Cache;
 using Infrastructure.Persistence;
@@ -70,6 +72,7 @@ public static class InfrastructureServiceCollectionExtensions
         // 2. Register your repositories
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<ISocialIdentityRepository, SocialIdentityRepository>();
         services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
         services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
@@ -77,6 +80,9 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IActionCostRepository, ActionCostRepository>();
         services.AddScoped<IAgentRepository, AgentRepository>();
         services.AddScoped<IAgentRatingRepository, AgentRatingRepository>();
+        services.AddScoped<IPluginReviewRepository, PluginReviewRepository>();
+        services.AddScoped<IPluginReviewFlagRepository, PluginReviewFlagRepository>();
+        services.AddScoped<IPluginReviewHelpfulVoteRepository, PluginReviewHelpfulVoteRepository>();
         services.AddScoped<IPersonalityTemplateRepository, PersonalityTemplateRepository>();
         services.AddScoped<IPluginRepository, PluginRepository>();
         services.AddScoped<IUserPluginRepository, UserPluginRepository>();
@@ -104,6 +110,15 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IServiceAccountRepository, ServiceAccountRepository>();
         services.AddScoped<ICreditPackageRepository, CreditPackageRepository>();
         services.AddScoped<ICreditPurchaseRepository, CreditPurchaseRepository>();
+
+        // ─── Workspace repositories ────────────────────────────────────────────────────
+        services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
+        services.AddScoped<IWorkspaceMemberRepository, WorkspaceMemberRepository>();
+        services.AddScoped<IWorkspaceSubscriptionRepository, WorkspaceSubscriptionRepository>();
+
+        // ─── Publisher repositories ────────────────────────────────────────────────────
+        services.AddScoped<IPublisherRepository, PublisherRepository>();
+        services.AddScoped<IPluginSubmissionRepository, PluginSubmissionRepository>();
 
         // ─── Unit of Work pattern ────────────────────────────────────────────────────
         services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -144,6 +159,20 @@ public static class InfrastructureServiceCollectionExtensions
 
         // ─── Embedding generator: OpenAI embeddings ───────────────────────────────────
         services.AddSingleton<IEmbeddingGeneratorPort, OpenAIEmbeddingGenerator>();
+
+        #endregion
+
+        #region Model Resolution Services
+
+        // ─── Model resolution configuration and service ──────────────────────────────
+        services.Configure<ModelResolutionSettings>(
+            configuration.GetSection(ModelResolutionSettings.SectionName));
+        services.AddScoped<IModelResolver, ModelResolverService>();
+
+        // ─── Circuit breaker for model availability ──────────────────────────────────
+        services.Configure<ModelCircuitBreakerSettings>(
+            configuration.GetSection(ModelCircuitBreakerSettings.SectionName));
+        services.AddSingleton<IModelCircuitBreaker, ModelCircuitBreakerService>();
 
         #endregion
 
@@ -209,6 +238,9 @@ public static class InfrastructureServiceCollectionExtensions
 
         #region Caching Services
 
+        // ─── Always add memory cache (used by IMemoryCache injections) ────────────────
+        services.AddMemoryCache();
+
         // ─── Cache provider (memory or Redis) ────────────────────────────────────────
         var redisConfig = configuration["Redis:Configuration"];
         if (!string.IsNullOrWhiteSpace(redisConfig))
@@ -226,7 +258,6 @@ public static class InfrastructureServiceCollectionExtensions
         }
         else
         {
-            services.AddMemoryCache();
             services.AddSingleton<ICacheStore, InMemoryCacheService>();
 
             // Use in-memory rate limiting when Redis is not available
@@ -301,6 +332,10 @@ public static class InfrastructureServiceCollectionExtensions
 
         // ─── Auth0 user synchronization service ─────────────────────────────────────
         services.AddScoped<IAuth0SyncService, Auth0SyncService>();
+
+        // ─── MFA enforcement configuration ─────────────────────────────────────────────
+        services.Configure<Orchid.Infrastructure.Auth.MfaSettings>(
+            configuration.GetSection(Orchid.Infrastructure.Auth.MfaSettings.SectionName));
 
         #endregion
 

@@ -34,7 +34,10 @@ public static class AgentFrameworkServiceCollectionExtensions
             throw new InvalidOperationException(
                 "OpenAI API key missing. Set OpenAI:ApiKey or the OPENAI_API_KEY env-var.");
 
-        var defaultModel = configuration["OpenAI:Model"] ?? "gpt-5-nano-2025-08-07";
+        // Use ModelResolution settings for fallback, or OpenAI:Model if configured
+        var modelSettings = configuration.GetSection(ModelResolutionSettings.SectionName)
+            .Get<ModelResolutionSettings>() ?? new ModelResolutionSettings();
+        var defaultModel = configuration["OpenAI:Model"] ?? modelSettings.DefaultModel;
 
         // ─── 2. OpenAI Client (singleton, thread-safe) ──────────────────
         services.AddSingleton(_ => new OpenAIClient(apiKey));

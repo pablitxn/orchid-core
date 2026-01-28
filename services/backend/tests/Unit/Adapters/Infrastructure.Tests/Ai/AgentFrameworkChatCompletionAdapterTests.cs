@@ -1,5 +1,7 @@
 using Application.Interfaces;
+using Application.Models;
 using Domain.Entities;
+using Domain.Enums;
 using FluentAssertions;
 using Infrastructure.Ai.AgentFramework;
 using Microsoft.Extensions.AI;
@@ -16,7 +18,10 @@ public class AgentFrameworkChatCompletionAdapterTests
     private readonly Mock<IChatClient> _chatClientMock;
     private readonly Mock<IAgentFactory> _agentFactoryMock;
     private readonly Mock<IAgentRepository> _agentRepositoryMock;
+    private readonly Mock<IModelResolver> _modelResolverMock;
+    private readonly Mock<IModelCircuitBreaker> _circuitBreakerMock;
     private readonly Mock<IEnhancedTelemetryClient> _telemetryMock;
+    private readonly Mock<IModelDegradationNotificationPort> _degradationNotificationMock;
     private readonly Mock<ILogger<AgentFrameworkChatCompletionAdapter>> _loggerMock;
     private readonly Mock<IServiceProvider> _serviceProviderMock;
     private readonly Mock<IAgentToolLoader> _toolLoaderMock;
@@ -38,7 +43,10 @@ public class AgentFrameworkChatCompletionAdapterTests
         _chatClientMock = new Mock<IChatClient>();
         _agentFactoryMock = new Mock<IAgentFactory>();
         _agentRepositoryMock = new Mock<IAgentRepository>();
+        _modelResolverMock = new Mock<IModelResolver>();
+        _circuitBreakerMock = new Mock<IModelCircuitBreaker>();
         _telemetryMock = new Mock<IEnhancedTelemetryClient>();
+        _degradationNotificationMock = new Mock<IModelDegradationNotificationPort>();
         _loggerMock = new Mock<ILogger<AgentFrameworkChatCompletionAdapter>>();
         _serviceProviderMock = new Mock<IServiceProvider>();
         _toolLoaderMock = new Mock<IAgentToolLoader>();
@@ -47,12 +55,28 @@ public class AgentFrameworkChatCompletionAdapterTests
             .Setup(sp => sp.GetService(typeof(IAgentToolLoader)))
             .Returns(_toolLoaderMock.Object);
 
+        // Default model resolver setup
+        _modelResolverMock
+            .Setup(r => r.GetSystemDefault())
+            .Returns("gpt-5-nano-2025-08-07");
+        _modelResolverMock
+            .Setup(r => r.ResolveAsync(It.IsAny<ModelResolutionContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ModelResolutionResult { ModelId = "gpt-5-nano-2025-08-07", Source = ModelResolutionSource.SystemDefault });
+
+        // Default circuit breaker setup - circuit is closed
+        _circuitBreakerMock
+            .Setup(cb => cb.IsCircuitOpenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
         _adapter = new AgentFrameworkChatCompletionAdapter(
             _chatClientMock.Object,
             _agentFactoryMock.Object,
             _agentRepositoryMock.Object,
+            _modelResolverMock.Object,
+            _circuitBreakerMock.Object,
             _serviceProviderMock.Object,
             _telemetryMock.Object,
+            _degradationNotificationMock.Object,
             _loggerMock.Object);
     }
 
@@ -205,6 +229,11 @@ public class AgentFrameworkChatCompletionAdapterTests
         _toolLoaderMock
             .Setup(t => t.LoadAgentToolsAsync(agentId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<AIFunction>());
+
+        // Set up model resolver to return the agent's custom model
+        _modelResolverMock
+            .Setup(r => r.ResolveAsync(It.Is<ModelResolutionContext>(c => c.AgentId == agentId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ModelResolutionResult { ModelId = customModel, Source = ModelResolutionSource.AgentConfiguration });
 
         var mockChatClient = new Mock<IChatClient>();
         var chatResponse = CreateChatResponse("Custom model response");
@@ -396,6 +425,11 @@ public class AgentFrameworkChatCompletionAdapterTests
             .Setup(t => t.LoadAgentToolsAsync(agentId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<AIFunction>());
 
+        // Set up model resolver to return the agent's custom model
+        _modelResolverMock
+            .Setup(r => r.ResolveAsync(It.Is<ModelResolutionContext>(c => c.AgentId == agentId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ModelResolutionResult { ModelId = agentEntity.Model!, Source = ModelResolutionSource.AgentConfiguration });
+
         var mockChatClient = new Mock<IChatClient>();
         var chatResponse = CreateChatResponse("Response");
 
@@ -516,8 +550,11 @@ public class AgentFrameworkChatCompletionAdapterTests
             null!,
             _agentFactoryMock.Object,
             _agentRepositoryMock.Object,
+            _modelResolverMock.Object,
+            _circuitBreakerMock.Object,
             _serviceProviderMock.Object,
             _telemetryMock.Object,
+            _degradationNotificationMock.Object,
             _loggerMock.Object));
     }
 
@@ -529,8 +566,11 @@ public class AgentFrameworkChatCompletionAdapterTests
             _chatClientMock.Object,
             null!,
             _agentRepositoryMock.Object,
+            _modelResolverMock.Object,
+            _circuitBreakerMock.Object,
             _serviceProviderMock.Object,
             _telemetryMock.Object,
+            _degradationNotificationMock.Object,
             _loggerMock.Object));
     }
 
@@ -542,8 +582,11 @@ public class AgentFrameworkChatCompletionAdapterTests
             _chatClientMock.Object,
             _agentFactoryMock.Object,
             null!,
+            _modelResolverMock.Object,
+            _circuitBreakerMock.Object,
             _serviceProviderMock.Object,
             _telemetryMock.Object,
+            _degradationNotificationMock.Object,
             _loggerMock.Object));
     }
 
@@ -555,8 +598,11 @@ public class AgentFrameworkChatCompletionAdapterTests
             _chatClientMock.Object,
             _agentFactoryMock.Object,
             _agentRepositoryMock.Object,
+            _modelResolverMock.Object,
+            _circuitBreakerMock.Object,
             null!,
             _telemetryMock.Object,
+            _degradationNotificationMock.Object,
             _loggerMock.Object));
     }
 
@@ -635,8 +681,11 @@ public class AgentFrameworkChatCompletionAdapterTests
             _chatClientMock.Object,
             _agentFactoryMock.Object,
             _agentRepositoryMock.Object,
+            _modelResolverMock.Object,
+            _circuitBreakerMock.Object,
             serviceProviderNoTools.Object,
             _telemetryMock.Object,
+            _degradationNotificationMock.Object,
             _loggerMock.Object);
 
         var agentId = Guid.NewGuid();

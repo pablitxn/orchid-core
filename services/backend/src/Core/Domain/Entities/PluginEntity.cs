@@ -33,6 +33,10 @@ public class PluginEntity
     public string? Version { get; set; }
     public string? Compatibility { get; set; } // e.g., "all" or specific agent types
 
+    // Publisher association
+    public Guid? PublisherId { get; set; }
+    public PublisherEntity? Publisher { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

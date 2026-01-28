@@ -63,13 +63,40 @@ public class Auth0WebhookController(
             // Extract connection from identities
             var connection = webhookData.User.Identities?.FirstOrDefault()?.Connection;
 
+            // Extract all identities for social login tracking
+            var identities = webhookData.User.Identities?
+                .Where(i => !string.IsNullOrEmpty(i.Provider) && !string.IsNullOrEmpty(i.UserId))
+                .Select(i => new Auth0IdentityDto(
+                    i.Provider!,
+                    i.UserId!,
+                    webhookData.User.Email,
+                    webhookData.User.Name))
+                .ToList() ?? new List<Auth0IdentityDto>();
+
+            // Extract MFA status from Auth0
+            Auth0MfaDto? mfa = null;
+            if (webhookData.User.Multifactor != null && webhookData.User.Multifactor.Length > 0)
+            {
+                // User has MFA enrolled - take first method as primary
+                mfa = new Auth0MfaDto(
+                    Enabled: true,
+                    Method: webhookData.User.Multifactor.FirstOrDefault());
+            }
+            else if (webhookData.User.MultifactorAuthenticated == true)
+            {
+                // MFA was used but we don't have method details
+                mfa = new Auth0MfaDto(Enabled: true, Method: null);
+            }
+
             var result = await mediator.Send(new SyncAuth0UserCommand(
                 webhookData.User.UserId,
                 webhookData.User.Email,
                 webhookData.User.Name,
                 webhookData.User.Picture,
                 connection,
-                roles), cancellationToken);
+                roles,
+                identities,
+                mfa), cancellationToken);
 
             logger.LogInformation(
                 "Auth0 post-login webhook processed. UserId: {UserId}, IsNew: {IsNew}, Linked: {Linked}",
@@ -126,6 +153,16 @@ public record Auth0WebhookUser
     public string[]? Permissions { get; init; }
     public string[]? Roles { get; init; }
     public Auth0Identity[]? Identities { get; init; }
+
+    /// <summary>
+    /// MFA methods enrolled by the user (e.g., "totp", "sms", "push-notification").
+    /// </summary>
+    public string[]? Multifactor { get; init; }
+
+    /// <summary>
+    /// Whether MFA was used in this authentication.
+    /// </summary>
+    public bool? MultifactorAuthenticated { get; init; }
 }
 
 /// <summary>

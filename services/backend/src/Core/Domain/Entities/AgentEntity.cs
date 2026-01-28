@@ -1,4 +1,5 @@
 using Core.Domain.Entities;
+using Domain.Enums;
 
 namespace Domain.Entities;
 
@@ -24,6 +25,18 @@ public class AgentEntity
     /// Optional model override for this agent. If null, the default model is used.
     /// </summary>
     public string? Model { get; set; }
+
+    /// <summary>
+    /// Fallback model to use when the primary model is unavailable.
+    /// </summary>
+    public string? FallbackModel { get; set; }
+
+    /// <summary>
+    /// Model selection preference. When set, the system will choose
+    /// an appropriate model from the catalog based on this preference.
+    /// Takes precedence over FallbackModel but not over direct Model configuration.
+    /// </summary>
+    public ModelPreference? ModelPreference { get; set; }
 
     public Guid[] PluginIds { get; set; } = [];
 

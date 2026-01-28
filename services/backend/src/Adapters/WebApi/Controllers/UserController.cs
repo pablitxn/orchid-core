@@ -1,4 +1,5 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
+using Application.UseCases.User.GetMfaStatus;
 using Application.UseCases.User.GetUser;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -30,6 +31,29 @@ public class UserController(IMediator mediator) : ControllerBase
             result.Id,
             result.Email,
             result.Name
+        });
+    }
+
+    /// <summary>
+    /// Gets the MFA status for the authenticated user.
+    /// </summary>
+    [HttpGet("mfa")]
+    public async Task<IActionResult> GetMfaStatus()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            return Unauthorized();
+
+        var result = await _mediator.Send(new GetMfaStatusQuery(userId));
+
+        return Ok(new
+        {
+            result.Enabled,
+            result.Method,
+            result.EnrolledAt,
+            result.LastVerifiedAt
         });
     }
 }

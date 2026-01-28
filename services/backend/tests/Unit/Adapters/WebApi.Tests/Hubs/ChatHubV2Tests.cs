@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Application.Interfaces;
+using Application.Models;
 using Application.UseCases.Agent.VerifyAgentAccess;
 using Application.UseCases.ChatV2.Common;
 using Application.UseCases.ChatV2.ListMessages;
@@ -7,6 +8,7 @@ using Application.UseCases.ChatV2.SendMessage;
 using Application.UseCases.ChatV2.ToggleReaction;
 using Application.UseCases.Subscription.ConsumeCredits;
 using Domain.Entities;
+using Domain.Enums;
 using Domain.Exceptions;
 using FluentAssertions;
 using MediatR;
@@ -34,6 +36,9 @@ public class ChatHubV2Tests
     private readonly Mock<IDistributedLockService> _distributedLockMock;
     private readonly Mock<IRateLimitService> _rateLimitServiceMock;
     private readonly Mock<ICreditTrackingService> _creditTrackingServiceMock;
+    private readonly Mock<IModelResolver> _modelResolverMock;
+    private readonly Mock<ISubscriptionRepository> _subscriptionRepositoryMock;
+    private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly Mock<IHubCallerClients> _mockClients;
     private readonly Mock<HubCallerContext> _mockContext;
     private readonly Mock<ISingleClientProxy> _mockCaller;
@@ -54,6 +59,9 @@ public class ChatHubV2Tests
         _distributedLockMock = new Mock<IDistributedLockService>();
         _rateLimitServiceMock = new Mock<IRateLimitService>();
         _creditTrackingServiceMock = new Mock<ICreditTrackingService>();
+        _modelResolverMock = new Mock<IModelResolver>();
+        _subscriptionRepositoryMock = new Mock<ISubscriptionRepository>();
+        _userRepositoryMock = new Mock<IUserRepository>();
         _mockClients = new Mock<IHubCallerClients>();
         _mockContext = new Mock<HubCallerContext>();
         _mockCaller = new Mock<ISingleClientProxy>();
@@ -83,6 +91,30 @@ public class ChatHubV2Tests
         SetupLocalizer("MissingPlugins", "Missing plugins");
         SetupLocalizer("AiError", "AI error: {0}");
 
+        // Default model resolver setup
+        _modelResolverMock
+            .Setup(r => r.ResolveAffordableModelAsync(
+                It.IsAny<ModelResolutionContext>(),
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ModelResolutionResult
+            {
+                ModelId = "gpt-5-nano-2025-08-07",
+                Source = ModelResolutionSource.SystemDefault,
+                EstimatedCreditCost = 1
+            });
+
+        // Default subscription with credits
+        _subscriptionRepositoryMock
+            .Setup(r => r.GetByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubscriptionEntity { Credits = 100 });
+
+        // Default user with auto-degradation enabled
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserEntity { AllowAutoDegradation = true });
+
         _hub = new ChatHubV2(
             _chatCompletionMock.Object,
             _cacheMock.Object,
@@ -94,7 +126,10 @@ public class ChatHubV2Tests
             _creditConfigMock.Object,
             _distributedLockMock.Object,
             _rateLimitServiceMock.Object,
-            _creditTrackingServiceMock.Object)
+            _creditTrackingServiceMock.Object,
+            _modelResolverMock.Object,
+            _subscriptionRepositoryMock.Object,
+            _userRepositoryMock.Object)
         {
             Clients = _mockClients.Object,
             Context = _mockContext.Object,

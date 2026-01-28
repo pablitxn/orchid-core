@@ -12,14 +12,19 @@ public class SyncAuth0UserHandlerTests
     private readonly SyncAuth0UserHandler _handler;
     private readonly Mock<IUserRepository> _userRepo = new();
     private readonly Mock<IRoleRepository> _roleRepo = new();
+    private readonly Mock<ISocialIdentityRepository> _socialIdentityRepo = new();
     private readonly Mock<IEventPublisher> _eventPublisher = new();
     private readonly Mock<ILogger<SyncAuth0UserHandler>> _logger = new();
 
     public SyncAuth0UserHandlerTests()
     {
+        _socialIdentityRepo.Setup(r => r.GetByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<UserSocialIdentityEntity>());
+
         _handler = new SyncAuth0UserHandler(
             _userRepo.Object,
             _roleRepo.Object,
+            _socialIdentityRepo.Object,
             _eventPublisher.Object,
             _logger.Object);
     }
@@ -34,7 +39,8 @@ public class SyncAuth0UserHandlerTests
             Name: "New User",
             AvatarUrl: "https://example.com/avatar.png",
             Connection: "google-oauth2",
-            Roles: new List<string>());
+            Roles: new List<string>(),
+            Identities: Array.Empty<Auth0IdentityDto>());
 
         _userRepo.Setup(r => r.GetByAuth0UserIdAsync(command.Auth0UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((UserEntity?)null);
@@ -81,7 +87,8 @@ public class SyncAuth0UserHandlerTests
             Name: "Updated Name",
             AvatarUrl: null,
             Connection: "auth0",
-            Roles: new List<string>());
+            Roles: new List<string>(),
+            Identities: Array.Empty<Auth0IdentityDto>());
 
         _userRepo.Setup(r => r.GetByAuth0UserIdAsync(command.Auth0UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((UserEntity?)null);
@@ -125,7 +132,8 @@ public class SyncAuth0UserHandlerTests
             Name: "New Name",
             AvatarUrl: "https://new.avatar.com/pic.png",
             Connection: "auth0",
-            Roles: new List<string>());
+            Roles: new List<string>(),
+            Identities: Array.Empty<Auth0IdentityDto>());
 
         _userRepo.Setup(r => r.GetByAuth0UserIdAsync(command.Auth0UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingUser);
@@ -168,7 +176,8 @@ public class SyncAuth0UserHandlerTests
             Name: "User",
             AvatarUrl: null,
             Connection: "auth0",
-            Roles: new List<string> { "user", "admin" });
+            Roles: new List<string> { "user", "admin" },
+            Identities: Array.Empty<Auth0IdentityDto>());
 
         _userRepo.Setup(r => r.GetByAuth0UserIdAsync(command.Auth0UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingUser);
@@ -208,7 +217,8 @@ public class SyncAuth0UserHandlerTests
             Name: "Same Name",
             AvatarUrl: "https://same.avatar.com/pic.png",
             Connection: "auth0",
-            Roles: new List<string>());
+            Roles: new List<string>(),
+            Identities: Array.Empty<Auth0IdentityDto>());
 
         _userRepo.Setup(r => r.GetByAuth0UserIdAsync(command.Auth0UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingUser);
@@ -234,7 +244,8 @@ public class SyncAuth0UserHandlerTests
             Name: "User",
             AvatarUrl: null,
             Connection: "auth0",
-            Roles: new List<string>());
+            Roles: new List<string>(),
+            Identities: Array.Empty<Auth0IdentityDto>());
 
         _userRepo.Setup(r => r.GetByAuth0UserIdAsync(command.Auth0UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((UserEntity?)null);
@@ -272,7 +283,8 @@ public class SyncAuth0UserHandlerTests
             Name: "User",
             AvatarUrl: null,
             Connection: "auth0",
-            Roles: new List<string> { "new-role" }); // old-role should be removed
+            Roles: new List<string> { "new-role" },
+            Identities: Array.Empty<Auth0IdentityDto>()); // old-role should be removed
 
         _userRepo.Setup(r => r.GetByAuth0UserIdAsync(command.Auth0UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingUser);
@@ -286,5 +298,56 @@ public class SyncAuth0UserHandlerTests
         // Assert
         Assert.True(result.RolesUpdated);
         _roleRepo.Verify(r => r.RemoveRoleFromUserAsync(existingUser.Id, oldRole.Id), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_SyncsSocialIdentities_WhenProvided()
+    {
+        // Arrange
+        var existingUser = new UserEntity
+        {
+            Id = Guid.NewGuid(),
+            Email = "social@example.com",
+            Name = "Social User",
+            Auth0UserId = "google-oauth2|123456",
+            UserRoles = new List<UserRoleEntity>()
+        };
+
+        var identities = new List<Auth0IdentityDto>
+        {
+            new("google-oauth2", "123456", "social@example.com", "Social User")
+        };
+
+        var command = new SyncAuth0UserCommand(
+            Auth0UserId: "google-oauth2|123456",
+            Email: "social@example.com",
+            Name: "Social User",
+            AvatarUrl: null,
+            Connection: "google-oauth2",
+            Roles: new List<string>(),
+            Identities: identities);
+
+        _userRepo.Setup(r => r.GetByAuth0UserIdAsync(command.Auth0UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingUser);
+        _socialIdentityRepo.Setup(r => r.GetByUserIdAsync(existingUser.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<UserSocialIdentityEntity>());
+        _socialIdentityRepo.Setup(r => r.CreateAsync(It.IsAny<UserSocialIdentityEntity>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserSocialIdentityEntity e, CancellationToken _) => e);
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        _socialIdentityRepo.Verify(r => r.CreateAsync(
+            It.Is<UserSocialIdentityEntity>(i =>
+                i.UserId == existingUser.Id &&
+                i.Provider == "google-oauth2" &&
+                i.ProviderUserId == "123456"),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _eventPublisher.Verify(e => e.PublishAsync(
+            It.Is<SocialIdentityLinkedEvent>(ev =>
+                ev.UserId == existingUser.Id &&
+                ev.Provider == "google-oauth2"),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 }
