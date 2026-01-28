@@ -5,6 +5,6 @@ kind: Component
 # Base configuration and sensitive configs are in the private infrastructure repo
 
 images:
-- digest: sha256:6c2b45c3bc6db0953dab81f6310dd18ca9114b9e5fc54ef0349a3965195e686d
+- digest: sha256:58a4b5f8eef9247d552da8826255a508857ed1c731824354ae6e9edf6f4728d4
   name: ghcr.io/pablitxn/orchid-core:prod
   newName: ghcr.io/pablitxn/orchid-core
