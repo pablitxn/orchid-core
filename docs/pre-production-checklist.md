@@ -4,6 +4,26 @@ This document tracks temporary code, migrations, and cleanup tasks that **must b
 
 ---
 
+## Pending Items
+
+### 2. Redis Chat History Migration Cleanup
+
+**Added:** 2025-01-21
+**Purpose:** Remove migrated chat history from Redis after verifying AgentThread migration works correctly.
+**Why temporary:** Redis history was kept as backup during migration. Once verified, it should be cleaned to avoid data duplication.
+
+**Files to modify:**
+- `services/backend/src/Adapters/Infrastructure/Ai/AgentFramework/Services/AgentThreadManager.cs` line 281:
+  Uncomment: `await _cache.RemoveAsync(redisKey, cancellationToken);`
+
+**Verification:**
+1. Deploy to staging and verify conversations load correctly
+2. Check logs for successful migrations
+3. Uncomment the line and redeploy
+4. Verify old sessions still work (should be in AgentThread memory now)
+
+---
+
 ## Completed Items
 
 ### ~~1. UserPluginMigrationSeeder~~ ✅

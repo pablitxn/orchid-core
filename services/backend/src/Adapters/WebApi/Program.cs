@@ -9,6 +9,7 @@ using Infrastructure.Ai.AgentFramework;
 using Infrastructure.Messaging;
 using Infrastructure.Persistence;
 using MassTransit;
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -584,53 +585,141 @@ if (!env.IsEnvironment("Testing"))
             "This can expose sensitive SQL parameters. Set 'Logging:LogLevel:Microsoft.EntityFrameworkCore.Database.Command' to 'Warning' or higher.");
     }
 
-    // JWT Bearer authentication for Development and Production
-    builder.Services.AddAuthentication(options =>
+    // ─── Dual JWT Bearer authentication (Legacy + Auth0) ─────────────────────────
+    // Auth0 is enabled when Auth0:Domain is configured
+    var auth0Domain = builder.Configuration["Auth0:Domain"];
+    var auth0Enabled = !string.IsNullOrWhiteSpace(auth0Domain);
+
+    if (auth0Enabled)
+    {
+        Log.Information("Auth0 authentication enabled for domain {Auth0Domain}", auth0Domain);
+    }
+    else
+    {
+        Log.Information("Auth0 authentication disabled (Auth0:Domain not configured). Using legacy JWT only.");
+    }
+
+    // SignalR token extraction event handler (shared between schemes)
+    static Task OnSignalRMessageReceived(MessageReceivedContext context)
+    {
+        var accessToken = context.Request.Query["access_token"];
+        var path = context.HttpContext.Request.Path;
+        if (!string.IsNullOrEmpty(accessToken) &&
+            (path.StartsWithSegments("/chatHub") ||
+             path.StartsWithSegments("/chatHubV2") ||
+             path.StartsWithSegments("/huddleHub") ||
+             path.StartsWithSegments("/hubs/credits")))
         {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-        })
-        .AddJwtBearer(options =>
+            context.Token = accessToken;
+        }
+        return Task.CompletedTask;
+    }
+
+    var authBuilder = builder.Services.AddAuthentication(options =>
+    {
+        // Use a policy scheme that routes to the appropriate handler
+        options.DefaultAuthenticateScheme = "MultiScheme";
+        options.DefaultChallengeScheme = "MultiScheme";
+    });
+
+    // Legacy JWT Bearer scheme (HMAC-SHA256) - always registered
+    authBuilder.AddJwtBearer("Legacy", options =>
+    {
+        options.RequireHttpsMetadata = !env.IsDevelopment();
+        options.SaveToken = true;
+        options.TokenValidationParameters = new TokenValidationParameters
         {
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero,
+            ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+        };
+        options.Events = new JwtBearerEvents { OnMessageReceived = OnSignalRMessageReceived };
+    });
+
+    // Auth0 JWT Bearer scheme (RS256 via JWKS) - only if configured
+    if (auth0Enabled)
+    {
+        authBuilder.AddJwtBearer("Auth0", options =>
+        {
+            options.Authority = $"https://{auth0Domain}/";
+            options.Audience = builder.Configuration["Auth0:Audience"];
             options.RequireHttpsMetadata = !env.IsDevelopment();
             options.SaveToken = true;
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
-                ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                ValidIssuer = $"https://{auth0Domain}/",
                 ValidateAudience = true,
-                ValidAudience = builder.Configuration["Jwt:Audience"],
+                ValidAudience = builder.Configuration["Auth0:Audience"],
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero,
-                ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
+                // RS256 is automatically configured via JWKS from Authority
                 ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+                // NameClaimType maps Auth0's sub claim
+                NameClaimType = "sub"
             };
-
-            // Configure JWT Bearer Authentication for SignalR
-            options.Events = new JwtBearerEvents
-            {
-                OnMessageReceived = context =>
-                {
-                    var accessToken = context.Request.Query["access_token"];
-
-                    // If the request is for our hub...
-                    var path = context.HttpContext.Request.Path;
-                    if (!string.IsNullOrEmpty(accessToken) &&
-                        (path.StartsWithSegments("/chatHub") ||
-                         path.StartsWithSegments("/chatHubV2") ||
-                         path.StartsWithSegments("/huddleHub") ||
-                         path.StartsWithSegments("/hubs/credits")))
-                    {
-                        // Read the token out of the query string
-                        context.Token = accessToken;
-                    }
-
-                    return Task.CompletedTask;
-                }
-            };
+            options.Events = new JwtBearerEvents { OnMessageReceived = OnSignalRMessageReceived };
         });
+    }
+
+    // Policy scheme that routes based on token issuer
+    authBuilder.AddPolicyScheme("MultiScheme", "Auth0 or Legacy JWT", options =>
+    {
+        options.ForwardDefaultSelector = context =>
+        {
+            // Try to extract and peek at the token to determine issuer
+            var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
+            string? token = null;
+
+            if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                token = authHeader.Substring("Bearer ".Length).Trim();
+            }
+            else if (context.Request.Cookies.TryGetValue("token", out var cookieToken))
+            {
+                token = cookieToken;
+            }
+            else if (context.Request.Query.TryGetValue("access_token", out var queryToken))
+            {
+                token = queryToken;
+            }
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                try
+                {
+                    // Peek at token without validating to get issuer
+                    var handler = new JwtSecurityTokenHandler();
+                    if (handler.CanReadToken(token))
+                    {
+                        var jwtToken = handler.ReadJwtToken(token);
+                        var issuer = jwtToken.Issuer;
+
+                        // Auth0 tokens have issuer like "https://{domain}/"
+                        if (auth0Enabled && issuer.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
+                            issuer.Contains(auth0Domain!, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return "Auth0";
+                        }
+                    }
+                }
+                catch
+                {
+                    // If we can't read the token, fall back to legacy
+                }
+            }
+
+            // Default to Legacy scheme
+            return "Legacy";
+        };
+    });
 }
 
 #endregion

@@ -49,7 +49,9 @@ public class AuthorizationMiddlewareTests
         string? jwtKey = null,
         string issuer = "test-issuer",
         string audience = "test-audience",
-        IJwtBlacklistService? blacklistService = null)
+        IJwtBlacklistService? blacklistService = null,
+        string? auth0Domain = null,
+        string? auth0Audience = null)
     {
         var services = new ServiceCollection();
 
@@ -65,6 +67,9 @@ public class AuthorizationMiddlewareTests
             configurationMock.Setup(c => c["Jwt:Key"]).Returns(jwtKey);
             configurationMock.Setup(c => c["Jwt:Issuer"]).Returns(issuer);
             configurationMock.Setup(c => c["Jwt:Audience"]).Returns(audience);
+            // Auth0 configuration (null or empty means disabled)
+            configurationMock.Setup(c => c["Auth0:Domain"]).Returns(auth0Domain);
+            configurationMock.Setup(c => c["Auth0:Audience"]).Returns(auth0Audience);
             services.AddSingleton(configurationMock.Object);
         }
 
@@ -358,7 +363,7 @@ public class AuthorizationMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_Returns500_WhenJwtKeyNotConfigured()
+    public async Task InvokeAsync_Returns401_WhenJwtKeyNotConfigured()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -368,11 +373,16 @@ public class AuthorizationMiddlewareTests
 
         var configurationMock = new Mock<IConfiguration>();
         configurationMock.Setup(c => c["Jwt:Key"]).Returns((string?)null);
+        configurationMock.Setup(c => c["Auth0:Domain"]).Returns((string?)null);
         services.AddSingleton(configurationMock.Object);
+
+        // Create a valid-looking but unsigned token
+        const string jwtKey = "ThisIsASecretKeyForTestingPurposesOnly1234567890";
+        var tokenString = GenerateValidJwtToken("test-issuer", "test-audience", jwtKey, "test@example.com");
 
         var context = new DefaultHttpContext();
         context.Response.Body = new MemoryStream();
-        context.Request.Headers.Authorization = "Bearer some-token";
+        context.Request.Headers.Authorization = $"Bearer {tokenString}";
         context.RequestServices = services.BuildServiceProvider();
 
         var middleware = new AuthorizationMiddleware(_ => Task.CompletedTask, _loggerMock.Object);
@@ -380,12 +390,12 @@ public class AuthorizationMiddlewareTests
         // Act
         await middleware.InvokeAsync(context);
 
-        // Assert
-        Assert.Equal(StatusCodes.Status500InternalServerError, context.Response.StatusCode);
+        // Assert - JWT key not configured throws SecurityTokenException which is caught as invalid token
+        Assert.Equal(StatusCodes.Status401Unauthorized, context.Response.StatusCode);
         context.Response.Body.Seek(0, SeekOrigin.Begin);
         using var reader = new StreamReader(context.Response.Body);
         var body = await reader.ReadToEndAsync();
-        Assert.Equal("JWT configuration error", body);
+        Assert.Equal("Invalid token", body);
     }
 
     [Fact]
@@ -446,6 +456,182 @@ public class AuthorizationMiddlewareTests
         // Assert
         Assert.Equal(StatusCodes.Status401Unauthorized, context.Response.StatusCode);
     }
+
+    #region Auth0 Token Validation Tests
+
+    [Fact]
+    public async Task InvokeAsync_LegacyTokenStillWorks_WhenAuth0Configured()
+    {
+        // Arrange - Auth0 is configured but we're using a legacy token
+        const string jwtKey = "ThisIsASecretKeyForTestingPurposesOnly1234567890";
+        const string issuer = "test-issuer";
+        const string audience = "test-audience";
+        const string email = "legacy@example.com";
+
+        var tokenString = GenerateValidJwtToken(issuer, audience, jwtKey, email);
+
+        var context = new DefaultHttpContext();
+        context.Request.Headers.Authorization = $"Bearer {tokenString}";
+        context.RequestServices = BuildServiceProvider(
+            isTestingEnvironment: false,
+            jwtKey: jwtKey,
+            issuer: issuer,
+            audience: audience,
+            auth0Domain: "test.auth0.com",
+            auth0Audience: "https://api.test.com");
+
+        var middleware = new AuthorizationMiddleware(_ => Task.CompletedTask, _loggerMock.Object);
+
+        // Act
+        await middleware.InvokeAsync(context);
+
+        // Assert - Legacy token should still work even when Auth0 is configured
+        Assert.Equal(email, context.User.FindFirst(ClaimTypes.Email)?.Value);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_LegacyTokenNotDetectedAsAuth0_WhenIssuerDifferent()
+    {
+        // Arrange - Create a token with legacy issuer, should NOT be detected as Auth0
+        const string jwtKey = "ThisIsASecretKeyForTestingPurposesOnly1234567890";
+        const string legacyIssuer = "playground";
+        const string auth0Domain = "test.auth0.com";
+        const string email = "legacy@example.com";
+
+        var tokenString = GenerateValidJwtToken(legacyIssuer, "playground", jwtKey, email);
+
+        var context = new DefaultHttpContext();
+        context.Request.Headers.Authorization = $"Bearer {tokenString}";
+        context.RequestServices = BuildServiceProvider(
+            isTestingEnvironment: false,
+            jwtKey: jwtKey,
+            issuer: legacyIssuer,
+            audience: "playground",
+            auth0Domain: auth0Domain,
+            auth0Audience: "https://api.test.com");
+
+        var middleware = new AuthorizationMiddleware(_ => Task.CompletedTask, _loggerMock.Object);
+
+        // Act
+        await middleware.InvokeAsync(context);
+
+        // Assert - Token has legacy issuer (not containing auth0Domain), should validate as legacy
+        Assert.Equal(email, context.User.FindFirst(ClaimTypes.Email)?.Value);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_Auth0Disabled_WhenDomainEmpty()
+    {
+        // Arrange - Auth0 domain is empty, should only use legacy validation
+        const string jwtKey = "ThisIsASecretKeyForTestingPurposesOnly1234567890";
+        const string issuer = "test-issuer";
+        const string audience = "test-audience";
+        const string email = "nodomain@example.com";
+
+        var tokenString = GenerateValidJwtToken(issuer, audience, jwtKey, email);
+
+        var context = new DefaultHttpContext();
+        context.Request.Headers.Authorization = $"Bearer {tokenString}";
+        context.RequestServices = BuildServiceProvider(
+            isTestingEnvironment: false,
+            jwtKey: jwtKey,
+            issuer: issuer,
+            audience: audience,
+            auth0Domain: "", // Empty domain = Auth0 disabled
+            auth0Audience: "https://api.test.com");
+
+        var middleware = new AuthorizationMiddleware(_ => Task.CompletedTask, _loggerMock.Object);
+
+        // Act
+        await middleware.InvokeAsync(context);
+
+        // Assert - Should validate as legacy token successfully
+        Assert.Equal(email, context.User.FindFirst(ClaimTypes.Email)?.Value);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_Auth0Disabled_WhenDomainNull()
+    {
+        // Arrange - Auth0 domain is null, should only use legacy validation
+        const string jwtKey = "ThisIsASecretKeyForTestingPurposesOnly1234567890";
+        const string issuer = "test-issuer";
+        const string audience = "test-audience";
+        const string email = "nulldomain@example.com";
+
+        var tokenString = GenerateValidJwtToken(issuer, audience, jwtKey, email);
+
+        var context = new DefaultHttpContext();
+        context.Request.Headers.Authorization = $"Bearer {tokenString}";
+        context.RequestServices = BuildServiceProvider(
+            isTestingEnvironment: false,
+            jwtKey: jwtKey,
+            issuer: issuer,
+            audience: audience,
+            auth0Domain: null, // Null domain = Auth0 disabled
+            auth0Audience: null);
+
+        var middleware = new AuthorizationMiddleware(_ => Task.CompletedTask, _loggerMock.Object);
+
+        // Act
+        await middleware.InvokeAsync(context);
+
+        // Assert - Should validate as legacy token successfully
+        Assert.Equal(email, context.User.FindFirst(ClaimTypes.Email)?.Value);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ServiceAccountToken_WorksWithAuth0Configured()
+    {
+        // Arrange - Service account token should still work when Auth0 is configured
+        const string jwtKey = "ThisIsASecretKeyForTestingPurposesOnly1234567890";
+        const string issuer = "test-issuer";
+        const string audience = "test-audience";
+
+        // Create a service account token (no email, has type=service_account)
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim(JwtRegisteredClaimNames.Sub, "service:test-client"),
+            new Claim("type", "service_account"),
+            new Claim("client_id", "test-client")
+        };
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken(
+            issuer: issuer,
+            audience: audience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(1),
+            signingCredentials: credentials);
+        var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+        var context = new DefaultHttpContext();
+        context.Request.Headers.Authorization = $"Bearer {tokenString}";
+        context.RequestServices = BuildServiceProvider(
+            isTestingEnvironment: false,
+            jwtKey: jwtKey,
+            issuer: issuer,
+            audience: audience,
+            auth0Domain: "test.auth0.com",
+            auth0Audience: "https://api.test.com");
+
+        var nextCalled = false;
+        var middleware = new AuthorizationMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        }, _loggerMock.Object);
+
+        // Act
+        await middleware.InvokeAsync(context);
+
+        // Assert - Service account should be authenticated
+        Assert.True(nextCalled);
+        Assert.Equal("service_account", context.User.FindFirst("type")?.Value);
+        Assert.Equal("test-client", context.User.FindFirst("client_id")?.Value);
+    }
+
+    #endregion
 }
 
 /// <summary>

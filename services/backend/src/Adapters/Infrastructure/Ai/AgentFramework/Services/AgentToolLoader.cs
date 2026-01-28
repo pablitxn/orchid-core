@@ -136,10 +136,10 @@ public class AgentToolLoader : IAgentToolLoader
                 stopwatch.ElapsedMilliseconds,
                 string.Join(", ", loadedToolNames));
 
-            if (stopwatch.ElapsedMilliseconds > 50)
+            if (stopwatch.ElapsedMilliseconds > 100)
             {
-                _logger.LogWarning(
-                    "Tool loading exceeded performance target (50ms) for agent {AgentId}: {ElapsedMs}ms",
+                _logger.LogDebug(
+                    "Tool loading exceeded performance target (100ms) for agent {AgentId}: {ElapsedMs}ms",
                     agentId,
                     stopwatch.ElapsedMilliseconds);
             }

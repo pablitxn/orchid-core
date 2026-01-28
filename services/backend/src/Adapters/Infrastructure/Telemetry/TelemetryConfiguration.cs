@@ -53,6 +53,9 @@ public static class TelemetryConfiguration
         // Register telemetry router
         services.AddSingleton<ITelemetryRouter, TelemetryRouter>();
 
+        // Register Prometheus metrics initializer to ensure metrics appear in /metrics at startup
+        services.AddHostedService<MetricsInitializerService>();
+
         return services;
     }
 

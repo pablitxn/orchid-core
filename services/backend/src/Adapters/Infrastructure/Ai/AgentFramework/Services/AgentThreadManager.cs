@@ -276,6 +276,7 @@ public sealed class AgentThreadManager : IAgentThreadManager
                 "Migrated {MigratedCount} messages from Redis to AgentThread for session {SessionId}",
                 migratedCount, sessionId);
 
+            // TODO: Remove before production - Redis migration cleanup
             // Optionally remove from Redis after successful migration
             // Keeping it as backup for now - uncomment to delete after migration
             // await _cache.RemoveAsync(redisKey, cancellationToken);

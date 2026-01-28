@@ -203,7 +203,7 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
 
             // Prepare messages for chat completion
             var effectiveMessages = messagesList.ToList();
-            if (systemMessage == null && !string.IsNullOrEmpty(agentEntity.Personality))
+            if (systemMessage == null && !string.IsNullOrWhiteSpace(agentEntity.Personality))
             {
                 // Prepend personality as system message
                 effectiveMessages.Insert(0, new AppChatMessage("system", agentEntity.Personality));
@@ -444,7 +444,7 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
 
             // Prepare messages for chat completion
             var effectiveMessages = messagesList.ToList();
-            if (systemMessage == null && !string.IsNullOrEmpty(agentEntity.Personality))
+            if (systemMessage == null && !string.IsNullOrWhiteSpace(agentEntity.Personality))
             {
                 // Prepend personality as system message
                 effectiveMessages.Insert(0, new AppChatMessage("system", agentEntity.Personality));
