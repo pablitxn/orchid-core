@@ -7,6 +7,11 @@ namespace Domain.Enums;
 public enum ModelResolutionSource
 {
     /// <summary>
+    /// Model was configured as a session-level override by the user.
+    /// </summary>
+    SessionOverride,
+
+    /// <summary>
     /// Model was provided as an override in the request.
     /// </summary>
     RequestOverride,

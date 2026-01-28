@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Application.UseCases.ChatSession.ArchiveChatSession;
+using Application.UseCases.ChatSession.ChangeSessionModel;
 using Application.UseCases.ChatSession.CreateChatSession;
 using Application.UseCases.ChatSession.DeleteChatSessions;
 using Application.UseCases.ChatSession.GetChatSessionById;
@@ -81,6 +82,29 @@ public class ChatSessionsController(IMediator mediator) : ControllerBase
         await _mediator.Send(command);
         return NoContent();
     }
+
+    /// <summary>
+    /// Changes the active AI model for a chat session.
+    /// </summary>
+    /// <param name="sessionId">The session ID (string identifier).</param>
+    /// <param name="request">The model change request.</param>
+    [HttpPost("{sessionId}/model")]
+    [ProducesResponseType(typeof(ChangeSessionModelDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ChangeModel(
+        string sessionId,
+        [FromBody] ChangeModelRequest request)
+    {
+        var userId = GetAuthenticatedUserId();
+
+        var result = await _mediator.Send(
+            new ChangeSessionModelCommand(sessionId, userId, request.ModelId));
+
+        return Ok(result);
+    }
 }
 
 public record ArchiveChatSessionRequest(bool Archived);
+public record ChangeModelRequest(string ModelId);

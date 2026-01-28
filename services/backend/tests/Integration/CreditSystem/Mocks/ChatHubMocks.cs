@@ -178,6 +178,31 @@ public class MockChatSessionRepository : IChatSessionRepository
         return Task.FromResult(stats);
     }
 
+    public Task<ChatSessionEntity?> UpdateModelOverrideAsync(
+        string sessionId,
+        string? modelOverride,
+        CancellationToken cancellationToken)
+    {
+        if (!_sessions.TryGetValue(sessionId, out var session))
+            return Task.FromResult<ChatSessionEntity?>(null);
+
+        session.ModelOverride = modelOverride;
+        session.ModelChangedAt = DateTime.UtcNow;
+        session.UpdatedAt = DateTime.UtcNow;
+
+        return Task.FromResult<ChatSessionEntity?>(session);
+    }
+
+    public Task<string?> GetModelOverrideAsync(
+        string sessionId,
+        CancellationToken cancellationToken)
+    {
+        if (!_sessions.TryGetValue(sessionId, out var session))
+            return Task.FromResult<string?>(null);
+
+        return Task.FromResult(session.ModelOverride);
+    }
+
     // Helper method for tests
     public void AddSession(ChatSessionEntity session)
     {

@@ -14,6 +14,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICreditNotificationPort, SignalRCreditNotificationAdapter>();
         services.AddScoped<IRealtimeNotificationPort, SignalRNotificationAdapter>();
         services.AddScoped<IModelDegradationNotificationPort, SignalRModelDegradationAdapter>();
+        services.AddScoped<IModelChangeNotificationPort, SignalRModelChangeAdapter>();
         return services;
     }
 }

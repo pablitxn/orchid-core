@@ -15,6 +15,8 @@ public sealed record ChatSessionDto
     public bool IsArchived { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
+    public string? ModelOverride { get; init; }
+    public DateTime? ModelChangedAt { get; init; }
 
     public static ChatSessionDto FromEntity(ChatSessionEntity entity) => new()
     {
@@ -27,6 +29,8 @@ public sealed record ChatSessionDto
         Title = entity.Title,
         IsArchived = entity.IsArchived,
         CreatedAt = entity.CreatedAt,
-        UpdatedAt = entity.UpdatedAt
+        UpdatedAt = entity.UpdatedAt,
+        ModelOverride = entity.ModelOverride,
+        ModelChangedAt = entity.ModelChangedAt
     };
 }

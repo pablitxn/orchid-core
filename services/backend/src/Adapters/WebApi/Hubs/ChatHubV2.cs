@@ -193,9 +193,11 @@ public sealed class ChatHubV2(
 
         // Pre-resolve the model considering available credits
         // This allows us to degrade to a cheaper model if the user can't afford the preferred one
-        var resolutionContext = agentId.HasValue
-            ? ModelResolutionContext.ForAgent(agentId.Value, userId) with { AllowAutoDegradation = allowDegradation }
-            : ModelResolutionContext.ForUser(userId) with { AllowAutoDegradation = allowDegradation };
+        // Use ForSession to include sessionId for session-level model override support
+        var resolutionContext = ModelResolutionContext.ForSession(
+            sessionId,
+            agentId,
+            userId) with { AllowAutoDegradation = allowDegradation };
 
         var modelResolution = await _modelResolver.ResolveAffordableModelAsync(
             resolutionContext,

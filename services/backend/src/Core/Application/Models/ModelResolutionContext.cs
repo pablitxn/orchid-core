@@ -42,6 +42,27 @@ public sealed record ModelResolutionContext
     public IReadOnlySet<string>? ExcludedModels { get; init; }
 
     /// <summary>
+    /// Optional session ID for session-level model override lookup.
+    /// </summary>
+    public string? SessionId { get; init; }
+
+    /// <summary>
+    /// Creates a context for session-based resolution with session override support.
+    /// </summary>
+    public static ModelResolutionContext ForSession(
+        string sessionId,
+        Guid? agentId = null,
+        Guid? userId = null,
+        string? requestOverride = null)
+        => new()
+        {
+            SessionId = sessionId,
+            AgentId = agentId,
+            UserId = userId,
+            RequestOverride = requestOverride
+        };
+
+    /// <summary>
     /// Creates a context for agent-based resolution.
     /// </summary>
     public static ModelResolutionContext ForAgent(Guid agentId, Guid? userId = null, string? requestOverride = null)

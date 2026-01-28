@@ -1,4 +1,7 @@
 using Application.UseCases.Plugin.PurchasePlugin;
+using Application.UseCases.PluginVersion.GetUserPluginUpdates;
+using Application.UseCases.PluginVersion.RollbackUserPlugin;
+using Application.UseCases.PluginVersion.UpdateUserPlugin;
 using Application.UseCases.UserPlugin.GetUserPlugin;
 using Application.UseCases.UserPlugin.ListUserPlugins;
 using Application.UseCases.UserPlugin.UninstallPlugin;
@@ -103,9 +106,83 @@ public class UserPluginsController(IMediator mediator) : ControllerBase
 
         return Ok(new { message = "Plugin settings updated successfully" });
     }
+
+    /// <summary>
+    /// Get available updates for all installed plugins
+    /// </summary>
+    [HttpGet("updates")]
+    public async Task<IActionResult> GetAvailableUpdates(CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var query = new GetUserPluginUpdatesQuery(userId);
+        var result = await _mediator.Send(query, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Update a plugin to the latest or specified version
+    /// </summary>
+    [HttpPost("{pluginId:guid}/update")]
+    public async Task<IActionResult> UpdatePlugin(
+        Guid pluginId,
+        [FromBody] UpdatePluginVersionRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var command = new UpdateUserPluginCommand(userId, pluginId, request?.TargetVersion);
+        var result = await _mediator.Send(command, cancellationToken);
+
+        if (!result.Success)
+        {
+            return BadRequest(new { error = result.ErrorMessage });
+        }
+
+        return Ok(new
+        {
+            previousVersion = result.PreviousVersion,
+            newVersion = result.NewVersion,
+            message = "Plugin updated successfully"
+        });
+    }
+
+    /// <summary>
+    /// Rollback a plugin to a previous version
+    /// </summary>
+    [HttpPost("{pluginId:guid}/rollback")]
+    public async Task<IActionResult> RollbackPlugin(
+        Guid pluginId,
+        [FromBody] RollbackPluginVersionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+        var command = new RollbackUserPluginCommand(userId, pluginId, request.TargetVersion);
+        var result = await _mediator.Send(command, cancellationToken);
+
+        if (!result.Success)
+        {
+            return BadRequest(new { error = result.ErrorMessage });
+        }
+
+        return Ok(new
+        {
+            previousVersion = result.PreviousVersion,
+            newVersion = result.NewVersion,
+            message = "Plugin rolled back successfully"
+        });
+    }
 }
 
 public class UpdatePluginSettingsRequest
 {
     public Dictionary<string, object>? Settings { get; set; }
+}
+
+public class UpdatePluginVersionRequest
+{
+    public string? TargetVersion { get; set; }
+}
+
+public class RollbackPluginVersionRequest
+{
+    public required string TargetVersion { get; set; }
 }

@@ -17,6 +17,7 @@ public class ModelResolverServiceTests
 {
     private readonly Mock<IAgentRepository> _agentRepositoryMock;
     private readonly Mock<IUserRepository> _userRepositoryMock;
+    private readonly Mock<IChatSessionRepository> _chatSessionRepositoryMock;
     private readonly Mock<IMemoryCache> _memoryCacheMock;
     private readonly Mock<ILogger<ModelResolverService>> _loggerMock;
     private readonly IOptions<ModelResolutionSettings> _settings;
@@ -26,6 +27,7 @@ public class ModelResolverServiceTests
     {
         _agentRepositoryMock = new Mock<IAgentRepository>();
         _userRepositoryMock = new Mock<IUserRepository>();
+        _chatSessionRepositoryMock = new Mock<IChatSessionRepository>();
         _memoryCacheMock = new Mock<IMemoryCache>();
         _loggerMock = new Mock<ILogger<ModelResolverService>>();
 
@@ -40,6 +42,7 @@ public class ModelResolverServiceTests
         _service = new ModelResolverService(
             _agentRepositoryMock.Object,
             _userRepositoryMock.Object,
+            _chatSessionRepositoryMock.Object,
             _memoryCacheMock.Object,
             _settings,
             _loggerMock.Object

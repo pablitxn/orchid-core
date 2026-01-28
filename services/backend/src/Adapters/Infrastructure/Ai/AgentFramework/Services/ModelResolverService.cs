@@ -9,12 +9,13 @@ namespace Orchid.Infrastructure.Ai.AgentFramework.Services;
 
 /// <summary>
 /// Hierarchical model resolution service.
-/// Resolution order: Request override -> Agent config -> Agent preference -> User preference -> System default -> Emergency fallback.
+/// Resolution order: Session override -> Request override -> Agent config -> Agent preference -> User preference -> System default -> Emergency fallback.
 /// </summary>
 public sealed class ModelResolverService : IModelResolver
 {
     private readonly IAgentRepository _agentRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IChatSessionRepository _chatSessionRepository;
     private readonly IMemoryCache _cache;
     private readonly ILogger<ModelResolverService> _logger;
     private readonly ModelResolutionSettings _settings;
@@ -24,12 +25,14 @@ public sealed class ModelResolverService : IModelResolver
     public ModelResolverService(
         IAgentRepository agentRepository,
         IUserRepository userRepository,
+        IChatSessionRepository chatSessionRepository,
         IMemoryCache cache,
         IOptions<ModelResolutionSettings> settings,
         ILogger<ModelResolverService> logger)
     {
         _agentRepository = agentRepository;
         _userRepository = userRepository;
+        _chatSessionRepository = chatSessionRepository;
         _cache = cache;
         _settings = settings.Value;
         _logger = logger;
@@ -41,7 +44,24 @@ public sealed class ModelResolverService : IModelResolver
     {
         try
         {
-            // 1. Request override (highest priority)
+            // 0. Session override (highest priority)
+            if (!string.IsNullOrWhiteSpace(context.SessionId))
+            {
+                var sessionOverride = await _chatSessionRepository.GetModelOverrideAsync(
+                    context.SessionId, cancellationToken);
+
+                if (!string.IsNullOrWhiteSpace(sessionOverride) && IsValidModel(sessionOverride))
+                {
+                    LogResolution(context, sessionOverride, ModelResolutionSource.SessionOverride);
+                    return new ModelResolutionResult
+                    {
+                        ModelId = sessionOverride,
+                        Source = ModelResolutionSource.SessionOverride
+                    };
+                }
+            }
+
+            // 1. Request override
             if (!string.IsNullOrWhiteSpace(context.RequestOverride))
             {
                 if (IsValidModel(context.RequestOverride))
@@ -292,8 +312,8 @@ public sealed class ModelResolverService : IModelResolver
         if (_settings.EnableDetailedLogging)
         {
             _logger.LogInformation(
-                "Model resolved: {ModelId} from {Source}. Context: AgentId={AgentId}, UserId={UserId}, Override={Override}",
-                modelId, source, context.AgentId, context.UserId, context.RequestOverride);
+                "Model resolved: {ModelId} from {Source}. Context: SessionId={SessionId}, AgentId={AgentId}, UserId={UserId}, Override={Override}",
+                modelId, source, context.SessionId, context.AgentId, context.UserId, context.RequestOverride);
         }
     }
 }

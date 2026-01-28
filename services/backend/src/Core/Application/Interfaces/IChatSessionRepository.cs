@@ -39,4 +39,26 @@ public interface IChatSessionRepository
     Task<Dictionary<Guid, (int Count, DateTime? LastUsed)>> GetStatsForAgentsAsync(
         IEnumerable<Guid> agentIds,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Updates the model override for a chat session.
+    /// </summary>
+    /// <param name="sessionId">The session ID (string identifier).</param>
+    /// <param name="modelOverride">The model to override with (null to clear).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The updated session, or null if not found.</returns>
+    Task<ChatSessionEntity?> UpdateModelOverrideAsync(
+        string sessionId,
+        string? modelOverride,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets the model override for a session, if any.
+    /// </summary>
+    /// <param name="sessionId">The session ID (string identifier).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The model override, or null if not set.</returns>
+    Task<string?> GetModelOverrideAsync(
+        string sessionId,
+        CancellationToken cancellationToken);
 }

@@ -16,4 +16,14 @@ public class ChatSessionEntity
     public bool IsArchived { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Model override for this session. When set, takes highest priority in model resolution.
+    /// </summary>
+    public string? ModelOverride { get; set; }
+
+    /// <summary>
+    /// Timestamp when the model was last changed for this session.
+    /// </summary>
+    public DateTime? ModelChangedAt { get; set; }
 }

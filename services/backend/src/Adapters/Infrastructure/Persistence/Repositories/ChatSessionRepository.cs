@@ -127,4 +127,32 @@ public class ChatSessionRepository(ApplicationDbContext dbContext) : IChatSessio
             s => s.AgentId,
             s => (s.Count, (DateTime?)s.LastUsed));
     }
+
+    public async Task<ChatSessionEntity?> UpdateModelOverrideAsync(
+        string sessionId,
+        string? modelOverride,
+        CancellationToken cancellationToken)
+    {
+        var session = await _dbContext.ChatSessions
+            .FirstOrDefaultAsync(s => s.SessionId == sessionId, cancellationToken);
+
+        if (session is null) return null;
+
+        session.ModelOverride = modelOverride;
+        session.ModelChangedAt = DateTime.UtcNow;
+        session.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return session;
+    }
+
+    public async Task<string?> GetModelOverrideAsync(
+        string sessionId,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.ChatSessions
+            .Where(s => s.SessionId == sessionId)
+            .Select(s => s.ModelOverride)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }

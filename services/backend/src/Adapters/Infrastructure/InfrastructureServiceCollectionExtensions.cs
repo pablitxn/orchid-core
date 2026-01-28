@@ -85,6 +85,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IPluginReviewHelpfulVoteRepository, PluginReviewHelpfulVoteRepository>();
         services.AddScoped<IPersonalityTemplateRepository, PersonalityTemplateRepository>();
         services.AddScoped<IPluginRepository, PluginRepository>();
+        services.AddScoped<IPluginVersionRepository, PluginVersionRepository>();
         services.AddScoped<IUserPluginRepository, UserPluginRepository>();
         services.AddScoped<IWorkflowRepository, WorkflowRepository>();
         services.AddScoped<IKnowledgeBaseFileRepository, KnowledgeBaseFileRepository>();

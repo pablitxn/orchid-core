@@ -89,6 +89,7 @@ public class ApplicationDbContext(
     public DbSet<UserSocialIdentityEntity> UserSocialIdentities { get; set; }
     public DbSet<PublisherEntity> Publishers { get; set; }
     public DbSet<PluginSubmissionEntity> PluginSubmissions { get; set; }
+    public DbSet<PluginVersionEntity> PluginVersions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -416,6 +417,10 @@ public class ApplicationDbContext(
                 .HasForeignKey(p => p.PublisherId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // Version management
+            b.Property(p => p.LatestVersionId);
+            b.Property(p => p.VersionCount).IsRequired().HasDefaultValue(0);
+
             // Indexes for filtering
             b.HasIndex(p => p.PluginType);
             b.HasIndex(p => p.Category);
@@ -489,13 +494,27 @@ public class ApplicationDbContext(
             b.Property(up => up.ExpiresAt).HasColumnType("timestamp with time zone");
             b.Property(up => up.IsActive).IsRequired();
             b.Property(up => up.Settings).HasColumnType("jsonb");
+
+            // Version tracking fields
+            b.Property(up => up.InstalledVersionId);
+            b.Property(up => up.InstalledVersion).HasMaxLength(50);
+            b.Property(up => up.LastUpdatedAt).HasColumnType("timestamp with time zone");
+            b.Property(up => up.AutoUpdate).IsRequired().HasDefaultValue(false);
+            b.Property(up => up.PinnedVersion).HasMaxLength(50);
+
             b.HasIndex(up => new { up.UserId, up.PluginId }).IsUnique();
+            b.HasIndex(up => up.InstalledVersionId);
+
             b.HasOne(up => up.User)
                 .WithMany()
                 .HasForeignKey(up => up.UserId);
             b.HasOne(up => up.Plugin)
                 .WithMany()
                 .HasForeignKey(up => up.PluginId);
+            b.HasOne(up => up.InstalledVersionEntity)
+                .WithMany()
+                .HasForeignKey(up => up.InstalledVersionId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<KnowledgeBaseFileEntity>(b =>
@@ -1384,6 +1403,55 @@ public class ApplicationDbContext(
             b.HasOne(s => s.Plugin)
                 .WithMany()
                 .HasForeignKey(s => s.PluginId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Map PluginVersion entity
+        modelBuilder.Entity<PluginVersionEntity>(b =>
+        {
+            b.ToTable("PluginVersions");
+            b.HasKey(v => v.Id);
+            b.Property(v => v.PluginId).IsRequired();
+            b.Property(v => v.Version).IsRequired().HasMaxLength(50);
+            b.Property(v => v.Changelog);
+            b.Property(v => v.IsBreakingChange).IsRequired().HasDefaultValue(false);
+            b.Property(v => v.MinCompatibility).HasMaxLength(100);
+            b.Property(v => v.MaxCompatibility).HasMaxLength(100);
+            b.Property(v => v.DownloadUrl).HasMaxLength(2048);
+            b.Property(v => v.Checksum).HasMaxLength(100);
+            b.Property(v => v.FileSizeBytes);
+            b.Property(v => v.OpenApiSpecCache);
+            b.Property(v => v.BaseUrl).HasMaxLength(2048);
+
+            // Deprecation fields
+            b.Property(v => v.IsDeprecated).IsRequired().HasDefaultValue(false);
+            b.Property(v => v.DeprecatedAt).HasColumnType("timestamp with time zone");
+            b.Property(v => v.DeprecationEndsAt).HasColumnType("timestamp with time zone");
+            b.Property(v => v.DeprecationMessage).HasMaxLength(500);
+            b.Property(v => v.SuccessorVersionId);
+
+            // Status fields
+            b.Property(v => v.IsActive).IsRequired().HasDefaultValue(true);
+            b.Property(v => v.IsLatest).IsRequired().HasDefaultValue(false);
+
+            // Audit fields
+            b.Property(v => v.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(v => v.PublishedAt).HasColumnType("timestamp with time zone");
+            b.Property(v => v.PublishedBy);
+
+            // Unique constraint: one version string per plugin
+            b.HasIndex(v => new { v.PluginId, v.Version }).IsUnique();
+            b.HasIndex(v => new { v.PluginId, v.IsLatest });
+            b.HasIndex(v => v.IsDeprecated);
+
+            // Relationships
+            b.HasOne(v => v.Plugin)
+                .WithMany(p => p.Versions)
+                .HasForeignKey(v => v.PluginId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(v => v.SuccessorVersion)
+                .WithMany()
+                .HasForeignKey(v => v.SuccessorVersionId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
     }

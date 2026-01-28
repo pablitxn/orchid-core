@@ -37,6 +37,20 @@ public class PluginEntity
     public Guid? PublisherId { get; set; }
     public PublisherEntity? Publisher { get; set; }
 
+    // Version management
+    /// <summary>
+    /// Reference to the latest published version.
+    /// </summary>
+    public Guid? LatestVersionId { get; set; }
+
+    /// <summary>
+    /// Total number of versions published for this plugin.
+    /// </summary>
+    public int VersionCount { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    // Navigation properties for versions
+    public ICollection<PluginVersionEntity> Versions { get; set; } = new List<PluginVersionEntity>();
 }
