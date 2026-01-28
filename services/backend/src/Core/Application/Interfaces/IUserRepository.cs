@@ -8,4 +8,9 @@ public interface IUserRepository
     Task<UserEntity> CreateAsync(UserEntity newUser);
     Task<UserEntity?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task UpdateAsync(UserEntity user);
+
+    /// <summary>
+    /// Finds a user by their Auth0 user ID (sub claim).
+    /// </summary>
+    Task<UserEntity?> GetByAuth0UserIdAsync(string auth0UserId, CancellationToken cancellationToken = default);
 }

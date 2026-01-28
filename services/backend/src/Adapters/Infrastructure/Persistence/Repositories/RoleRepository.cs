@@ -25,4 +25,24 @@ public class RoleRepository(ApplicationDbContext db) : IRoleRepository
         _db.UserRoles.Add(new UserRoleEntity { UserId = userId, RoleId = roleId });
         await _db.SaveChangesAsync();
     }
+
+    public async Task<IReadOnlyList<RoleEntity>> GetRolesForUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await _db.UserRoles
+            .Where(ur => ur.UserId == userId)
+            .Select(ur => ur.Role)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task RemoveRoleFromUserAsync(Guid userId, Guid roleId)
+    {
+        var userRole = await _db.UserRoles
+            .SingleOrDefaultAsync(ur => ur.UserId == userId && ur.RoleId == roleId);
+
+        if (userRole != null)
+        {
+            _db.UserRoles.Remove(userRole);
+            await _db.SaveChangesAsync();
+        }
+    }
 }

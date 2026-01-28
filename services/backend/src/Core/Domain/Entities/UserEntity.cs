@@ -33,4 +33,21 @@ public class UserEntity
     public DateTime? PasswordResetExpiry { get; set; }
 
     public DateTime? PasswordChangedAt { get; set; }
+
+    /// <summary>
+    /// Auth0 user identifier (sub claim). Null for legacy/local users.
+    /// Example: "auth0|abc123" or "google-oauth2|123456789"
+    /// </summary>
+    public string? Auth0UserId { get; set; }
+
+    /// <summary>
+    /// Auth0 connection type. Helps identify the authentication method.
+    /// Examples: "auth0", "google-oauth2", "github", "Username-Password-Authentication"
+    /// </summary>
+    public string? Auth0Connection { get; set; }
+
+    /// <summary>
+    /// Timestamp when Auth0 profile was last synced.
+    /// </summary>
+    public DateTime? Auth0LastSyncedAt { get; set; }
 }

@@ -299,6 +299,9 @@ public static class InfrastructureServiceCollectionExtensions
         // ─── JWT blacklist service for token invalidation on logout ─────────────────
         services.AddSingleton<IJwtBlacklistService, Services.RedisJwtBlacklistService>();
 
+        // ─── Auth0 user synchronization service ─────────────────────────────────────
+        services.AddScoped<IAuth0SyncService, Auth0SyncService>();
+
         #endregion
 
         #region Utility Services

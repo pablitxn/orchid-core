@@ -33,4 +33,12 @@ public class UserRepository(ApplicationDbContext db) : IUserRepository
         _db.Users.Update(user);
         await _db.SaveChangesAsync();
     }
+
+    public async Task<UserEntity?> GetByAuth0UserIdAsync(string auth0UserId, CancellationToken cancellationToken = default)
+    {
+        return await _db.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .SingleOrDefaultAsync(u => u.Auth0UserId == auth0UserId, cancellationToken);
+    }
 }

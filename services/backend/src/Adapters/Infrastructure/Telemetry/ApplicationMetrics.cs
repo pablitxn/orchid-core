@@ -201,4 +201,31 @@ public static class ApplicationMetrics
         {
             LabelNames = ["provider"]
         });
+
+    // ─── Thread Manager Metrics ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Gauge for currently active conversation threads in memory
+    /// </summary>
+    public static readonly Gauge ActiveThreadsGauge = Metrics.CreateGauge(
+        "app_threads_active",
+        "Number of active conversation threads in memory");
+
+    /// <summary>
+    /// Counter for total threads created
+    /// </summary>
+    public static readonly Counter ThreadsCreatedTotal = Metrics.CreateCounter(
+        "app_threads_created_total",
+        "Total number of conversation threads created");
+
+    /// <summary>
+    /// Counter for threads cleaned up
+    /// </summary>
+    public static readonly Counter ThreadsCleanedTotal = Metrics.CreateCounter(
+        "app_threads_cleaned_total",
+        "Total number of conversation threads cleaned up",
+        new CounterConfiguration
+        {
+            LabelNames = ["reason"]
+        });
 }

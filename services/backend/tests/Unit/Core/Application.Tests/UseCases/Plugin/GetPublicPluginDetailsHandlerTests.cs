@@ -1,5 +1,5 @@
 using Application.Interfaces;
-using Application.UseCases.Plugin.ListAvailablePlugins;
+using Application.UseCases.Plugin.GetPublicPluginDetails;
 using Domain.Entities;
 using Moq;
 using Xunit;

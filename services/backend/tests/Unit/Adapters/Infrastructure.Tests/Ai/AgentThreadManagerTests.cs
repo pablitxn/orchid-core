@@ -463,4 +463,98 @@ public class AgentThreadManagerTests
     }
 
     #endregion
+
+    #region GetActiveThreadCount Tests
+
+    [Fact]
+    public void GetActiveThreadCount_Should_ReturnZero_When_NoThreads()
+    {
+        // Act & Assert
+        _manager.GetActiveThreadCount().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetActiveThreadCount_Should_ReturnCorrectCount()
+    {
+        // Arrange
+        await _manager.AddMessageAsync("session-1", "user", "Hello", CancellationToken.None);
+        await _manager.AddMessageAsync("session-2", "user", "World", CancellationToken.None);
+        await _manager.AddMessageAsync("session-3", "user", "Test", CancellationToken.None);
+
+        // Act & Assert
+        _manager.GetActiveThreadCount().Should().Be(3);
+    }
+
+    [Fact]
+    public async Task GetActiveThreadCount_Should_Decrease_After_Cleanup()
+    {
+        // Arrange
+        await _manager.AddMessageAsync("session-cleanup-1", "user", "Hello", CancellationToken.None);
+        await _manager.AddMessageAsync("session-cleanup-2", "user", "World", CancellationToken.None);
+
+        // Act
+        await _manager.CleanupThreadAsync("session-cleanup-1", false, CancellationToken.None);
+
+        // Assert
+        _manager.GetActiveThreadCount().Should().Be(1);
+    }
+
+    #endregion
+
+    #region GetExpiredSessionIds Tests
+
+    [Fact]
+    public void GetExpiredSessionIds_Should_ReturnEmpty_When_NoThreads()
+    {
+        // Act
+        var result = _manager.GetExpiredSessionIds(TimeSpan.FromMinutes(60));
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetExpiredSessionIds_Should_ReturnEmpty_When_AllThreadsActive()
+    {
+        // Arrange - Create fresh threads
+        await _manager.AddMessageAsync("active-session-1", "user", "Hello", CancellationToken.None);
+        await _manager.AddMessageAsync("active-session-2", "user", "World", CancellationToken.None);
+
+        // Act - Check for threads idle > 60 minutes (none should be)
+        var result = _manager.GetExpiredSessionIds(TimeSpan.FromMinutes(60));
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetExpiredSessionIds_Should_ReturnExpiredThreads_When_IdleTimeoutExceeded()
+    {
+        // Arrange - Create threads
+        await _manager.AddMessageAsync("old-session", "user", "Hello", CancellationToken.None);
+
+        // Act - Use a very short timeout so all threads appear expired
+        var result = _manager.GetExpiredSessionIds(TimeSpan.Zero);
+
+        // Assert
+        result.Should().Contain("old-session");
+    }
+
+    [Fact]
+    public async Task GetExpiredSessionIds_Should_NotIncludeRecentlyAccessedThreads()
+    {
+        // Arrange
+        await _manager.AddMessageAsync("fresh-session", "user", "Hello", CancellationToken.None);
+
+        // Act - Access the thread to refresh LastAccessedAt
+        await _manager.GetHistoryAsync("fresh-session", CancellationToken.None);
+
+        // Use timeout of 1 hour - thread should not be expired
+        var result = _manager.GetExpiredSessionIds(TimeSpan.FromHours(1));
+
+        // Assert
+        result.Should().NotContain("fresh-session");
+    }
+
+    #endregion
 }

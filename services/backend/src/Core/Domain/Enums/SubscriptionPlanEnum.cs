@@ -6,5 +6,6 @@ public enum SubscriptionPlanEnum
     Package5,
     Package10,
     Package25,
-    Unlimited
+    Unlimited,
+    InternalTesters  // Special plan for team whitelist (Chat V2 beta)
 }

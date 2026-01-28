@@ -175,6 +175,14 @@ public static class DatabaseSeeder
                     Price = 99m,
                     Credits = 0,
                     PaymentUnit = PaymentUnit.PerMessage
+                },
+                new SubscriptionPlanEntity
+                {
+                    Id = Guid.NewGuid(),
+                    PlanEnum = SubscriptionPlanEnum.InternalTesters,
+                    Price = 0m,
+                    Credits = 1000,  // Generous credits for internal testing
+                    PaymentUnit = PaymentUnit.PerMessage
                 }
             );
             hasChanges = true;
@@ -226,15 +234,32 @@ public static class DatabaseSeeder
         var existingFeatureFlagKeySet = new HashSet<string>(existingFeatureFlagKeys, StringComparer.OrdinalIgnoreCase);
         var featureFlagsToAdd = new List<FeatureFlagEntity>();
 
-        if (!existingFeatureFlagKeySet.Contains("new_chat_ui"))
+        // Chat V2 feature flags - controlled via InternalTesters whitelist plan
+        if (!existingFeatureFlagKeySet.Contains("new-chat-ui"))
         {
             featureFlagsToAdd.Add(new FeatureFlagEntity
             {
                 Id = Guid.NewGuid(),
-                Key = "new_chat_ui",
-                Description = "Enable new chat UI",
+                Key = "new-chat-ui",
+                Description = "Enable new Chat V2 UI interface",
                 IsEnabled = false,
-                RolloutPercentage = 100,
+                AllowedPlans = "InternalTesters",
+                RolloutPercentage = 0,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+        }
+
+        if (!existingFeatureFlagKeySet.Contains("chat-v2-streaming"))
+        {
+            featureFlagsToAdd.Add(new FeatureFlagEntity
+            {
+                Id = Guid.NewGuid(),
+                Key = "chat-v2-streaming",
+                Description = "Enable Chat V2 streaming responses",
+                IsEnabled = false,
+                AllowedPlans = "InternalTesters",
+                RolloutPercentage = 0,
                 CreatedAt = now,
                 UpdatedAt = now
             });

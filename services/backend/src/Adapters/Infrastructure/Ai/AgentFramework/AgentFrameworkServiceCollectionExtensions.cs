@@ -8,6 +8,7 @@ using Infrastructure.Ai.AgentFramework.Abstractions;
 using Infrastructure.Ai.AgentFramework.Services;
 using Infrastructure.Ai.AgentFramework.Tools;
 using Infrastructure.Http;
+using Orchid.Infrastructure.Ai.AgentFramework;
 
 namespace Infrastructure.Ai.AgentFramework;
 
@@ -93,6 +94,11 @@ public static class AgentFrameworkServiceCollectionExtensions
         // ─── 8. Thread manager for conversation state ────────────────────
         // Singleton: maintains in-memory thread state across requests
         services.AddSingleton<IAgentThreadManager, Services.AgentThreadManager>();
+
+        // ─── 8.1 Thread manager configuration & cleanup service ──────────
+        services.Configure<ThreadManagerSettings>(
+            configuration.GetSection(ThreadManagerSettings.SectionName));
+        services.AddHostedService<Services.ThreadCleanupBackgroundService>();
 
         // ─── 9. Chat adapter ➜ IChatCompletionPort forwarding ───────────
         services.AddScoped<AgentFrameworkChatCompletionAdapter>();

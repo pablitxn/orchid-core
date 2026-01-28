@@ -99,6 +99,21 @@ public class ApplicationDbContext(
             .Property(u => u.PasswordResetExpiry)
             .HasColumnType("timestamp with time zone");
 
+        // Auth0 user fields configuration
+        modelBuilder.Entity<UserEntity>()
+            .Property(u => u.Auth0UserId)
+            .HasMaxLength(255);
+        modelBuilder.Entity<UserEntity>()
+            .Property(u => u.Auth0Connection)
+            .HasMaxLength(100);
+        modelBuilder.Entity<UserEntity>()
+            .Property(u => u.Auth0LastSyncedAt)
+            .HasColumnType("timestamp with time zone");
+        modelBuilder.Entity<UserEntity>()
+            .HasIndex(u => u.Auth0UserId)
+            .IsUnique()
+            .HasFilter("\"Auth0UserId\" IS NOT NULL");
+
         modelBuilder.Entity<ProjectEntity>()
             .HasOne(p => p.AudioFile)
             .WithOne(a => a.Project)
@@ -341,8 +356,27 @@ public class ApplicationDbContext(
             b.Property(p => p.CreatedAt).HasColumnType("timestamp with time zone");
             b.Property(p => p.UpdatedAt).HasColumnType("timestamp with time zone");
 
-            // Index for filtering by plugin type
+            // Marketplace metadata
+            b.Property(p => p.Author).HasMaxLength(200);
+            b.Property(p => p.Category).HasMaxLength(100);
+            b.Property(p => p.Icon).HasMaxLength(500);
+            b.Property(p => p.Tags).HasMaxLength(500);
+            b.Property(p => p.Rating).IsRequired().HasDefaultValue(0.0);
+            b.Property(p => p.ReviewCount).IsRequired().HasDefaultValue(0);
+            b.Property(p => p.InstallCount).IsRequired().HasDefaultValue(0);
+            b.Property(p => p.IsFeatured).IsRequired().HasDefaultValue(false);
+            b.Property(p => p.IsPublic).IsRequired().HasDefaultValue(false);
+            b.Property(p => p.PublishedAt).HasColumnType("timestamp with time zone");
+            b.Property(p => p.Version).HasMaxLength(50);
+            b.Property(p => p.Compatibility).HasMaxLength(200);
+
+            // Indexes for filtering
             b.HasIndex(p => p.PluginType);
+            b.HasIndex(p => p.Category);
+            b.HasIndex(p => p.Rating);
+            b.HasIndex(p => p.InstallCount);
+            b.HasIndex(p => p.IsFeatured);
+            b.HasIndex(p => p.IsPublic);
         });
 
         modelBuilder.Entity<WorkflowEntity>(b =>

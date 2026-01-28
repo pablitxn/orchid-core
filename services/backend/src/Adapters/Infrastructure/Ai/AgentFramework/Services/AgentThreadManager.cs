@@ -53,6 +53,8 @@ public sealed class AgentThreadManager : IAgentThreadManager
         // Check if we already have an active thread
         if (_activeThreads.TryGetValue(sessionId, out var existingThread))
         {
+            existingThread.LastAccessedAt = DateTime.UtcNow;
+
             _logger.LogDebug(
                 "Returning existing thread for session {SessionId} with {MessageCount} messages",
                 sessionId, existingThread.Messages.Count);
@@ -65,11 +67,13 @@ public sealed class AgentThreadManager : IAgentThreadManager
         }
 
         // Create new thread data
+        var now = DateTime.UtcNow;
         var threadData = new ThreadData
         {
             SessionId = sessionId,
             AgentId = agentId,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = now,
+            LastAccessedAt = now,
             Messages = new List<ChatMessage>()
         };
 
@@ -108,13 +112,19 @@ public sealed class AgentThreadManager : IAgentThreadManager
         // Get or create thread data
         if (!_activeThreads.TryGetValue(sessionId, out var threadData))
         {
+            var now = DateTime.UtcNow;
             threadData = new ThreadData
             {
                 SessionId = sessionId,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = now,
+                LastAccessedAt = now,
                 Messages = new List<ChatMessage>()
             };
             _activeThreads.TryAdd(sessionId, threadData);
+        }
+        else
+        {
+            threadData.LastAccessedAt = DateTime.UtcNow;
         }
 
         return await MigrateFromRedisInternalAsync(sessionId, threadData, cancellationToken);
@@ -133,19 +143,22 @@ public sealed class AgentThreadManager : IAgentThreadManager
         if (!_activeThreads.TryGetValue(sessionId, out var threadData))
         {
             // Create thread data if it doesn't exist
+            var now = DateTime.UtcNow;
             threadData = new ThreadData
             {
                 SessionId = sessionId,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = now,
+                LastAccessedAt = now,
                 Messages = new List<ChatMessage>()
             };
             _activeThreads.TryAdd(sessionId, threadData);
             _activeThreads.TryGetValue(sessionId, out threadData);
         }
 
+        threadData!.LastAccessedAt = DateTime.UtcNow;
         var message = new ChatMessage(role, content);
 
-        lock (threadData!.Messages)
+        lock (threadData.Messages)
         {
             threadData.Messages.Add(message);
         }
@@ -168,6 +181,8 @@ public sealed class AgentThreadManager : IAgentThreadManager
         {
             return Task.FromResult<IReadOnlyList<ChatMessage>>(Array.Empty<ChatMessage>());
         }
+
+        threadData.LastAccessedAt = DateTime.UtcNow;
 
         lock (threadData.Messages)
         {
@@ -292,6 +307,26 @@ public sealed class AgentThreadManager : IAgentThreadManager
         }
     }
 
+    /// <inheritdoc />
+    public IReadOnlyList<string> GetExpiredSessionIds(TimeSpan idleTimeout)
+    {
+        var cutoff = DateTime.UtcNow - idleTimeout;
+        var expired = new List<string>();
+
+        foreach (var kvp in _activeThreads)
+        {
+            if (kvp.Value.LastAccessedAt < cutoff)
+            {
+                expired.Add(kvp.Key);
+            }
+        }
+
+        return expired.AsReadOnly();
+    }
+
+    /// <inheritdoc />
+    public int GetActiveThreadCount() => _activeThreads.Count;
+
     /// <summary>
     /// Internal thread data structure.
     /// </summary>
@@ -302,5 +337,6 @@ public sealed class AgentThreadManager : IAgentThreadManager
         public required DateTime CreatedAt { get; init; }
         public required List<ChatMessage> Messages { get; init; }
         public bool WasMigrated { get; set; }
+        public DateTime LastAccessedAt { get; set; }
     }
 }

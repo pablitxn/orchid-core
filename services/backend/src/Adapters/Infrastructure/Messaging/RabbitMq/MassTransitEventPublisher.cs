@@ -17,8 +17,8 @@ public class MassTransitEventPublisher : IEventPublisher
     }
 
     /// <inheritdoc />
-    public async Task PublishAsync<T>(T domainEvent) where T : IDomainEvent
+    public async Task PublishAsync<T>(T domainEvent, CancellationToken cancellationToken = default) where T : IDomainEvent
     {
-        await _publishEndpoint.Publish(domainEvent);
+        await _publishEndpoint.Publish(domainEvent, cancellationToken);
     }
 }

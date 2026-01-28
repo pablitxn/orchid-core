@@ -19,6 +19,20 @@ public class PluginEntity
     public DateTime? SpecCachedAt { get; set; } // Cache timestamp
     public int? TimeoutSeconds { get; set; } // Request timeout (default 30)
 
+    // Marketplace metadata
+    public string? Author { get; set; }
+    public string? Category { get; set; }
+    public string? Icon { get; set; }
+    public string? Tags { get; set; } // Comma-separated tags
+    public double Rating { get; set; } = 0.0;
+    public int ReviewCount { get; set; } = 0;
+    public int InstallCount { get; set; } = 0;
+    public bool IsFeatured { get; set; } = false;
+    public bool IsPublic { get; set; } = false;
+    public DateTime? PublishedAt { get; set; }
+    public string? Version { get; set; }
+    public string? Compatibility { get; set; } // e.g., "all" or specific agent types
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

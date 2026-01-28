@@ -71,6 +71,19 @@ public interface IAgentThreadManager
     /// <param name="sessionId">The chat session identifier.</param>
     /// <returns>True if an active thread exists for the session.</returns>
     bool HasActiveThread(string sessionId);
+
+    /// <summary>
+    /// Gets session IDs of threads that have been idle longer than the specified timeout.
+    /// </summary>
+    /// <param name="idleTimeout">The idle timeout duration.</param>
+    /// <returns>Collection of expired session IDs.</returns>
+    IReadOnlyList<string> GetExpiredSessionIds(TimeSpan idleTimeout);
+
+    /// <summary>
+    /// Gets the current count of active threads.
+    /// </summary>
+    /// <returns>Number of active threads in memory.</returns>
+    int GetActiveThreadCount();
 }
 
 /// <summary>
