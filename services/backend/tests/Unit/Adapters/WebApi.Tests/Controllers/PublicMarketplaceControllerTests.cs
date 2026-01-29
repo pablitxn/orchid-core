@@ -1,4 +1,5 @@
-using Application.UseCases.Plugin.ListAvailablePlugins;
+using Application.Common.Models;
+using Application.UseCases.Plugin.GetPublicPluginDetails;
 using Application.UseCases.Plugin.ListPublicPlugins;
 using Application.UseCases.Workflow.ListWorkflows;
 using MediatR;
@@ -27,11 +28,12 @@ public class PublicMarketplaceControllerTests
         // Arrange
         var expectedPlugins = new List<PublicPluginDto>
         {
-            new(Guid.NewGuid(), "Plugin 1", "Desc 1", 100, false, true, null, DateTime.UtcNow),
-            new(Guid.NewGuid(), "Plugin 2", "Desc 2", 200, true, true, null, DateTime.UtcNow)
+            CreatePublicPluginDto(Guid.NewGuid(), "Plugin 1", "Desc 1", 100),
+            CreatePublicPluginDto(Guid.NewGuid(), "Plugin 2", "Desc 2", 200)
         };
 
-        var result = new ListPublicPluginsDto(expectedPlugins);
+        var paginatedPlugins = new PaginatedResult<PublicPluginDto>(expectedPlugins, 2, 1, 20);
+        var result = new ListPublicPluginsDto(paginatedPlugins);
 
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<ListPublicPluginsQuery>(),
@@ -39,7 +41,7 @@ public class PublicMarketplaceControllerTests
             .ReturnsAsync(result);
 
         // Act
-        var actionResult = await _controller.ListPlugins(CancellationToken.None);
+        var actionResult = await _controller.ListPlugins(cancellationToken: CancellationToken.None);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(actionResult);
@@ -50,7 +52,8 @@ public class PublicMarketplaceControllerTests
     public async Task ListPlugins_ReturnsOk_WithEmptyList_WhenNoPluginsAvailable()
     {
         // Arrange
-        var emptyList = new ListPublicPluginsDto(new List<PublicPluginDto>());
+        var emptyPaginated = PaginatedResult<PublicPluginDto>.Empty();
+        var emptyList = new ListPublicPluginsDto(emptyPaginated);
 
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<ListPublicPluginsQuery>(),
@@ -58,12 +61,44 @@ public class PublicMarketplaceControllerTests
             .ReturnsAsync(emptyList);
 
         // Act
-        var actionResult = await _controller.ListPlugins(CancellationToken.None);
+        var actionResult = await _controller.ListPlugins(cancellationToken: CancellationToken.None);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(actionResult);
-        var result = Assert.IsType<ListPublicPluginsDto>(okResult.Value);
-        Assert.Empty(result.Plugins);
+        var resultDto = Assert.IsType<ListPublicPluginsDto>(okResult.Value);
+        Assert.Empty(resultDto.Plugins.Items);
+    }
+
+    [Fact]
+    public async Task ListPlugins_PassesFilterParametersToQuery()
+    {
+        // Arrange
+        var emptyPaginated = PaginatedResult<PublicPluginDto>.Empty();
+        var emptyList = new ListPublicPluginsDto(emptyPaginated);
+
+        ListPublicPluginsQuery? capturedQuery = null;
+        _mediatorMock.Setup(m => m.Send(
+            It.IsAny<ListPublicPluginsQuery>(),
+            It.IsAny<CancellationToken>()))
+            .Callback<IRequest<ListPublicPluginsDto>, CancellationToken>((q, _) => capturedQuery = (ListPublicPluginsQuery)q)
+            .ReturnsAsync(emptyList);
+
+        // Act
+        await _controller.ListPlugins(
+            search: "test",
+            category: "AI",
+            minRating: 4.0m,
+            page: 2,
+            pageSize: 10,
+            cancellationToken: CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(capturedQuery);
+        Assert.Equal("test", capturedQuery.SearchTerm);
+        Assert.Equal("AI", capturedQuery.Category);
+        Assert.Equal(4.0m, capturedQuery.MinRating);
+        Assert.Equal(2, capturedQuery.Page);
+        Assert.Equal(10, capturedQuery.PageSize);
     }
 
     #endregion
@@ -76,11 +111,11 @@ public class PublicMarketplaceControllerTests
         // Arrange
         var expectedWorkflows = new List<PublicWorkflowDto>
         {
-            new(Guid.NewGuid(), "Workflow 1", "Desc 1", 100, "Author1", "Cat1", 5, "10m", 4.5, 100, null, null, DateTime.UtcNow, DateTime.UtcNow, DateTime.UtcNow),
-            new(Guid.NewGuid(), "Workflow 2", "Desc 2", 200, "Author2", "Cat2", 3, "5m", 4.8, 50, null, null, DateTime.UtcNow, DateTime.UtcNow, DateTime.UtcNow)
+            CreatePublicWorkflowDto(Guid.NewGuid(), "Workflow 1", "Desc 1", 100),
+            CreatePublicWorkflowDto(Guid.NewGuid(), "Workflow 2", "Desc 2", 200)
         };
 
-        var paginatedResult = new Application.Common.Models.PaginatedResult<PublicWorkflowDto>(
+        var paginatedResult = new PaginatedResult<PublicWorkflowDto>(
             expectedWorkflows, expectedWorkflows.Count, 1, 20);
         var result = new ListPublicWorkflowsDto(paginatedResult);
 
@@ -101,7 +136,7 @@ public class PublicMarketplaceControllerTests
     public async Task ListWorkflows_ReturnsOk_WithEmptyList_WhenNoWorkflowsAvailable()
     {
         // Arrange
-        var emptyPaginated = Application.Common.Models.PaginatedResult<PublicWorkflowDto>.Empty();
+        var emptyPaginated = PaginatedResult<PublicWorkflowDto>.Empty();
         var emptyList = new ListPublicWorkflowsDto(emptyPaginated);
 
         _mediatorMock.Setup(m => m.Send(
@@ -127,8 +162,7 @@ public class PublicMarketplaceControllerTests
     {
         // Arrange
         var pluginId = Guid.NewGuid();
-        var expectedPlugin = new PublicPluginDetailsDto(
-            pluginId, "Test Plugin", "Test Description", 100, false, true, "http://example.com", "test-plugin", DateTime.UtcNow, DateTime.UtcNow);
+        var expectedPlugin = CreatePublicPluginDetailsDto(pluginId, "Test Plugin", "Test Description", 100);
 
         _mediatorMock.Setup(m => m.Send(
             It.Is<GetPublicPluginDetailsQuery>(q => q.PluginId == pluginId),
@@ -166,8 +200,7 @@ public class PublicMarketplaceControllerTests
     {
         // Arrange
         var pluginId = Guid.NewGuid();
-        var expectedPlugin = new PublicPluginDetailsDto(
-            pluginId, "Test Plugin", null, 100, false, true, null, null, DateTime.UtcNow, DateTime.UtcNow);
+        var expectedPlugin = CreatePublicPluginDetailsDto(pluginId, "Test Plugin", null, 100);
 
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<GetPublicPluginDetailsQuery>(),
@@ -193,9 +226,7 @@ public class PublicMarketplaceControllerTests
     {
         // Arrange
         var workflowId = Guid.NewGuid();
-        var expectedWorkflow = new PublicWorkflowDetailsDto(
-            workflowId, "Test Workflow", "Test Description", 200, "Author", "Category", 5, "10m", 
-            4.5, 100, null, null, null, null, null, null, DateTime.UtcNow, DateTime.UtcNow);
+        var expectedWorkflow = CreatePublicWorkflowDetailsDto(workflowId, "Test Workflow", "Test Description", 200);
 
         _mediatorMock.Setup(m => m.Send(
             It.Is<GetPublicWorkflowDetailsQuery>(q => q.WorkflowId == workflowId),
@@ -233,8 +264,7 @@ public class PublicMarketplaceControllerTests
     {
         // Arrange
         var workflowId = Guid.NewGuid();
-        var expectedWorkflow = new PublicWorkflowDetailsDto(
-            workflowId, "Test Workflow", null, 200, null, null, 0, null, 0, 0, null, null, null, null, null, null, DateTime.UtcNow, DateTime.UtcNow);
+        var expectedWorkflow = CreatePublicWorkflowDetailsDto(workflowId, "Test Workflow", null, 200);
 
         _mediatorMock.Setup(m => m.Send(
             It.IsAny<GetPublicWorkflowDetailsQuery>(),
@@ -249,6 +279,122 @@ public class PublicMarketplaceControllerTests
             It.Is<GetPublicWorkflowDetailsQuery>(q => q.WorkflowId == workflowId),
             It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    private static PublicPluginDto CreatePublicPluginDto(
+        Guid id,
+        string name,
+        string? description,
+        int priceCredits,
+        bool isSubscriptionBased = false,
+        bool isActive = true)
+    {
+        return new PublicPluginDto(
+            Id: id,
+            Name: name,
+            Description: description,
+            PriceCredits: priceCredits,
+            IsSubscriptionBased: isSubscriptionBased,
+            IsActive: isActive,
+            SourceUrl: null,
+            Author: "TestAuthor",
+            Category: "TestCategory",
+            Icon: null,
+            Tags: null,
+            Rating: 4.5,
+            ReviewCount: 10,
+            InstallCount: 100,
+            IsFeatured: false,
+            Version: "1.0.0",
+            Compatibility: null,
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: DateTime.UtcNow,
+            PublishedAt: DateTime.UtcNow);
+    }
+
+    private static PublicPluginDetailsDto CreatePublicPluginDetailsDto(
+        Guid id,
+        string name,
+        string? description,
+        int priceCredits)
+    {
+        return new PublicPluginDetailsDto(
+            Id: id,
+            Name: name,
+            Description: description,
+            PriceCredits: priceCredits,
+            IsSubscriptionBased: false,
+            IsActive: true,
+            SourceUrl: null,
+            SystemName: "test-plugin",
+            Author: "TestAuthor",
+            Category: "TestCategory",
+            Icon: null,
+            Tags: null,
+            Rating: 4.5,
+            ReviewCount: 10,
+            InstallCount: 100,
+            IsFeatured: false,
+            Version: "1.0.0",
+            Compatibility: null,
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: DateTime.UtcNow,
+            PublishedAt: DateTime.UtcNow);
+    }
+
+    private static PublicWorkflowDto CreatePublicWorkflowDto(
+        Guid id,
+        string name,
+        string? description,
+        int priceCredits)
+    {
+        return new PublicWorkflowDto(
+            Id: id,
+            Name: name,
+            Description: description,
+            PriceCredits: priceCredits,
+            Author: "TestAuthor",
+            Category: "TestCategory",
+            Steps: 5,
+            EstimatedTime: "10m",
+            Rating: 4.5,
+            Runs: 100,
+            Icon: null,
+            Tags: null,
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: DateTime.UtcNow,
+            PublishedAt: DateTime.UtcNow);
+    }
+
+    private static PublicWorkflowDetailsDto CreatePublicWorkflowDetailsDto(
+        Guid id,
+        string name,
+        string? description,
+        int priceCredits)
+    {
+        return new PublicWorkflowDetailsDto(
+            Id: id,
+            Name: name,
+            Description: description,
+            PriceCredits: priceCredits,
+            Author: "TestAuthor",
+            Category: "TestCategory",
+            Steps: 5,
+            EstimatedTime: "10m",
+            Rating: 4.5,
+            Runs: 100,
+            Icon: null,
+            Tags: null,
+            DetailedDescription: null,
+            Prerequisites: null,
+            InputRequirements: null,
+            OutputFormat: null,
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: DateTime.UtcNow);
     }
 
     #endregion
