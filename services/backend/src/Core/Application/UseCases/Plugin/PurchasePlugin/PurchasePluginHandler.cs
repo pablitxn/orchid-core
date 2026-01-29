@@ -12,6 +12,7 @@ public sealed class PurchasePluginHandler(
     ICreditTrackingService creditTrackingService,
     ICostRegistry costRegistry,
     ICreditLimitService creditLimitService,
+    IPluginUsageTracker pluginUsageTracker,
     ILogger<PurchasePluginHandler> logger
 ) : IRequestHandler<PurchasePluginCommand, PurchasePluginDto>
 {
@@ -19,6 +20,7 @@ public sealed class PurchasePluginHandler(
     private readonly ICreditTrackingService _creditTracking = creditTrackingService;
     private readonly ICostRegistry _costRegistry = costRegistry;
     private readonly ICreditLimitService _creditLimitService = creditLimitService;
+    private readonly IPluginUsageTracker _pluginUsageTracker = pluginUsageTracker;
     private readonly ILogger<PurchasePluginHandler> _logger = logger;
 
     public async Task<PurchasePluginDto> Handle(PurchasePluginCommand command, CancellationToken cancellationToken)
@@ -177,8 +179,11 @@ public sealed class PurchasePluginHandler(
                         cancellationToken);
                 }
 
-                _logger.LogInformation("User {UserId} successfully purchased plugin {PluginId} ({PluginName})", 
+                _logger.LogInformation("User {UserId} successfully purchased plugin {PluginId} ({PluginName})",
                     command.UserId, plugin.Id, plugin.Name);
+
+                // Track plugin installation for analytics (non-blocking)
+                _ = _pluginUsageTracker.TrackInstallAsync(plugin.Id, command.UserId, plugin.Name, cancellationToken);
 
                 return new PurchasePluginDto(true);
             }

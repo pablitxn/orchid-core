@@ -12,6 +12,8 @@ public class NotificationServiceTests
     private readonly Mock<INotificationRepository> _notificationRepositoryMock;
     private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly Mock<IRealtimeNotificationPort> _realtimeNotificationPortMock;
+    private readonly Mock<INotificationPreferencesRepository> _preferencesRepositoryMock;
+    private readonly Mock<IMatrixBridgePort> _matrixBridgePortMock;
     private readonly Mock<ILogger<NotificationService>> _loggerMock;
     private readonly NotificationService _service;
 
@@ -20,12 +22,16 @@ public class NotificationServiceTests
         _notificationRepositoryMock = new Mock<INotificationRepository>();
         _userRepositoryMock = new Mock<IUserRepository>();
         _realtimeNotificationPortMock = new Mock<IRealtimeNotificationPort>();
+        _preferencesRepositoryMock = new Mock<INotificationPreferencesRepository>();
+        _matrixBridgePortMock = new Mock<IMatrixBridgePort>();
         _loggerMock = new Mock<ILogger<NotificationService>>();
 
         _service = new NotificationService(
             _notificationRepositoryMock.Object,
             _userRepositoryMock.Object,
             _realtimeNotificationPortMock.Object,
+            _preferencesRepositoryMock.Object,
+            _matrixBridgePortMock.Object,
             _loggerMock.Object);
     }
 

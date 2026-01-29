@@ -90,6 +90,9 @@ public class ApplicationDbContext(
     public DbSet<PublisherEntity> Publishers { get; set; }
     public DbSet<PluginSubmissionEntity> PluginSubmissions { get; set; }
     public DbSet<PluginVersionEntity> PluginVersions { get; set; }
+    public DbSet<PluginUsageEventEntity> PluginUsageEvents { get; set; }
+    public DbSet<NotificationPreferencesEntity> NotificationPreferences { get; set; }
+    public DbSet<ScheduledNotificationEntity> ScheduledNotifications { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -1453,6 +1456,99 @@ public class ApplicationDbContext(
                 .WithMany()
                 .HasForeignKey(v => v.SuccessorVersionId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Map PluginUsageEvent entity for analytics
+        modelBuilder.Entity<PluginUsageEventEntity>(b =>
+        {
+            b.ToTable("PluginUsageEvents");
+            b.HasKey(e => e.Id);
+            b.Property(e => e.PluginId).IsRequired();
+            b.Property(e => e.UserId);
+            b.Property(e => e.AgentId);
+            b.Property(e => e.EventType).IsRequired().HasMaxLength(50);
+            b.Property(e => e.Metadata).HasColumnType("jsonb");
+            b.Property(e => e.ErrorMessage).HasMaxLength(1000);
+            b.Property(e => e.DurationMs);
+            b.Property(e => e.OccurredAt).HasColumnType("timestamp with time zone");
+
+            // Indexes for efficient analytics queries
+            b.HasIndex(e => new { e.PluginId, e.OccurredAt });
+            b.HasIndex(e => new { e.EventType, e.OccurredAt });
+            b.HasIndex(e => e.UserId);
+
+            // Relationships
+            b.HasOne(e => e.Plugin)
+                .WithMany()
+                .HasForeignKey(e => e.PluginId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
+            b.HasOne(e => e.Agent)
+                .WithMany()
+                .HasForeignKey(e => e.AgentId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // NotificationPreferencesEntity configuration
+        modelBuilder.Entity<NotificationPreferencesEntity>(b =>
+        {
+            b.ToTable("NotificationPreferences");
+            b.HasKey(p => p.Id);
+            b.Property(p => p.UserId).IsRequired();
+            b.Property(p => p.NotificationsEnabled).IsRequired().HasDefaultValue(true);
+            b.Property(p => p.QuietHoursStart);
+            b.Property(p => p.QuietHoursEnd);
+            b.Property(p => p.Timezone).HasMaxLength(100).HasDefaultValue("UTC");
+            b.Property(p => p.EnabledTypes).HasColumnType("jsonb");
+            b.Property(p => p.MatrixNotificationsEnabled).IsRequired().HasDefaultValue(true);
+            b.Property(p => p.EmailNotificationsEnabled).IsRequired().HasDefaultValue(false);
+            b.Property(p => p.EmailDigestFrequency).HasMaxLength(20);
+            b.Property(p => p.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(p => p.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(p => p.UserId).IsUnique();
+            b.HasOne(p => p.User)
+                .WithMany()
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ScheduledNotificationEntity configuration
+        modelBuilder.Entity<ScheduledNotificationEntity>(b =>
+        {
+            b.ToTable("ScheduledNotifications");
+            b.HasKey(n => n.Id);
+            b.Property(n => n.UserId).IsRequired();
+            b.Property(n => n.Type).IsRequired().HasMaxLength(50);
+            b.Property(n => n.Title).IsRequired().HasMaxLength(200);
+            b.Property(n => n.Message).IsRequired();
+            b.Property(n => n.Priority).IsRequired().HasDefaultValue(1);
+            b.Property(n => n.Metadata).HasColumnType("jsonb");
+            b.Property(n => n.ScheduledFor).HasColumnType("timestamp with time zone");
+            b.Property(n => n.CronExpression).HasMaxLength(100);
+            b.Property(n => n.IsRecurring).IsRequired().HasDefaultValue(false);
+            b.Property(n => n.LastExecutedAt).HasColumnType("timestamp with time zone");
+            b.Property(n => n.NextExecutionAt).HasColumnType("timestamp with time zone");
+            b.Property(n => n.Status)
+                .HasConversion<int>()
+                .IsRequired()
+                .HasDefaultValue(ScheduledNotificationStatus.Pending);
+            b.Property(n => n.RetryCount).IsRequired().HasDefaultValue(0);
+            b.Property(n => n.LastError).HasMaxLength(1000);
+            b.Property(n => n.SourceService).HasMaxLength(100);
+            b.Property(n => n.SourceId).HasMaxLength(100);
+            b.Property(n => n.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(n => n.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.HasIndex(n => n.UserId);
+            b.HasIndex(n => n.ScheduledFor);
+            b.HasIndex(n => n.Status);
+            b.HasIndex(n => new { n.Status, n.ScheduledFor });
+            b.HasOne(n => n.User)
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

@@ -9,6 +9,8 @@ public class NotificationService(
     INotificationRepository notificationRepository,
     IUserRepository userRepository,
     IRealtimeNotificationPort realtimeNotificationPort,
+    INotificationPreferencesRepository preferencesRepository,
+    IMatrixBridgePort matrixBridgePort,
     ILogger<NotificationService> logger)
     : INotificationService
 {
@@ -189,5 +191,148 @@ public class NotificationService(
             notification.Priority,
             notification.CreatedAt
         });
+    }
+
+    public async Task SendNotificationAsync(
+        Guid userId,
+        string type,
+        string title,
+        string message,
+        int priority = 1,
+        string? actionUrl = null,
+        string? actionText = null,
+        string? metadata = null,
+        CancellationToken cancellationToken = default)
+    {
+        var prefs = await preferencesRepository.GetOrCreateDefaultAsync(userId, cancellationToken);
+
+        if (!prefs.NotificationsEnabled)
+        {
+            logger.LogDebug("Notifications disabled for user {UserId}", userId);
+            return;
+        }
+
+        if (!IsTypeEnabled(prefs, type))
+        {
+            logger.LogDebug("Notification type {Type} disabled for user {UserId}", type, userId);
+            return;
+        }
+
+        var notification = new NotificationEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Type = type,
+            Title = title,
+            Message = message,
+            ActionUrl = actionUrl,
+            ActionText = actionText,
+            Priority = priority,
+            Metadata = metadata,
+            ExpiresAt = DateTime.UtcNow.AddDays(30)
+        };
+
+        await notificationRepository.CreateAsync(notification, cancellationToken);
+        await SendRealTimeNotification(userId, notification);
+
+        if (prefs.MatrixNotificationsEnabled)
+        {
+            await matrixBridgePort.SendNotificationAsync(userId, title, message, type, metadata, cancellationToken);
+        }
+
+        logger.LogInformation("Notification sent to user {UserId}, type: {Type}", userId, type);
+    }
+
+    public async Task SendReminderAsync(
+        Guid userId,
+        string title,
+        string message,
+        string? metadata = null,
+        CancellationToken cancellationToken = default)
+    {
+        await SendNotificationAsync(
+            userId,
+            NotificationType.Reminder.ToString(),
+            title,
+            message,
+            priority: 2,
+            metadata: metadata,
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task SendInsightAsync(
+        Guid userId,
+        string title,
+        string message,
+        string? metadata = null,
+        CancellationToken cancellationToken = default)
+    {
+        await SendNotificationAsync(
+            userId,
+            NotificationType.Insight.ToString(),
+            title,
+            message,
+            priority: 1,
+            metadata: metadata,
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task SendIngestionConfirmationAsync(
+        Guid userId,
+        string itemType,
+        string itemName,
+        string[]? tags = null,
+        CancellationToken cancellationToken = default)
+    {
+        var tagString = tags != null && tags.Length > 0 ? $" [tags: {string.Join(", ", tags)}]" : "";
+        await SendNotificationAsync(
+            userId,
+            NotificationType.IngestionConfirmation.ToString(),
+            "Content Saved",
+            $"Saved {itemType} as reference: {itemName}{tagString}",
+            priority: 0,
+            metadata: JsonSerializer.Serialize(new { itemType, itemName, tags }),
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task SendSyncAlertAsync(
+        Guid userId,
+        string serviceName,
+        bool success,
+        string message,
+        CancellationToken cancellationToken = default)
+    {
+        await SendNotificationAsync(
+            userId,
+            NotificationType.SyncAlert.ToString(),
+            success ? "Sync Completed" : "Sync Issue",
+            message,
+            priority: success ? 0 : 2,
+            metadata: JsonSerializer.Serialize(new { serviceName, success }),
+            cancellationToken: cancellationToken);
+    }
+
+    private static bool IsTypeEnabled(NotificationPreferencesEntity prefs, string type)
+    {
+        string[] enabledTypes;
+        try
+        {
+            enabledTypes = JsonSerializer.Deserialize<string[]>(prefs.EnabledTypes) ?? [];
+        }
+        catch
+        {
+            enabledTypes = ["reminders", "insights", "ingestion", "sync"];
+        }
+
+        var typeCategory = type.ToLowerInvariant() switch
+        {
+            "reminder" or "deadlineapproaching" => "reminders",
+            "insight" or "weeklyperformancesummary" or "trendalert" => "insights",
+            "ingestionconfirmation" => "ingestion",
+            "syncalert" => "sync",
+            _ => "general"
+        };
+
+        return enabledTypes.Contains(typeCategory) || enabledTypes.Contains("all") || typeCategory == "general";
     }
 }

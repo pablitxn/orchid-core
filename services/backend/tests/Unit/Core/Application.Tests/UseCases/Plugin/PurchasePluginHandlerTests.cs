@@ -15,6 +15,7 @@ public class PurchasePluginHandlerTests
     private readonly Mock<ICreditTrackingService> _tracking = new();
     private readonly Mock<ICostRegistry> _costRegistry = new();
     private readonly Mock<ICreditLimitService> _limitService = new();
+    private readonly Mock<IPluginUsageTracker> _usageTracker = new();
     private readonly Mock<ILogger<PurchasePluginHandler>> _logger = new();
     private readonly PurchasePluginHandler _handler;
 
@@ -30,6 +31,7 @@ public class PurchasePluginHandlerTests
             _tracking.Object,
             _costRegistry.Object,
             _limitService.Object,
+            _usageTracker.Object,
             _logger.Object);
     }
 

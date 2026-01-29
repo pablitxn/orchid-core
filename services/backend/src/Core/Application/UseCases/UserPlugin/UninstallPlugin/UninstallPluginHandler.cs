@@ -7,11 +7,13 @@ namespace Application.UseCases.UserPlugin.UninstallPlugin;
 public sealed class UninstallPluginHandler(
     IUnitOfWork unitOfWork,
     IAgentRepository agentRepository,
+    IPluginUsageTracker pluginUsageTracker,
     ILogger<UninstallPluginHandler> logger
 ) : IRequestHandler<UninstallPluginCommand, UninstallPluginDto>
 {
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IAgentRepository _agentRepository = agentRepository;
+    private readonly IPluginUsageTracker _pluginUsageTracker = pluginUsageTracker;
     private readonly ILogger<UninstallPluginHandler> _logger = logger;
 
     public async Task<UninstallPluginDto> Handle(UninstallPluginCommand command, CancellationToken cancellationToken)
@@ -65,6 +67,12 @@ public sealed class UninstallPluginHandler(
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             _logger.LogInformation("User {UserId} uninstalled plugin {PluginId}", command.UserId, command.PluginId);
+
+            // Track plugin uninstallation for analytics (non-blocking)
+            if (plugin != null)
+            {
+                _ = _pluginUsageTracker.TrackUninstallAsync(plugin.Id, command.UserId, plugin.Name, cancellationToken);
+            }
 
             return new UninstallPluginDto(true);
         }

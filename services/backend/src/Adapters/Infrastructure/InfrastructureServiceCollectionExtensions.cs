@@ -121,6 +121,13 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IPublisherRepository, PublisherRepository>();
         services.AddScoped<IPluginSubmissionRepository, PluginSubmissionRepository>();
 
+        // ─── Plugin analytics repositories ────────────────────────────────────────────
+        services.AddScoped<IPluginUsageEventRepository, PluginUsageEventRepository>();
+
+        // ─── Notification system repositories ────────────────────────────────────────────
+        services.AddScoped<INotificationPreferencesRepository, NotificationPreferencesRepository>();
+        services.AddScoped<IScheduledNotificationRepository, ScheduledNotificationRepository>();
+
         // ─── Unit of Work pattern ────────────────────────────────────────────────────
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         // ...
@@ -137,6 +144,23 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<ICreditValidationService, Services.CreditValidationService>();
         services.AddScoped<IAuditService, Services.AuditService>();
         services.AddScoped<IFreeTierCreditService, Services.FreeTierCreditService>();
+
+        // ─── Plugin usage tracking service ──────────────────────────────────────────────
+        services.AddScoped<IPluginUsageTracker, Services.PluginUsageTrackerService>();
+
+        // ─── Notification scheduler service ──────────────────────────────────────────────
+        services.AddScoped<INotificationScheduler, Services.NotificationSchedulerService>();
+
+        // ─── Matrix bridge adapter (HTTP client for matrix-orchid-bot) ───────────────────
+        services.AddHttpClient<IMatrixBridgePort, External.MatrixBridgeAdapter>(client =>
+        {
+            var baseUrl = configuration["MatrixBridge:BaseUrl"] ?? "http://localhost:8080";
+            client.BaseAddress = new Uri(baseUrl);
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        // ─── Notification scheduler background service ───────────────────────────────────
+        services.AddHostedService<Services.NotificationSchedulerBackgroundService>();
 
         #endregion
 

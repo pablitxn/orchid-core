@@ -24,6 +24,11 @@ public static class TelemetryContext
     public static string? UserId => CurrentScope.Value?.UserId;
 
     /// <summary>
+    /// Gets the current agent ID, or null if not within a telemetry scope.
+    /// </summary>
+    public static string? AgentId => CurrentScope.Value?.AgentId;
+
+    /// <summary>
     /// Indicates whether telemetry is currently enabled for this scope.
     /// </summary>
     public static bool IsEnabled => CurrentScope.Value?.IsEnabled ?? false;
@@ -56,16 +61,18 @@ public static class TelemetryContext
     /// <param name="traceId">The trace ID for this scope.</param>
     /// <param name="sessionId">The session ID for this scope.</param>
     /// <param name="userId">The user ID for this scope.</param>
+    /// <param name="agentId">The agent ID for this scope.</param>
     /// <param name="functionToolMapping">Optional mapping of function names to tool system names for credit tracking.</param>
     /// <returns>An IDisposable that restores the previous scope when disposed.</returns>
     public static IDisposable BeginScope(
         string traceId,
         string? sessionId = null,
         string? userId = null,
+        string? agentId = null,
         IReadOnlyDictionary<string, string>? functionToolMapping = null)
     {
         var previousScope = CurrentScope.Value;
-        CurrentScope.Value = new TelemetryScope(traceId, sessionId, userId, true, functionToolMapping);
+        CurrentScope.Value = new TelemetryScope(traceId, sessionId, userId, agentId, true, functionToolMapping);
         return new ScopeDisposer(previousScope);
     }
 
@@ -75,7 +82,7 @@ public static class TelemetryContext
     public static IDisposable BeginDisabledScope()
     {
         var previousScope = CurrentScope.Value;
-        CurrentScope.Value = new TelemetryScope(null, null, null, false, null);
+        CurrentScope.Value = new TelemetryScope(null, null, null, null, false, null);
         return new ScopeDisposer(previousScope);
     }
 
@@ -101,6 +108,7 @@ public static class TelemetryContext
         string? TraceId,
         string? SessionId,
         string? UserId,
+        string? AgentId,
         bool IsEnabled,
         IReadOnlyDictionary<string, string>? FunctionToolMapping);
 }

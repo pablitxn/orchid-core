@@ -203,7 +203,7 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
 
         // Establish telemetry context for tool invocations
         using var telemetryScope = !string.IsNullOrEmpty(traceId)
-            ? TelemetryContext.BeginScope(traceId, sessionId, userId?.ToString())
+            ? TelemetryContext.BeginScope(traceId, sessionId, userId?.ToString(), agentId.ToString())
             : TelemetryContext.BeginDisabledScope();
 
         try
@@ -485,7 +485,7 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
 
         // Establish telemetry context for tool invocations (scope is manually managed for streaming)
         var telemetryScope = !string.IsNullOrEmpty(traceId)
-            ? TelemetryContext.BeginScope(traceId, sessionId, userId?.ToString())
+            ? TelemetryContext.BeginScope(traceId, sessionId, userId?.ToString(), agentId.ToString())
             : TelemetryContext.BeginDisabledScope();
 
         try

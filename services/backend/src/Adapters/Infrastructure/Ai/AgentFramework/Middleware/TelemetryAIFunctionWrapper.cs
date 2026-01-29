@@ -26,6 +26,7 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
     private readonly ILogger _logger;
     private readonly ICreditTrackingService? _creditTrackingService;
     private readonly IPluginRepository? _pluginRepository;
+    private readonly IPluginUsageTracker? _pluginUsageTracker;
     private readonly string? _toolSystemName;
 
     /// <summary>
@@ -36,6 +37,7 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
     /// <param name="logger">Logger for diagnostic output.</param>
     /// <param name="creditTrackingService">Optional credit tracking service for billing.</param>
     /// <param name="pluginRepository">Optional plugin repository for resolving plugin IDs.</param>
+    /// <param name="pluginUsageTracker">Optional plugin usage tracker for analytics.</param>
     /// <param name="toolSystemName">Optional tool system name for credit tracking.</param>
     public TelemetryAIFunctionWrapper(
         AIFunction innerFunction,
@@ -43,6 +45,7 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
         ILogger logger,
         ICreditTrackingService? creditTrackingService = null,
         IPluginRepository? pluginRepository = null,
+        IPluginUsageTracker? pluginUsageTracker = null,
         string? toolSystemName = null)
     {
         _innerFunction = innerFunction ?? throw new ArgumentNullException(nameof(innerFunction));
@@ -50,6 +53,7 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _creditTrackingService = creditTrackingService;
         _pluginRepository = pluginRepository;
+        _pluginUsageTracker = pluginUsageTracker;
         _toolSystemName = toolSystemName;
     }
 
@@ -135,6 +139,9 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
             // Track credit usage for successful tool invocations
             await TrackCreditUsageAsync(functionName, cancellationToken);
 
+            // Track plugin usage for analytics (non-blocking)
+            _ = TrackPluginInvocationAsync(functionName, stopwatch.ElapsedMilliseconds, cancellationToken);
+
             return result;
         }
         catch (OperationCanceledException)
@@ -159,6 +166,9 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
                 ex,
                 stopwatch.ElapsedMilliseconds,
                 cancellationToken);
+
+            // Track plugin error for analytics (non-blocking)
+            _ = TrackPluginErrorAsync(functionName, ex, cancellationToken);
 
             throw;
         }
@@ -409,6 +419,132 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
     }
 
     /// <summary>
+    /// Tracks plugin invocation for analytics.
+    /// Only tracks if usage tracker is configured and userId is available.
+    /// </summary>
+    private async Task TrackPluginInvocationAsync(string functionName, long durationMs, CancellationToken cancellationToken)
+    {
+        if (_pluginUsageTracker == null || _pluginRepository == null)
+        {
+            return;
+        }
+
+        var userIdString = TelemetryContext.UserId;
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return;
+        }
+
+        var toolSystemName = _toolSystemName ?? TelemetryContext.GetToolSystemName(functionName);
+        if (string.IsNullOrEmpty(toolSystemName))
+        {
+            return;
+        }
+
+        try
+        {
+            var plugin = await _pluginRepository.GetBySystemNameAsync(toolSystemName, cancellationToken);
+            if (plugin == null)
+            {
+                return;
+            }
+
+            Guid? agentId = null;
+            var agentIdString = TelemetryContext.AgentId;
+            if (!string.IsNullOrEmpty(agentIdString) && Guid.TryParse(agentIdString, out var parsedAgentId))
+            {
+                agentId = parsedAgentId;
+            }
+
+            await _pluginUsageTracker.TrackInvocationAsync(
+                plugin.Id,
+                userId,
+                agentId,
+                plugin.Name,
+                functionName,
+                durationMs,
+                cancellationToken);
+
+            _logger.LogDebug(
+                "Tracked plugin invocation for '{FunctionName}' (plugin: {PluginName}, user: {UserId}, duration: {DurationMs}ms)",
+                functionName,
+                plugin.Name,
+                userId,
+                durationMs);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Failed to track plugin invocation for '{FunctionName}'",
+                functionName);
+        }
+    }
+
+    /// <summary>
+    /// Tracks plugin error for analytics.
+    /// Only tracks if usage tracker is configured and userId is available.
+    /// </summary>
+    private async Task TrackPluginErrorAsync(string functionName, Exception exception, CancellationToken cancellationToken)
+    {
+        if (_pluginUsageTracker == null || _pluginRepository == null)
+        {
+            return;
+        }
+
+        var userIdString = TelemetryContext.UserId;
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+        {
+            return;
+        }
+
+        var toolSystemName = _toolSystemName ?? TelemetryContext.GetToolSystemName(functionName);
+        if (string.IsNullOrEmpty(toolSystemName))
+        {
+            return;
+        }
+
+        try
+        {
+            var plugin = await _pluginRepository.GetBySystemNameAsync(toolSystemName, cancellationToken);
+            if (plugin == null)
+            {
+                return;
+            }
+
+            Guid? agentId = null;
+            var agentIdString = TelemetryContext.AgentId;
+            if (!string.IsNullOrEmpty(agentIdString) && Guid.TryParse(agentIdString, out var parsedAgentId))
+            {
+                agentId = parsedAgentId;
+            }
+
+            await _pluginUsageTracker.TrackErrorAsync(
+                plugin.Id,
+                userId,
+                agentId,
+                plugin.Name,
+                functionName,
+                exception.Message,
+                exception.GetType().Name,
+                cancellationToken);
+
+            _logger.LogDebug(
+                "Tracked plugin error for '{FunctionName}' (plugin: {PluginName}, error: {ErrorType})",
+                functionName,
+                plugin.Name,
+                exception.GetType().Name);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Failed to track plugin error for '{FunctionName}'",
+                functionName);
+        }
+    }
+
+    /// <summary>
     /// Wraps a collection of AIFunctions with telemetry tracking.
     /// </summary>
     /// <param name="functions">The functions to wrap.</param>
@@ -450,6 +586,39 @@ public sealed class TelemetryAIFunctionWrapper : AIFunction
                 logger,
                 creditTrackingService,
                 pluginRepository,
+                null,
+                toolSystemName))
+            .ToList<AIFunction>();
+    }
+
+    /// <summary>
+    /// Wraps a collection of AIFunctions with telemetry, credit tracking, and usage analytics.
+    /// </summary>
+    /// <param name="functions">The functions to wrap.</param>
+    /// <param name="telemetryClient">The telemetry client for recording events.</param>
+    /// <param name="logger">Logger for diagnostic output.</param>
+    /// <param name="creditTrackingService">Credit tracking service for billing.</param>
+    /// <param name="pluginRepository">Plugin repository for resolving plugin IDs.</param>
+    /// <param name="pluginUsageTracker">Plugin usage tracker for analytics.</param>
+    /// <param name="toolSystemName">The tool system name that all functions belong to.</param>
+    /// <returns>Collection of wrapped functions with credit and usage tracking.</returns>
+    public static IReadOnlyList<AIFunction> WrapAllWithFullTracking(
+        IEnumerable<AIFunction> functions,
+        IEnhancedTelemetryClient telemetryClient,
+        ILogger logger,
+        ICreditTrackingService creditTrackingService,
+        IPluginRepository pluginRepository,
+        IPluginUsageTracker pluginUsageTracker,
+        string toolSystemName)
+    {
+        return functions
+            .Select(f => new TelemetryAIFunctionWrapper(
+                f,
+                telemetryClient,
+                logger,
+                creditTrackingService,
+                pluginRepository,
+                pluginUsageTracker,
                 toolSystemName))
             .ToList<AIFunction>();
     }

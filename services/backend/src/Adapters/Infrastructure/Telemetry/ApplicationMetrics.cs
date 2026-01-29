@@ -228,4 +228,62 @@ public static class ApplicationMetrics
         {
             LabelNames = ["reason"]
         });
+
+    // ─── Plugin Analytics Metrics ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Counter for plugin installations
+    /// </summary>
+    public static readonly Counter PluginInstallsTotal = Metrics.CreateCounter(
+        "app_plugin_installs_total",
+        "Total number of plugin installations",
+        new CounterConfiguration
+        {
+            LabelNames = ["plugin_id", "plugin_name"]
+        });
+
+    /// <summary>
+    /// Counter for plugin uninstallations
+    /// </summary>
+    public static readonly Counter PluginUninstallsTotal = Metrics.CreateCounter(
+        "app_plugin_uninstalls_total",
+        "Total number of plugin uninstallations",
+        new CounterConfiguration
+        {
+            LabelNames = ["plugin_id", "plugin_name"]
+        });
+
+    /// <summary>
+    /// Counter for plugin invocations (success/error)
+    /// </summary>
+    public static readonly Counter PluginInvocationsTotal = Metrics.CreateCounter(
+        "app_plugin_invocations_total",
+        "Total number of plugin invocations",
+        new CounterConfiguration
+        {
+            LabelNames = ["plugin_id", "plugin_name", "status"]
+        });
+
+    /// <summary>
+    /// Histogram for plugin invocation duration
+    /// </summary>
+    public static readonly Histogram PluginInvocationDuration = Metrics.CreateHistogram(
+        "app_plugin_invocation_duration_seconds",
+        "Duration of plugin invocations in seconds",
+        new HistogramConfiguration
+        {
+            LabelNames = ["plugin_id", "plugin_name"],
+            Buckets = [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
+        });
+
+    /// <summary>
+    /// Gauge for active plugin users (updated periodically)
+    /// </summary>
+    public static readonly Gauge PluginActiveUsersGauge = Metrics.CreateGauge(
+        "app_plugin_active_users",
+        "Number of active users per plugin",
+        new GaugeConfiguration
+        {
+            LabelNames = ["plugin_id", "period"]
+        });
 }

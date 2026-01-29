@@ -497,6 +497,7 @@ public class CreditTrackingTests
             _loggerMock.Object,
             _creditTrackingServiceMock.Object,
             _pluginRepositoryMock.Object,
+            null,
             toolSystemName);
 
         // Act
@@ -531,6 +532,7 @@ public class CreditTrackingTests
             _loggerMock.Object,
             _creditTrackingServiceMock.Object,
             _pluginRepositoryMock.Object,
+            null,
             toolSystemName);
 
         // Act - No userId in scope
@@ -570,6 +572,7 @@ public class CreditTrackingTests
             _loggerMock.Object,
             _creditTrackingServiceMock.Object,
             _pluginRepositoryMock.Object,
+            null,
             toolSystemName);
 
         // Act
@@ -613,6 +616,7 @@ public class CreditTrackingTests
             _loggerMock.Object,
             _creditTrackingServiceMock.Object,
             _pluginRepositoryMock.Object,
+            null,
             toolSystemName);
 
         // Act & Assert
@@ -673,6 +677,7 @@ public class CreditTrackingTests
             _loggerMock.Object,
             _creditTrackingServiceMock.Object,
             _pluginRepositoryMock.Object,
+            null,
             toolSystemName);
 
         // Act
@@ -735,7 +740,7 @@ public class CreditTrackingTests
         };
 
         // Act
-        using (TelemetryContext.BeginScope(traceId, "session-123", userId.ToString(), functionToolMapping))
+        using (TelemetryContext.BeginScope(traceId, "session-123", userId.ToString(), null, functionToolMapping))
         {
             await wrapper.InvokeAsync(new AIFunctionArguments(), CancellationToken.None);
         }

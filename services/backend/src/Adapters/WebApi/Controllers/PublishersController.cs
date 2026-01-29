@@ -1,3 +1,4 @@
+using Application.UseCases.PluginAnalytics.GetPluginUsageStats;
 using Application.UseCases.Publisher.CreatePluginVersion;
 using Application.UseCases.Publisher.GetPluginStats;
 using Application.UseCases.Publisher.GetPublisherProfile;
@@ -240,6 +241,36 @@ public class PublishersController(IMediator mediator, ILogger<PublishersControll
         {
             var userId = User.GetUserId();
             var query = new GetPluginStatsQuery(userId, pluginId);
+            var result = await mediator.Send(query, ct);
+            return Ok(result);
+        }
+        catch (PublisherNotFoundException)
+        {
+            return NotFound(new { error = "Publisher profile not found" });
+        }
+        catch (PluginNotFoundException)
+        {
+            return NotFound(new { error = "Plugin not found" });
+        }
+        catch (UnauthorizedDomainAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    /// <summary>
+    /// Get detailed usage analytics for a specific plugin
+    /// </summary>
+    [HttpGet("plugins/{pluginId:guid}/analytics")]
+    public async Task<IActionResult> GetPluginAnalytics(
+        Guid pluginId,
+        [FromQuery] string period = "last_30_days",
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var userId = User.GetUserId();
+            var query = new GetPluginUsageStatsQuery(userId, pluginId, period);
             var result = await mediator.Send(query, ct);
             return Ok(result);
         }

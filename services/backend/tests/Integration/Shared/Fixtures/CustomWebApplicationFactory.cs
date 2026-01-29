@@ -295,7 +295,7 @@ public class TestVectorStore : IVectorStorePort
 /// </summary>
 public class TestEventPublisher : IEventPublisher
 {
-    public Task PublishAsync<T>(T domainEvent) where T : Domain.Common.IDomainEvent
+    public Task PublishAsync<T>(T domainEvent, CancellationToken cancellationToken = default) where T : Domain.Common.IDomainEvent
     {
         return Task.CompletedTask;
     }
