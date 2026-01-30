@@ -127,6 +127,7 @@ public static class DatabaseSeeder
         var hasPlans = await db.SubscriptionPlans.AnyAsync();
         var hasCosts = await db.ActionCosts.AnyAsync();
         var hasPlugins = await db.Plugins.AnyAsync();
+        var hasCreditPackages = await db.CreditPackages.AnyAsync();
         var existingFeatureFlagKeys = await db.FeatureFlags
             .Select(flag => flag.Key)
             .ToListAsync();
@@ -225,6 +226,55 @@ public static class DatabaseSeeder
                     Name = "CRM Connector",
                     Description = "Import contacts from your CRM",
                     IsActive = true
+                }
+            );
+            hasChanges = true;
+        }
+
+        // Seed credit packages for Stripe integration
+        // NOTE: Replace StripePriceId values with actual Stripe Price IDs from your Stripe Dashboard
+        // For test mode, create products at https://dashboard.stripe.com/test/products
+        if (!hasCreditPackages)
+        {
+            db.CreditPackages.AddRange(
+                new CreditPackageEntity
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Starter Pack",
+                    Credits = 100,
+                    PriceInCents = 999,  // $9.99
+                    Currency = "usd",
+                    StripePriceId = "price_starter_100",  // TODO: Replace with actual Stripe Price ID
+                    IsActive = true,
+                    DisplayOrder = 1,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                },
+                new CreditPackageEntity
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Pro Pack",
+                    Credits = 500,
+                    PriceInCents = 3999,  // $39.99
+                    Currency = "usd",
+                    StripePriceId = "price_pro_500",  // TODO: Replace with actual Stripe Price ID
+                    IsActive = true,
+                    DisplayOrder = 2,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                },
+                new CreditPackageEntity
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Enterprise Pack",
+                    Credits = 2000,
+                    PriceInCents = 9999,  // $99.99
+                    Currency = "usd",
+                    StripePriceId = "price_enterprise_2000",  // TODO: Replace with actual Stripe Price ID
+                    IsActive = true,
+                    DisplayOrder = 3,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
                 }
             );
             hasChanges = true;
