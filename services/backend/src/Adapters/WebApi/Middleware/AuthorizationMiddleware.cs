@@ -31,6 +31,13 @@ public class AuthorizationMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
+        // Bypass CORS preflight requests (OPTIONS) - these don't carry auth tokens
+        if (HttpMethods.IsOptions(context.Request.Method))
+        {
+            await _next(context);
+            return;
+        }
+
         // Bypass token validation only for integration tests
         var env = context.RequestServices.GetService<IWebHostEnvironment>();
         if (env != null && env.IsEnvironment("Testing"))

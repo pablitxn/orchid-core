@@ -6,6 +6,12 @@ namespace Domain.Enums;
 public enum SubscriptionStatus
 {
     /// <summary>
+    /// Subscription has not been created with a payment provider yet.
+    /// This is the default value (CLR default = 0) to match EF Core's database default.
+    /// </summary>
+    Incomplete,
+
+    /// <summary>
     /// Subscription is active and in good standing.
     /// </summary>
     Active,
@@ -33,10 +39,5 @@ public enum SubscriptionStatus
     /// <summary>
     /// Subscription is paused (if enabled in Stripe).
     /// </summary>
-    Paused,
-
-    /// <summary>
-    /// Subscription has not been created with a payment provider yet.
-    /// </summary>
-    Incomplete
+    Paused
 }

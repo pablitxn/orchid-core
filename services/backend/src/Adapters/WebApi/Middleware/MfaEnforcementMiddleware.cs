@@ -23,6 +23,13 @@ public class MfaEnforcementMiddleware
 
     public async Task InvokeAsync(HttpContext context, IOptions<MfaSettings> mfaSettings, IUserRepository userRepository)
     {
+        // Skip CORS preflight requests (OPTIONS)
+        if (HttpMethods.IsOptions(context.Request.Method))
+        {
+            await _next(context);
+            return;
+        }
+
         var settings = mfaSettings.Value;
 
         // Skip if MFA enforcement is disabled
