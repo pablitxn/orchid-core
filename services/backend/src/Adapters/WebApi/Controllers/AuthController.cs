@@ -496,12 +496,13 @@ public class AuthController(
         var jwtTokenString = _tokenService.GenerateToken(userFromDb!, roles, rememberMe: false);
 
         // Set secure cookie with standard expiration (OAuth doesn't support remember me)
+        // In development, use Lax to allow cross-origin requests between different ports
         var expireHours = _tokenService.GetTokenExpirationHours(rememberMe: false);
         Response.Cookies.Append("token", jwtTokenString, new CookieOptions
         {
             HttpOnly = true,
             Secure = !_env.IsDevelopment(),
-            SameSite = SameSiteMode.Strict,
+            SameSite = _env.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.Strict,
             Expires = DateTimeOffset.UtcNow.AddHours(expireHours)
         });
 
@@ -536,11 +537,13 @@ public class AuthController(
 
     private void SetTokenCookie(string token, double expireHours)
     {
+        // In development, use Lax to allow cross-origin requests between different ports
+        // In production, use Strict for maximum security (same origin)
         Response.Cookies.Append("token", token, new CookieOptions
         {
             HttpOnly = true,
             Secure = !_env.IsDevelopment(),
-            SameSite = SameSiteMode.Strict,
+            SameSite = _env.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.Strict,
             Expires = DateTimeOffset.UtcNow.AddHours(expireHours)
         });
     }
@@ -548,11 +551,13 @@ public class AuthController(
     private void SetRefreshTokenCookie(string refreshToken, bool rememberMe = false)
     {
         var expirationDays = rememberMe ? RememberMeRefreshTokenExpirationDays : RefreshTokenExpirationDays;
+        // In development, use Lax to allow cross-origin requests between different ports
+        // In production, use Strict for maximum security (same origin)
         Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
         {
             HttpOnly = true,
             Secure = !_env.IsDevelopment(),
-            SameSite = SameSiteMode.Strict,
+            SameSite = _env.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.Strict,
             Expires = DateTimeOffset.UtcNow.AddDays(expirationDays)
         });
     }
