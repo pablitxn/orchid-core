@@ -24,7 +24,6 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using WebApi.Hubs;
 using WebApi.Middleware;
-using Infrastructure.Services;
 using WebApi;
 using WebApi.Services;
 using Serilog;
@@ -32,7 +31,6 @@ using Serilog.Events;
 using Serilog.Formatting.Compact;
 using Serilog.Templates;
 using Infrastructure.Messaging.RabbitMq;
-using Sentry.Profiling;
 using Prometheus;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -787,7 +785,7 @@ app.UseHttpMetrics(options =>
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 // ─── Security Headers ─────────────────────────────────────────────────────────
-app.Use(async (context, next) =>
+app.Use(async (HttpContext context, RequestDelegate next) =>
 {
     // Prevent clickjacking attacks
     context.Response.Headers.Append("X-Frame-Options", "DENY");
@@ -805,7 +803,7 @@ app.Use(async (context, next) =>
         context.Response.Headers.Append("Content-Security-Policy",
             "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' wss: https:; frame-ancestors 'none';");
     }
-    await next();
+    await next(context);
 });
 
 app.UseRouting();
