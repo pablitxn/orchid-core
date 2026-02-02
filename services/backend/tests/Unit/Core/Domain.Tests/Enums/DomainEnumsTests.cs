@@ -108,13 +108,13 @@ public class SubscriptionPlanEnumTests
     }
 
     [Fact]
-    public void HasExactlyFiveValues()
+    public void HasExactlySixValues()
     {
         // Arrange & Act
         var values = Enum.GetValues<SubscriptionPlanEnum>();
 
         // Assert
-        Assert.Equal(5, values.Length);
+        Assert.Equal(6, values.Length);
     }
 
     [Theory]
@@ -123,6 +123,7 @@ public class SubscriptionPlanEnumTests
     [InlineData(SubscriptionPlanEnum.Package10)]
     [InlineData(SubscriptionPlanEnum.Package25)]
     [InlineData(SubscriptionPlanEnum.Unlimited)]
+    [InlineData(SubscriptionPlanEnum.InternalTesters)]
     public void AllValues_AreDefined(SubscriptionPlanEnum value)
     {
         // Assert
