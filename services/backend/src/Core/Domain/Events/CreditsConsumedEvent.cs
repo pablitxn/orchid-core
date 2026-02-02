@@ -3,8 +3,8 @@ using Domain.Common;
 namespace Domain.Events;
 
 public record CreditsConsumedEvent(
-    Guid SubscriptionId, 
-    Guid UserId, 
+    Guid UserCreditsId,
+    Guid UserId,
     int Amount,
     string? ResourceType = null,
     string? ResourceName = null) : IDomainEvent

@@ -10,6 +10,7 @@ using FluentAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using WebApi.Controllers;
@@ -21,12 +22,23 @@ public class CreditsControllerTests
     private readonly CreditsController _controller;
     private readonly Mock<IMediator> _mediatorMock;
     private readonly Mock<ILogger<CreditsController>> _loggerMock;
+    private readonly IConfiguration _configuration;
 
     public CreditsControllerTests()
     {
         _mediatorMock = new Mock<IMediator>();
         _loggerMock = new Mock<ILogger<CreditsController>>();
-        _controller = new CreditsController(_mediatorMock.Object, _loggerMock.Object);
+
+        // Use real ConfigurationBuilder instead of mocking
+        _configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Auth:Disable"] = "false",
+                ["Auth:DevUserId"] = ""
+            })
+            .Build();
+
+        _controller = new CreditsController(_mediatorMock.Object, _loggerMock.Object, _configuration);
     }
 
     #region Helper Methods

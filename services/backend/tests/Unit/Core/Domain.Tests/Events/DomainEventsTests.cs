@@ -161,15 +161,15 @@ public class CreditsAddedEventTests
     public void Constructor_SetsProperties()
     {
         // Arrange
-        var subscriptionId = Guid.NewGuid();
+        var userCreditsId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var amount = 100;
 
         // Act
-        var @event = new CreditsAddedEvent(subscriptionId, userId, amount);
+        var @event = new CreditsAddedEvent(userCreditsId, userId, amount);
 
         // Assert
-        Assert.Equal(subscriptionId, @event.SubscriptionId);
+        Assert.Equal(userCreditsId, @event.UserCreditsId);
         Assert.Equal(userId, @event.UserId);
         Assert.Equal(amount, @event.Amount);
     }
@@ -205,15 +205,15 @@ public class CreditsConsumedEventTests
     public void Constructor_SetsRequiredProperties()
     {
         // Arrange
-        var subscriptionId = Guid.NewGuid();
+        var userCreditsId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var amount = 25;
 
         // Act
-        var @event = new CreditsConsumedEvent(subscriptionId, userId, amount);
+        var @event = new CreditsConsumedEvent(userCreditsId, userId, amount);
 
         // Assert
-        Assert.Equal(subscriptionId, @event.SubscriptionId);
+        Assert.Equal(userCreditsId, @event.UserCreditsId);
         Assert.Equal(userId, @event.UserId);
         Assert.Equal(amount, @event.Amount);
         Assert.Null(@event.ResourceType);
@@ -224,17 +224,17 @@ public class CreditsConsumedEventTests
     public void Constructor_SetsOptionalProperties()
     {
         // Arrange
-        var subscriptionId = Guid.NewGuid();
+        var userCreditsId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var amount = 10;
         var resourceType = "plugin";
         var resourceName = "Web Search";
 
         // Act
-        var @event = new CreditsConsumedEvent(subscriptionId, userId, amount, resourceType, resourceName);
+        var @event = new CreditsConsumedEvent(userCreditsId, userId, amount, resourceType, resourceName);
 
         // Assert
-        Assert.Equal(subscriptionId, @event.SubscriptionId);
+        Assert.Equal(userCreditsId, @event.UserCreditsId);
         Assert.Equal(userId, @event.UserId);
         Assert.Equal(amount, @event.Amount);
         Assert.Equal(resourceType, @event.ResourceType);

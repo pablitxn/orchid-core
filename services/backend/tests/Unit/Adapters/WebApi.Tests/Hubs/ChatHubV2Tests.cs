@@ -38,6 +38,7 @@ public class ChatHubV2Tests
     private readonly Mock<ICreditTrackingService> _creditTrackingServiceMock;
     private readonly Mock<IModelResolver> _modelResolverMock;
     private readonly Mock<ISubscriptionRepository> _subscriptionRepositoryMock;
+    private readonly Mock<IUserCreditsRepository> _userCreditsRepositoryMock;
     private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly Mock<IHubCallerClients> _mockClients;
     private readonly Mock<HubCallerContext> _mockContext;
@@ -61,6 +62,7 @@ public class ChatHubV2Tests
         _creditTrackingServiceMock = new Mock<ICreditTrackingService>();
         _modelResolverMock = new Mock<IModelResolver>();
         _subscriptionRepositoryMock = new Mock<ISubscriptionRepository>();
+        _userCreditsRepositoryMock = new Mock<IUserCreditsRepository>();
         _userRepositoryMock = new Mock<IUserRepository>();
         _mockClients = new Mock<IHubCallerClients>();
         _mockContext = new Mock<HubCallerContext>();
@@ -129,6 +131,7 @@ public class ChatHubV2Tests
             _creditTrackingServiceMock.Object,
             _modelResolverMock.Object,
             _subscriptionRepositoryMock.Object,
+            _userCreditsRepositoryMock.Object,
             _userRepositoryMock.Object)
         {
             Clients = _mockClients.Object,

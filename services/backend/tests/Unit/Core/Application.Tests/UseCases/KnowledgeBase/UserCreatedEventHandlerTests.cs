@@ -10,7 +10,7 @@ namespace Application.Tests.UseCases.KnowledgeBase;
 
 public class UserCreatedEventHandlerTests
 {
-    private readonly Mock<ISubscriptionRepository> _subscriptionRepositoryMock;
+    private readonly Mock<IUserCreditsRepository> _userCreditsRepositoryMock;
     private readonly Mock<IEventPublisher> _eventPublisherMock;
     private readonly Mock<IAgentRepository> _agentRepositoryMock;
     private readonly Mock<IUserPluginRepository> _userPluginRepositoryMock;
@@ -19,13 +19,13 @@ public class UserCreatedEventHandlerTests
 
     public UserCreatedEventHandlerTests()
     {
-        _subscriptionRepositoryMock = new Mock<ISubscriptionRepository>();
+        _userCreditsRepositoryMock = new Mock<IUserCreditsRepository>();
         _eventPublisherMock = new Mock<IEventPublisher>();
         _agentRepositoryMock = new Mock<IAgentRepository>();
         _userPluginRepositoryMock = new Mock<IUserPluginRepository>();
         _loggerMock = new Mock<ILogger<UserCreatedEventHandler>>();
         _handler = new UserCreatedEventHandler(
-            _subscriptionRepositoryMock.Object,
+            _userCreditsRepositoryMock.Object,
             _eventPublisherMock.Object,
             _agentRepositoryMock.Object,
             _userPluginRepositoryMock.Object,
@@ -33,21 +33,21 @@ public class UserCreatedEventHandlerTests
     }
 
     [Fact]
-    public async Task Handle_GrantsWelcomeCredits_WhenUserHasNoSubscription()
+    public async Task Handle_GrantsWelcomeCredits_WhenUserHasNoCredits()
     {
         // Arrange
         var userId = Guid.NewGuid();
         var notification = new UserCreatedEvent(userId, "test@example.com");
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+            .ReturnsAsync((UserCreditsEntity?)null);
 
-        SubscriptionEntity? createdSubscription = null;
-        _subscriptionRepositoryMock
-            .Setup(x => x.CreateAsync(It.IsAny<SubscriptionEntity>(), It.IsAny<CancellationToken>()))
-            .Callback<SubscriptionEntity, CancellationToken>((s, _) => createdSubscription = s)
-            .ReturnsAsync((SubscriptionEntity s, CancellationToken _) => s);
+        UserCreditsEntity? createdUserCredits = null;
+        _userCreditsRepositoryMock
+            .Setup(x => x.CreateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()))
+            .Callback<UserCreditsEntity, CancellationToken>((uc, _) => createdUserCredits = uc)
+            .ReturnsAsync((UserCreditsEntity uc, CancellationToken _) => uc);
 
         _agentRepositoryMock
             .Setup(x => x.ListAsync(It.IsAny<CancellationToken>()))
@@ -57,31 +57,31 @@ public class UserCreatedEventHandlerTests
         await _handler.Handle(notification, CancellationToken.None);
 
         // Assert
-        Assert.NotNull(createdSubscription);
-        Assert.Equal(10, createdSubscription.Credits); // WELCOME_CREDITS = 10
-        Assert.Equal(userId, createdSubscription.UserId);
+        Assert.NotNull(createdUserCredits);
+        Assert.Equal(10, createdUserCredits.AvailableCredits); // WELCOME_CREDITS = 10
+        Assert.Equal(userId, createdUserCredits.UserId);
         _eventPublisherMock.Verify(
-            x => x.PublishAsync(It.IsAny<SubscriptionCreatedEvent>()),
+            x => x.PublishAsync(It.IsAny<CreditsAddedEvent>()),
             Times.Once);
     }
 
     [Fact]
-    public async Task Handle_SkipsWelcomeCredits_WhenUserAlreadyHasSubscription()
+    public async Task Handle_SkipsWelcomeCredits_WhenUserAlreadyHasCredits()
     {
         // Arrange
         var userId = Guid.NewGuid();
         var notification = new UserCreatedEvent(userId, "test@example.com");
 
-        var existingSubscription = new SubscriptionEntity
+        var existingCredits = new UserCreditsEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 100
+            AvailableCredits = 100
         };
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingSubscription);
+            .ReturnsAsync(existingCredits);
 
         _agentRepositoryMock
             .Setup(x => x.ListAsync(It.IsAny<CancellationToken>()))
@@ -91,8 +91,8 @@ public class UserCreatedEventHandlerTests
         await _handler.Handle(notification, CancellationToken.None);
 
         // Assert
-        _subscriptionRepositoryMock.Verify(
-            x => x.CreateAsync(It.IsAny<SubscriptionEntity>(), It.IsAny<CancellationToken>()),
+        _userCreditsRepositoryMock.Verify(
+            x => x.CreateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -105,9 +105,9 @@ public class UserCreatedEventHandlerTests
         var pluginId2 = Guid.NewGuid();
         var notification = new UserCreatedEvent(userId, "test@example.com");
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+            .ReturnsAsync((UserCreditsEntity?)null);
 
         var publicAgents = new List<AgentEntity>
         {
@@ -171,9 +171,9 @@ public class UserCreatedEventHandlerTests
         var newPluginId = Guid.NewGuid();
         var notification = new UserCreatedEvent(userId, "test@example.com");
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+            .ReturnsAsync((UserCreditsEntity?)null);
 
         var publicAgents = new List<AgentEntity>
         {
@@ -219,9 +219,9 @@ public class UserCreatedEventHandlerTests
         var userId = Guid.NewGuid();
         var notification = new UserCreatedEvent(userId, "test@example.com");
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+            .ReturnsAsync((UserCreditsEntity?)null);
 
         var agents = new List<AgentEntity>
         {
@@ -254,12 +254,12 @@ public class UserCreatedEventHandlerTests
         var userId = Guid.NewGuid();
         var notification = new UserCreatedEvent(userId, "test@example.com");
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+            .ReturnsAsync((UserCreditsEntity?)null);
 
-        _subscriptionRepositoryMock
-            .Setup(x => x.CreateAsync(It.IsAny<SubscriptionEntity>(), It.IsAny<CancellationToken>()))
+        _userCreditsRepositoryMock
+            .Setup(x => x.CreateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("Database error"));
 
         _agentRepositoryMock
@@ -279,9 +279,9 @@ public class UserCreatedEventHandlerTests
         var userId = Guid.NewGuid();
         var notification = new UserCreatedEvent(userId, "test@example.com");
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+            .ReturnsAsync((UserCreditsEntity?)null);
 
         _agentRepositoryMock
             .Setup(x => x.ListAsync(It.IsAny<CancellationToken>()))
@@ -300,9 +300,9 @@ public class UserCreatedEventHandlerTests
         var userId = Guid.NewGuid();
         var notification = new UserCreatedEvent(userId, "test@example.com");
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+            .ReturnsAsync((UserCreditsEntity?)null);
 
         var agents = new List<AgentEntity>
         {
@@ -343,9 +343,9 @@ public class UserCreatedEventHandlerTests
         var sharedPluginId = Guid.NewGuid();
         var notification = new UserCreatedEvent(userId, "test@example.com");
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+            .ReturnsAsync((UserCreditsEntity?)null);
 
         var agents = new List<AgentEntity>
         {

@@ -6,6 +6,7 @@ using MediatR;
 namespace Application.UseCases.Credits.GetCreditBalance;
 
 public sealed class GetCreditBalanceHandler(
+    IUserCreditsRepository userCreditsRepository,
     ISubscriptionRepository subscriptionRepository,
     IFreeTierCreditService freeTierCreditService)
     : IRequestHandler<GetCreditBalanceQuery, CreditBalanceDto>
@@ -14,9 +15,13 @@ public sealed class GetCreditBalanceHandler(
         GetCreditBalanceQuery request,
         CancellationToken cancellationToken)
     {
+        // Get user credits
+        var userCredits = await userCreditsRepository.GetByUserIdAsync(request.UserId, cancellationToken);
+
+        // Get subscription for plan info
         var subscription = await subscriptionRepository.GetByUserIdAsync(request.UserId, cancellationToken);
 
-        if (subscription == null)
+        if (userCredits == null && subscription == null)
         {
             // Check free tier eligibility
             var isEligible = await freeTierCreditService.IsEligibleForFreeTierAsync(request.UserId, cancellationToken);
@@ -35,15 +40,16 @@ public sealed class GetCreditBalanceHandler(
             };
         }
 
-        var isUnlimited = subscription.SubscriptionPlan?.PlanEnum == SubscriptionPlanEnum.Unlimited;
+        var isUnlimited = subscription?.SubscriptionPlan?.PlanEnum == SubscriptionPlanEnum.Unlimited;
+        var balance = userCredits?.AvailableCredits ?? 0;
 
         return new CreditBalanceDto
         {
-            Balance = subscription.Credits,
+            Balance = balance,
             IsUnlimited = isUnlimited,
-            ExpiresAt = subscription.ExpiresAt,
-            UpdatedAt = subscription.UpdatedAt,
-            HasSubscription = true,
+            ExpiresAt = subscription?.ExpiresAt,
+            UpdatedAt = userCredits?.UpdatedAt ?? subscription?.UpdatedAt ?? DateTime.UtcNow,
+            HasSubscription = subscription != null,
             FreeTierCreditsRemaining = null
         };
     }

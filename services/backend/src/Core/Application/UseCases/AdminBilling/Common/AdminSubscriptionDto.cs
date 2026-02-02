@@ -52,4 +52,58 @@ public sealed record AdminSubscriptionDto
         StripeCustomerId = entity.StripeCustomerId,
         StripeSubscriptionId = entity.StripeSubscriptionId
     };
+
+    public static AdminSubscriptionDto FromEntityWithCredits(SubscriptionEntity? entity, UserCreditsEntity userCredits)
+    {
+        if (entity == null)
+        {
+            return new AdminSubscriptionDto
+            {
+                Id = Guid.Empty,
+                UserId = userCredits.UserId,
+                UserEmail = null,
+                UserName = null,
+                Credits = userCredits.AvailableCredits,
+                CreatedAt = userCredits.CreatedAt,
+                UpdatedAt = userCredits.UpdatedAt,
+                ExpiresAt = null,
+                AutoRenew = false,
+                SubscriptionPlanId = null,
+                PlanName = null,
+                IsUnlimited = false,
+                Status = SubscriptionStatus.Incomplete,
+                CurrentPeriodStart = null,
+                CurrentPeriodEnd = null,
+                CancelAtPeriodEnd = false,
+                CanceledAt = null,
+                IsActive = false,
+                StripeCustomerId = null,
+                StripeSubscriptionId = null
+            };
+        }
+
+        return new AdminSubscriptionDto
+        {
+            Id = entity.Id,
+            UserId = entity.UserId,
+            UserEmail = entity.User?.Email,
+            UserName = entity.User?.Name,
+            Credits = userCredits.AvailableCredits,
+            CreatedAt = entity.CreatedAt,
+            UpdatedAt = entity.UpdatedAt,
+            ExpiresAt = entity.ExpiresAt,
+            AutoRenew = entity.AutoRenew,
+            SubscriptionPlanId = entity.SubscriptionPlanId,
+            PlanName = entity.SubscriptionPlan?.Name,
+            IsUnlimited = entity.SubscriptionPlan?.PlanEnum == SubscriptionPlanEnum.Unlimited,
+            Status = entity.Status,
+            CurrentPeriodStart = entity.CurrentPeriodStart,
+            CurrentPeriodEnd = entity.CurrentPeriodEnd,
+            CancelAtPeriodEnd = entity.CancelAtPeriodEnd,
+            CanceledAt = entity.CanceledAt,
+            IsActive = entity.IsActive(),
+            StripeCustomerId = entity.StripeCustomerId,
+            StripeSubscriptionId = entity.StripeSubscriptionId
+        };
+    }
 }

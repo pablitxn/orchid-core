@@ -8,32 +8,29 @@ namespace Infrastructure.Services;
 public class CreditTrackingService : ICreditTrackingService
 {
     private readonly ICreditConsumptionRepository _creditConsumptionRepository;
-    private readonly ISubscriptionRepository _subscriptionRepository;
+    private readonly IUserCreditsRepository _userCreditsRepository;
     private readonly ILogger<CreditTrackingService> _logger;
 
     public CreditTrackingService(
         ICreditConsumptionRepository creditConsumptionRepository,
-        ISubscriptionRepository subscriptionRepository,
+        IUserCreditsRepository userCreditsRepository,
         ILogger<CreditTrackingService> logger)
     {
         _creditConsumptionRepository = creditConsumptionRepository;
-        _subscriptionRepository = subscriptionRepository;
+        _userCreditsRepository = userCreditsRepository;
         _logger = logger;
     }
 
     public async Task<CreditConsumptionEntity> TrackPluginUsageAsync(
-        Guid userId, 
-        Guid pluginId, 
-        string pluginName, 
-        int credits, 
-        string? metadata = null, 
+        Guid userId,
+        Guid pluginId,
+        string pluginName,
+        int credits,
+        string? metadata = null,
         CancellationToken cancellationToken = default)
     {
-        var subscription = await _subscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
-        if (subscription == null)
-        {
-            throw new InvalidOperationException("User has no active subscription");
-        }
+        var userCredits = await _userCreditsRepository.GetByUserIdAsync(userId, cancellationToken);
+        var balanceAfter = userCredits?.AvailableCredits ?? 0;
 
         var consumption = new CreditConsumptionEntity
         {
@@ -45,12 +42,11 @@ public class CreditTrackingService : ICreditTrackingService
             CreditsConsumed = credits,
             Metadata = metadata,
             ConsumedAt = DateTime.UtcNow,
-            BalanceAfter = subscription.Credits - credits
+            BalanceAfter = balanceAfter - credits
         };
 
         await _creditConsumptionRepository.CreateAsync(consumption, cancellationToken);
 
-        // Record Prometheus metrics for credit consumption
         ApplicationMetrics.CreditsConsumedTotal.WithLabels("plugin", pluginName).Inc(credits);
 
         _logger.LogInformation("Tracked plugin usage: User {UserId}, Plugin {PluginName}, Credits {Credits}",
@@ -60,18 +56,15 @@ public class CreditTrackingService : ICreditTrackingService
     }
 
     public async Task<CreditConsumptionEntity> TrackWorkflowUsageAsync(
-        Guid userId, 
-        Guid workflowId, 
-        string workflowName, 
-        int credits, 
-        string? metadata = null, 
+        Guid userId,
+        Guid workflowId,
+        string workflowName,
+        int credits,
+        string? metadata = null,
         CancellationToken cancellationToken = default)
     {
-        var subscription = await _subscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
-        if (subscription == null)
-        {
-            throw new InvalidOperationException("User has no active subscription");
-        }
+        var userCredits = await _userCreditsRepository.GetByUserIdAsync(userId, cancellationToken);
+        var balanceAfter = userCredits?.AvailableCredits ?? 0;
 
         var consumption = new CreditConsumptionEntity
         {
@@ -83,12 +76,11 @@ public class CreditTrackingService : ICreditTrackingService
             CreditsConsumed = credits,
             Metadata = metadata,
             ConsumedAt = DateTime.UtcNow,
-            BalanceAfter = subscription.Credits - credits
+            BalanceAfter = balanceAfter - credits
         };
 
         await _creditConsumptionRepository.CreateAsync(consumption, cancellationToken);
 
-        // Record Prometheus metrics for credit consumption
         ApplicationMetrics.CreditsConsumedTotal.WithLabels("workflow", workflowName).Inc(credits);
 
         _logger.LogInformation("Tracked workflow usage: User {UserId}, Workflow {WorkflowName}, Credits {Credits}",
@@ -98,17 +90,14 @@ public class CreditTrackingService : ICreditTrackingService
     }
 
     public async Task<CreditConsumptionEntity> TrackMessageCostAsync(
-        Guid userId, 
-        Guid messageId, 
-        string messageDescription, 
-        int credits, 
+        Guid userId,
+        Guid messageId,
+        string messageDescription,
+        int credits,
         CancellationToken cancellationToken = default)
     {
-        var subscription = await _subscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
-        if (subscription == null)
-        {
-            throw new InvalidOperationException("User has no active subscription");
-        }
+        var userCredits = await _userCreditsRepository.GetByUserIdAsync(userId, cancellationToken);
+        var balanceAfter = userCredits?.AvailableCredits ?? 0;
 
         var consumption = new CreditConsumptionEntity
         {
@@ -119,12 +108,11 @@ public class CreditTrackingService : ICreditTrackingService
             ResourceName = messageDescription,
             CreditsConsumed = credits,
             ConsumedAt = DateTime.UtcNow,
-            BalanceAfter = subscription.Credits - credits
+            BalanceAfter = balanceAfter - credits
         };
 
         await _creditConsumptionRepository.CreateAsync(consumption, cancellationToken);
 
-        // Record Prometheus metrics for credit consumption
         ApplicationMetrics.CreditsConsumedTotal.WithLabels("message", "chat").Inc(credits);
 
         _logger.LogInformation("Tracked message cost: User {UserId}, Message {MessageId}, Credits {Credits}",
@@ -134,25 +122,25 @@ public class CreditTrackingService : ICreditTrackingService
     }
 
     public async Task<bool> ValidateSufficientCreditsAsync(
-        Guid userId, 
-        int requiredCredits, 
+        Guid userId,
+        int requiredCredits,
         CancellationToken cancellationToken = default)
     {
-        var subscription = await _subscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
-        if (subscription == null)
+        var userCredits = await _userCreditsRepository.GetByUserIdAsync(userId, cancellationToken);
+        if (userCredits == null)
         {
-            _logger.LogWarning("User {UserId} has no active subscription", userId);
+            _logger.LogWarning("User {UserId} has no credits record", userId);
             return false;
         }
 
-        var hasCredits = subscription.Credits >= requiredCredits;
-        
+        var hasCredits = userCredits.AvailableCredits >= requiredCredits;
+
         if (!hasCredits)
         {
-            _logger.LogWarning("User {UserId} has insufficient credits: {Available} < {Required}", 
-                userId, subscription.Credits, requiredCredits);
+            _logger.LogWarning("User {UserId} has insufficient credits: {Available} < {Required}",
+                userId, userCredits.AvailableCredits, requiredCredits);
         }
-        
+
         return hasCredits;
     }
 }

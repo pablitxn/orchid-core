@@ -93,6 +93,7 @@ public class ApplicationDbContext(
     public DbSet<PluginUsageEventEntity> PluginUsageEvents { get; set; }
     public DbSet<NotificationPreferencesEntity> NotificationPreferences { get; set; }
     public DbSet<ScheduledNotificationEntity> ScheduledNotifications { get; set; }
+    public DbSet<UserCreditsEntity> UserCredits { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -271,6 +272,30 @@ public class ApplicationDbContext(
                 .WithMany()
                 .HasForeignKey(s => s.SubscriptionPlanId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Map UserCredits entity (decoupled from Subscription)
+        modelBuilder.Entity<UserCreditsEntity>(b =>
+        {
+            b.ToTable("UserCredits");
+            b.HasKey(uc => uc.Id);
+            b.Property(uc => uc.UserId).IsRequired();
+            b.Property(uc => uc.AvailableCredits).IsRequired();
+            b.Property(uc => uc.TotalCreditsGranted).IsRequired();
+            b.Property(uc => uc.TotalCreditsConsumed).IsRequired();
+            b.Property(uc => uc.CreatedAt).HasColumnType("timestamp with time zone");
+            b.Property(uc => uc.UpdatedAt).HasColumnType("timestamp with time zone");
+            b.Property(uc => uc.LastConsumedAt).HasColumnType("timestamp with time zone");
+            // Configure Version as concurrency token
+            b.Property(uc => uc.Version)
+                .IsConcurrencyToken()
+                .HasDefaultValue(0);
+            // Unique index: one credit record per user
+            b.HasIndex(uc => uc.UserId).IsUnique();
+            b.HasOne(uc => uc.User)
+                .WithOne()
+                .HasForeignKey<UserCreditsEntity>(uc => uc.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Map Stripe webhook event entity

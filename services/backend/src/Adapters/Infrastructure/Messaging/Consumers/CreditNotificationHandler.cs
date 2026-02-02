@@ -10,6 +10,7 @@ namespace Infrastructure.Messaging.Consumers;
 /// </summary>
 public class CreditNotificationHandler(
     ICreditNotificationPort creditNotificationPort,
+    IUserCreditsRepository userCreditsRepository,
     ISubscriptionRepository subscriptionRepository,
     ILogger<CreditNotificationHandler> logger)
     :
@@ -22,18 +23,22 @@ public class CreditNotificationHandler(
     {
         var notification = context.Message;
         var cancellationToken = context.CancellationToken;
-        
+
         try
         {
-            // Get updated subscription to have current balance
+            // Get user credits for current balance
+            var userCredits = await userCreditsRepository.GetByUserIdAsync(notification.UserId, cancellationToken);
+            if (userCredits == null) return;
+
+            // Check if user has unlimited subscription
             var subscription = await subscriptionRepository.GetByUserIdAsync(notification.UserId, cancellationToken);
-            if (subscription == null) return;
+            var hasUnlimited = subscription?.HasUnlimitedCredits() ?? false;
 
             // Send real-time update
             await creditNotificationPort.NotifyCreditBalanceUpdatedAsync(
-                notification.UserId, 
-                subscription.Credits,
-                subscription.HasUnlimitedCredits(),
+                notification.UserId,
+                userCredits.AvailableCredits,
+                hasUnlimited,
                 cancellationToken);
 
             // Send consumption notification
@@ -45,21 +50,21 @@ public class CreditNotificationHandler(
                 cancellationToken);
 
             // Check for low credit warning
-            if (!subscription.HasUnlimitedCredits() && subscription.Credits < LOW_CREDIT_THRESHOLD)
+            if (!hasUnlimited && userCredits.AvailableCredits < LOW_CREDIT_THRESHOLD)
             {
                 await creditNotificationPort.NotifyLowCreditWarningAsync(
                     notification.UserId,
-                    subscription.Credits,
+                    userCredits.AvailableCredits,
                     LOW_CREDIT_THRESHOLD,
                     cancellationToken);
-                
-                logger.LogWarning("Low credit warning sent to user {UserId}. Balance: {Balance}", 
-                    notification.UserId, subscription.Credits);
+
+                logger.LogWarning("Low credit warning sent to user {UserId}. Balance: {Balance}",
+                    notification.UserId, userCredits.AvailableCredits);
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error sending credit consumption notification for user {UserId}", 
+            logger.LogError(ex, "Error sending credit consumption notification for user {UserId}",
                 notification.UserId);
         }
     }
@@ -68,27 +73,31 @@ public class CreditNotificationHandler(
     {
         var notification = context.Message;
         var cancellationToken = context.CancellationToken;
-        
+
         try
         {
-            // Get updated subscription to have current balance
+            // Get user credits for current balance
+            var userCredits = await userCreditsRepository.GetByUserIdAsync(notification.UserId, cancellationToken);
+            if (userCredits == null) return;
+
+            // Check if user has unlimited subscription
             var subscription = await subscriptionRepository.GetByUserIdAsync(notification.UserId, cancellationToken);
-            if (subscription == null) return;
+            var hasUnlimited = subscription?.HasUnlimitedCredits() ?? false;
 
             // Send real-time update
             await creditNotificationPort.NotifyCreditsAddedAsync(
                 notification.UserId,
                 notification.Amount,
-                subscription.Credits,
-                subscription.HasUnlimitedCredits(),
+                userCredits.AvailableCredits,
+                hasUnlimited,
                 cancellationToken);
-            
-            logger.LogInformation("Credit balance update sent to user {UserId}. New balance: {Balance}", 
-                notification.UserId, subscription.Credits);
+
+            logger.LogInformation("Credit balance update sent to user {UserId}. New balance: {Balance}",
+                notification.UserId, userCredits.AvailableCredits);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error sending credit addition notification for user {UserId}", 
+            logger.LogError(ex, "Error sending credit addition notification for user {UserId}",
                 notification.UserId);
         }
     }

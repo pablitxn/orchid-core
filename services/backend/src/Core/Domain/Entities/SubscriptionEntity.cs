@@ -10,7 +10,10 @@ public class SubscriptionEntity
     public Guid UserId { get; init; }
     public UserEntity? User { get; private set; }
 
-    // Total available credits; immutable from outside except via AddCredits/ConsumeCredits
+    // DEPRECATED: Credits are now stored in UserCreditsEntity.
+    // This field is kept for backwards compatibility during migration.
+    // Use UserCreditsEntity.AvailableCredits instead.
+    [Obsolete("Credits are now stored in UserCreditsEntity. Use UserCreditsEntity.AvailableCredits instead.")]
     public int Credits { get; set; }
 
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;

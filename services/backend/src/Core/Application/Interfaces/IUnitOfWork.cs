@@ -12,6 +12,7 @@ public interface IUnitOfWork : IDisposable
     IUserCreditLimitRepository UserCreditLimits { get; }
     ICostConfigurationRepository CostConfigurations { get; }
     IAuditLogRepository AuditLogs { get; }
+    IUserCreditsRepository UserCredits { get; }
     
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);

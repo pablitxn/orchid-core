@@ -105,6 +105,7 @@ public static class InfrastructureServiceCollectionExtensions
         // ─── Credit and Notification Repositories ────────────────────────────────────
         services.AddScoped<ICostConfigurationRepository, CostConfigurationRepository>();
         services.AddScoped<IUserCreditLimitRepository, UserCreditLimitRepository>();
+        services.AddScoped<IUserCreditsRepository, UserCreditsRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         services.AddScoped<IFeatureFlagRepository, FeatureFlagRepository>();

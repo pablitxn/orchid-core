@@ -21,7 +21,8 @@ public class TestUnitOfWork : IUnitOfWork
         IUserPluginRepository userPlugins,
         IUserCreditLimitRepository userCreditLimits,
         ICostConfigurationRepository costConfigurations,
-        IAuditLogRepository auditLogs)
+        IAuditLogRepository auditLogs,
+        IUserCreditsRepository userCredits)
     {
         _context = context;
         Subscriptions = subscriptions;
@@ -34,6 +35,7 @@ public class TestUnitOfWork : IUnitOfWork
         UserCreditLimits = userCreditLimits;
         CostConfigurations = costConfigurations;
         AuditLogs = auditLogs;
+        UserCredits = userCredits;
     }
 
     public ISubscriptionRepository Subscriptions { get; }
@@ -46,6 +48,7 @@ public class TestUnitOfWork : IUnitOfWork
     public IUserCreditLimitRepository UserCreditLimits { get; }
     public ICostConfigurationRepository CostConfigurations { get; }
     public IAuditLogRepository AuditLogs { get; }
+    public IUserCreditsRepository UserCredits { get; }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

@@ -6,6 +6,9 @@
     <data name="SubscriptionNotFound" xml:space="preserve">
     <value>Subscription not found.</value>
   </data>
+    <data name="NoCreditsAvailable" xml:space="preserve">
+    <value>No credits available. Please purchase credits to continue.</value>
+  </data>
     <data name="InsufficientCredits" xml:space="preserve">
     <value>Insufficient credits.</value>
   </data>

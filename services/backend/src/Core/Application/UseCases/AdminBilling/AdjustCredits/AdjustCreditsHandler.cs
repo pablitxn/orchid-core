@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace Application.UseCases.AdminBilling.AdjustCredits;
 
 public class AdjustCreditsHandler(
+    IUserCreditsRepository userCreditsRepository,
     ISubscriptionRepository subscriptionRepository,
     IAuditService auditService,
     IEventPublisher eventPublisher,
@@ -29,41 +30,52 @@ public class AdjustCreditsHandler(
             "Admin {AdminUserId} adjusting credits for user {UserId}. Amount: {Amount}, Reason: {Reason}",
             request.AdminUserId, request.UserId, request.Amount, request.Reason);
 
-        var subscription = await subscriptionRepository.GetByUserIdWithPlanAsync(
-            request.UserId,
-            cancellationToken);
+        // Get or create UserCreditsEntity
+        var userCredits = await userCreditsRepository.GetByUserIdAsync(request.UserId, cancellationToken);
 
-        if (subscription is null)
-            throw new SubscriptionNotFoundException(request.UserId);
+        if (userCredits == null)
+        {
+            userCredits = new UserCreditsEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = request.UserId,
+                AvailableCredits = 0,
+                TotalCreditsGranted = 0,
+                TotalCreditsConsumed = 0,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await userCreditsRepository.CreateAsync(userCredits, cancellationToken);
+        }
 
-        var oldCredits = subscription.Credits;
+        var oldCredits = userCredits.AvailableCredits;
 
         // Handle both positive (add) and negative (remove) adjustments
         if (request.Amount > 0)
         {
-            subscription.AddCredits(request.Amount);
+            userCredits.GrantCredits(request.Amount);
         }
         else
         {
             var absAmount = Math.Abs(request.Amount);
-            if (subscription.Credits < absAmount)
-                throw new InsufficientCreditsException(subscription.Credits, absAmount);
+            if (userCredits.AvailableCredits < absAmount)
+                throw new InsufficientCreditsException(userCredits.AvailableCredits, absAmount);
 
             // Direct credit reduction for admin adjustment
-            subscription.Credits -= absAmount;
-            subscription.UpdatedAt = DateTime.UtcNow;
-            subscription.Version++;
+            userCredits.AvailableCredits -= absAmount;
+            userCredits.UpdatedAt = DateTime.UtcNow;
+            userCredits.Version++;
         }
 
-        await subscriptionRepository.UpdateAsync(subscription, cancellationToken);
+        await userCreditsRepository.UpdateAsync(userCredits, cancellationToken);
 
         // Audit the action
         await auditService.LogSuccessAsync(
             AuditActionTypes.AdminCreditAdjust,
-            nameof(SubscriptionEntity),
-            subscription.Id.ToString(),
-            oldValues: new { Credits = oldCredits },
-            newValues: new { Credits = subscription.Credits, Amount = request.Amount },
+            nameof(UserCreditsEntity),
+            userCredits.Id.ToString(),
+            oldValues: new { AvailableCredits = oldCredits },
+            newValues: new { AvailableCredits = userCredits.AvailableCredits, Amount = request.Amount },
             metadata: new Dictionary<string, object>
             {
                 ["AdminUserId"] = request.AdminUserId,
@@ -76,23 +88,21 @@ public class AdjustCreditsHandler(
         if (request.Amount > 0)
         {
             await eventPublisher.PublishAsync(
-                new CreditsAddedEvent(subscription.Id, subscription.UserId, request.Amount));
+                new CreditsAddedEvent(userCredits.Id, userCredits.UserId, request.Amount));
         }
         else
         {
             await eventPublisher.PublishAsync(
-                new CreditsConsumedEvent(subscription.Id, subscription.UserId, Math.Abs(request.Amount)));
+                new CreditsConsumedEvent(userCredits.Id, userCredits.UserId, Math.Abs(request.Amount)));
         }
 
         logger.LogInformation(
             "Admin {AdminUserId} successfully adjusted credits for user {UserId}. Old: {OldCredits}, New: {NewCredits}",
-            request.AdminUserId, request.UserId, oldCredits, subscription.Credits);
+            request.AdminUserId, request.UserId, oldCredits, userCredits.AvailableCredits);
 
-        // Reload with user info for response
-        subscription = await subscriptionRepository.GetByUserIdWithPlanAsync(
-            request.UserId,
-            cancellationToken);
+        // Get subscription for response (may be null)
+        var subscription = await subscriptionRepository.GetByUserIdWithPlanAsync(request.UserId, cancellationToken);
 
-        return AdminSubscriptionDto.FromEntity(subscription!);
+        return AdminSubscriptionDto.FromEntityWithCredits(subscription, userCredits);
     }
 }

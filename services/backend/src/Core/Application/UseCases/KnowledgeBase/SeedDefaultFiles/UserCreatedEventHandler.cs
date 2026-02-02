@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace Application.UseCases.KnowledgeBase.SeedDefaultFiles;
 
 public class UserCreatedEventHandler(
-    ISubscriptionRepository subscriptionRepository,
+    IUserCreditsRepository userCreditsRepository,
     IEventPublisher eventPublisher,
     IAgentRepository agentRepository,
     IUserPluginRepository userPluginRepository,
@@ -44,32 +44,32 @@ public class UserCreatedEventHandler(
         try
         {
             logger.LogInformation("Granting {Credits} welcome credits to user {UserId}", WELCOME_CREDITS, userId);
-            
-            // Check if user already has a subscription
-            var existingSubscription = await subscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
-            if (existingSubscription != null)
+
+            // Check if user already has credits
+            var existingCredits = await userCreditsRepository.GetByUserIdAsync(userId, cancellationToken);
+            if (existingCredits != null)
             {
-                logger.LogWarning("User {UserId} already has a subscription, skipping welcome credits", userId);
+                logger.LogWarning("User {UserId} already has credits record, skipping welcome credits", userId);
                 return;
             }
-            
-            // Create a new subscription with welcome credits
-            var subscription = new SubscriptionEntity
+
+            // Create a new UserCreditsEntity with welcome credits
+            var userCredits = new UserCreditsEntity
             {
                 Id = Guid.NewGuid(),
                 UserId = userId,
-                Credits = WELCOME_CREDITS,
+                AvailableCredits = WELCOME_CREDITS,
+                TotalCreditsGranted = WELCOME_CREDITS,
+                TotalCreditsConsumed = 0,
                 CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-                ExpiresAt = null, // No expiration for welcome credits
-                AutoRenew = false
+                UpdatedAt = DateTime.UtcNow
             };
-            
-            await subscriptionRepository.CreateAsync(subscription, cancellationToken);
-            
-            // Publish subscription created event
-            await eventPublisher.PublishAsync(new SubscriptionCreatedEvent(subscription.Id, subscription.UserId));
-            
+
+            await userCreditsRepository.CreateAsync(userCredits, cancellationToken);
+
+            // Publish credits added event
+            await eventPublisher.PublishAsync(new CreditsAddedEvent(userCredits.Id, userCredits.UserId, WELCOME_CREDITS));
+
             logger.LogInformation("Successfully granted {Credits} welcome credits to user {UserId}", WELCOME_CREDITS, userId);
         }
         catch (Exception ex)

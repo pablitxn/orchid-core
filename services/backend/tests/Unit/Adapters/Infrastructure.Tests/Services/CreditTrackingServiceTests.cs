@@ -10,18 +10,18 @@ namespace Infrastructure.Tests.Services;
 public class CreditTrackingServiceTests
 {
     private readonly Mock<ICreditConsumptionRepository> _creditConsumptionRepositoryMock;
-    private readonly Mock<ISubscriptionRepository> _subscriptionRepositoryMock;
+    private readonly Mock<IUserCreditsRepository> _userCreditsRepositoryMock;
     private readonly Mock<ILogger<CreditTrackingService>> _loggerMock;
     private readonly CreditTrackingService _service;
 
     public CreditTrackingServiceTests()
     {
         _creditConsumptionRepositoryMock = new Mock<ICreditConsumptionRepository>();
-        _subscriptionRepositoryMock = new Mock<ISubscriptionRepository>();
+        _userCreditsRepositoryMock = new Mock<IUserCreditsRepository>();
         _loggerMock = new Mock<ILogger<CreditTrackingService>>();
         _service = new CreditTrackingService(
             _creditConsumptionRepositoryMock.Object,
-            _subscriptionRepositoryMock.Object,
+            _userCreditsRepositoryMock.Object,
             _loggerMock.Object);
     }
 
@@ -33,12 +33,12 @@ public class CreditTrackingServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var pluginId = Guid.NewGuid();
-        var subscription = CreateSubscription(userId, 1000);
+        var userCredits = CreateUserCredits(userId, 1000);
         CreditConsumptionEntity? capturedEntity = null;
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(subscription);
+            .ReturnsAsync(userCredits);
 
         _creditConsumptionRepositoryMock
             .Setup(x => x.CreateAsync(It.IsAny<CreditConsumptionEntity>(), It.IsAny<CancellationToken>()))
@@ -59,22 +59,28 @@ public class CreditTrackingServiceTests
     }
 
     [Fact]
-    public async Task TrackPluginUsageAsync_Should_ThrowException_When_NoSubscription()
+    public async Task TrackPluginUsageAsync_Should_HandleNoUserCredits_WithZeroBalance()
     {
         // Arrange
         var userId = Guid.NewGuid();
         var pluginId = Guid.NewGuid();
+        CreditConsumptionEntity? capturedEntity = null;
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+            .ReturnsAsync((UserCreditsEntity?)null);
+
+        _creditConsumptionRepositoryMock
+            .Setup(x => x.CreateAsync(It.IsAny<CreditConsumptionEntity>(), It.IsAny<CancellationToken>()))
+            .Callback<CreditConsumptionEntity, CancellationToken>((e, _) => capturedEntity = e)
+            .ReturnsAsync((CreditConsumptionEntity e, CancellationToken _) => e);
 
         // Act
-        var act = () => _service.TrackPluginUsageAsync(userId, pluginId, "Test Plugin", 50);
+        var result = await _service.TrackPluginUsageAsync(userId, pluginId, "Test Plugin", 50);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*no active subscription*");
+        result.Should().NotBeNull();
+        capturedEntity!.BalanceAfter.Should().Be(-50); // 0 - 50 = -50
     }
 
     [Fact]
@@ -83,13 +89,13 @@ public class CreditTrackingServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var pluginId = Guid.NewGuid();
-        var subscription = CreateSubscription(userId, 1000);
+        var userCredits = CreateUserCredits(userId, 1000);
         var metadata = "{\"operation\": \"search\"}";
         CreditConsumptionEntity? capturedEntity = null;
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(subscription);
+            .ReturnsAsync(userCredits);
 
         _creditConsumptionRepositoryMock
             .Setup(x => x.CreateAsync(It.IsAny<CreditConsumptionEntity>(), It.IsAny<CancellationToken>()))
@@ -113,12 +119,12 @@ public class CreditTrackingServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var workflowId = Guid.NewGuid();
-        var subscription = CreateSubscription(userId, 500);
+        var userCredits = CreateUserCredits(userId, 500);
         CreditConsumptionEntity? capturedEntity = null;
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(subscription);
+            .ReturnsAsync(userCredits);
 
         _creditConsumptionRepositoryMock
             .Setup(x => x.CreateAsync(It.IsAny<CreditConsumptionEntity>(), It.IsAny<CancellationToken>()))
@@ -139,22 +145,28 @@ public class CreditTrackingServiceTests
     }
 
     [Fact]
-    public async Task TrackWorkflowUsageAsync_Should_ThrowException_When_NoSubscription()
+    public async Task TrackWorkflowUsageAsync_Should_HandleNoUserCredits_WithZeroBalance()
     {
         // Arrange
         var userId = Guid.NewGuid();
         var workflowId = Guid.NewGuid();
+        CreditConsumptionEntity? capturedEntity = null;
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+            .ReturnsAsync((UserCreditsEntity?)null);
+
+        _creditConsumptionRepositoryMock
+            .Setup(x => x.CreateAsync(It.IsAny<CreditConsumptionEntity>(), It.IsAny<CancellationToken>()))
+            .Callback<CreditConsumptionEntity, CancellationToken>((e, _) => capturedEntity = e)
+            .ReturnsAsync((CreditConsumptionEntity e, CancellationToken _) => e);
 
         // Act
-        var act = () => _service.TrackWorkflowUsageAsync(userId, workflowId, "Workflow", 100);
+        var result = await _service.TrackWorkflowUsageAsync(userId, workflowId, "Workflow", 100);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*no active subscription*");
+        result.Should().NotBeNull();
+        capturedEntity!.BalanceAfter.Should().Be(-100);
     }
 
     [Fact]
@@ -163,13 +175,13 @@ public class CreditTrackingServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var workflowId = Guid.NewGuid();
-        var subscription = CreateSubscription(userId, 500);
+        var userCredits = CreateUserCredits(userId, 500);
         var metadata = "{\"steps\": 5}";
         CreditConsumptionEntity? capturedEntity = null;
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(subscription);
+            .ReturnsAsync(userCredits);
 
         _creditConsumptionRepositoryMock
             .Setup(x => x.CreateAsync(It.IsAny<CreditConsumptionEntity>(), It.IsAny<CancellationToken>()))
@@ -193,12 +205,12 @@ public class CreditTrackingServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var messageId = Guid.NewGuid();
-        var subscription = CreateSubscription(userId, 200);
+        var userCredits = CreateUserCredits(userId, 200);
         CreditConsumptionEntity? capturedEntity = null;
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(subscription);
+            .ReturnsAsync(userCredits);
 
         _creditConsumptionRepositoryMock
             .Setup(x => x.CreateAsync(It.IsAny<CreditConsumptionEntity>(), It.IsAny<CancellationToken>()))
@@ -219,22 +231,28 @@ public class CreditTrackingServiceTests
     }
 
     [Fact]
-    public async Task TrackMessageCostAsync_Should_ThrowException_When_NoSubscription()
+    public async Task TrackMessageCostAsync_Should_HandleNoUserCredits_WithZeroBalance()
     {
         // Arrange
         var userId = Guid.NewGuid();
         var messageId = Guid.NewGuid();
+        CreditConsumptionEntity? capturedEntity = null;
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+            .ReturnsAsync((UserCreditsEntity?)null);
+
+        _creditConsumptionRepositoryMock
+            .Setup(x => x.CreateAsync(It.IsAny<CreditConsumptionEntity>(), It.IsAny<CancellationToken>()))
+            .Callback<CreditConsumptionEntity, CancellationToken>((e, _) => capturedEntity = e)
+            .ReturnsAsync((CreditConsumptionEntity e, CancellationToken _) => e);
 
         // Act
-        var act = () => _service.TrackMessageCostAsync(userId, messageId, "Message", 10);
+        var result = await _service.TrackMessageCostAsync(userId, messageId, "Message", 10);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*no active subscription*");
+        result.Should().NotBeNull();
+        capturedEntity!.BalanceAfter.Should().Be(-10);
     }
 
     [Fact]
@@ -243,13 +261,13 @@ public class CreditTrackingServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var messageId = Guid.NewGuid();
-        var subscription = CreateSubscription(userId, 200);
+        var userCredits = CreateUserCredits(userId, 200);
         CreditConsumptionEntity? capturedEntity = null;
         var beforeCall = DateTime.UtcNow;
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(subscription);
+            .ReturnsAsync(userCredits);
 
         _creditConsumptionRepositoryMock
             .Setup(x => x.CreateAsync(It.IsAny<CreditConsumptionEntity>(), It.IsAny<CancellationToken>()))
@@ -273,11 +291,11 @@ public class CreditTrackingServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var subscription = CreateSubscription(userId, 100);
+        var userCredits = CreateUserCredits(userId, 100);
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(subscription);
+            .ReturnsAsync(userCredits);
 
         // Act
         var result = await _service.ValidateSufficientCreditsAsync(userId, 50);
@@ -291,11 +309,11 @@ public class CreditTrackingServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var subscription = CreateSubscription(userId, 100);
+        var userCredits = CreateUserCredits(userId, 100);
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(subscription);
+            .ReturnsAsync(userCredits);
 
         // Act
         var result = await _service.ValidateSufficientCreditsAsync(userId, 100);
@@ -309,11 +327,11 @@ public class CreditTrackingServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var subscription = CreateSubscription(userId, 50);
+        var userCredits = CreateUserCredits(userId, 50);
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(subscription);
+            .ReturnsAsync(userCredits);
 
         // Act
         var result = await _service.ValidateSufficientCreditsAsync(userId, 100);
@@ -323,14 +341,14 @@ public class CreditTrackingServiceTests
     }
 
     [Fact]
-    public async Task ValidateSufficientCreditsAsync_Should_ReturnFalse_When_NoSubscription()
+    public async Task ValidateSufficientCreditsAsync_Should_ReturnFalse_When_NoUserCredits()
     {
         // Arrange
         var userId = Guid.NewGuid();
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+            .ReturnsAsync((UserCreditsEntity?)null);
 
         // Act
         var result = await _service.ValidateSufficientCreditsAsync(userId, 10);
@@ -344,11 +362,11 @@ public class CreditTrackingServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var subscription = CreateSubscription(userId, 0);
+        var userCredits = CreateUserCredits(userId, 0);
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(subscription);
+            .ReturnsAsync(userCredits);
 
         // Act
         var result = await _service.ValidateSufficientCreditsAsync(userId, 1);
@@ -367,12 +385,12 @@ public class CreditTrackingServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var pluginId = Guid.NewGuid();
-        var subscription = CreateSubscription(userId, 1000);
+        var userCredits = CreateUserCredits(userId, 1000);
         var cts = new CancellationTokenSource();
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, cts.Token))
-            .ReturnsAsync(subscription);
+            .ReturnsAsync(userCredits);
 
         _creditConsumptionRepositoryMock
             .Setup(x => x.CreateAsync(It.IsAny<CreditConsumptionEntity>(), cts.Token))
@@ -383,7 +401,7 @@ public class CreditTrackingServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        _subscriptionRepositoryMock.Verify(x => x.GetByUserIdAsync(userId, cts.Token), Times.Once);
+        _userCreditsRepositoryMock.Verify(x => x.GetByUserIdAsync(userId, cts.Token), Times.Once);
     }
 
     [Fact]
@@ -391,19 +409,19 @@ public class CreditTrackingServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var subscription = CreateSubscription(userId, 100);
+        var userCredits = CreateUserCredits(userId, 100);
         var cts = new CancellationTokenSource();
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, cts.Token))
-            .ReturnsAsync(subscription);
+            .ReturnsAsync(userCredits);
 
         // Act
         var result = await _service.ValidateSufficientCreditsAsync(userId, 50, cts.Token);
 
         // Assert
         result.Should().BeTrue();
-        _subscriptionRepositoryMock.Verify(x => x.GetByUserIdAsync(userId, cts.Token), Times.Once);
+        _userCreditsRepositoryMock.Verify(x => x.GetByUserIdAsync(userId, cts.Token), Times.Once);
     }
 
     #endregion
@@ -416,12 +434,12 @@ public class CreditTrackingServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var pluginId = Guid.NewGuid();
-        var subscription = CreateSubscription(userId, 100);
+        var userCredits = CreateUserCredits(userId, 100);
         CreditConsumptionEntity? capturedEntity = null;
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(subscription);
+            .ReturnsAsync(userCredits);
 
         _creditConsumptionRepositoryMock
             .Setup(x => x.CreateAsync(It.IsAny<CreditConsumptionEntity>(), It.IsAny<CancellationToken>()))
@@ -442,12 +460,12 @@ public class CreditTrackingServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var pluginId = Guid.NewGuid();
-        var subscription = CreateSubscription(userId, 1000);
+        var userCredits = CreateUserCredits(userId, 1000);
         var capturedIds = new List<Guid>();
 
-        _subscriptionRepositoryMock
+        _userCreditsRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(subscription);
+            .ReturnsAsync(userCredits);
 
         _creditConsumptionRepositoryMock
             .Setup(x => x.CreateAsync(It.IsAny<CreditConsumptionEntity>(), It.IsAny<CancellationToken>()))
@@ -466,13 +484,15 @@ public class CreditTrackingServiceTests
 
     #endregion
 
-    private static SubscriptionEntity CreateSubscription(Guid userId, int credits)
+    private static UserCreditsEntity CreateUserCredits(Guid userId, int credits)
     {
-        return new SubscriptionEntity
+        return new UserCreditsEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = credits
+            AvailableCredits = credits,
+            TotalCreditsGranted = credits,
+            TotalCreditsConsumed = 0
         };
     }
 }

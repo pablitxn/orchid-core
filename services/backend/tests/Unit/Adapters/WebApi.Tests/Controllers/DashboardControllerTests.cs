@@ -8,6 +8,7 @@ using FluentAssertions;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Moq;
 using WebApi.Controllers;
 
@@ -17,11 +18,22 @@ public class DashboardControllerTests
 {
     private readonly DashboardController _controller;
     private readonly Mock<IMediator> _mediatorMock;
+    private readonly IConfiguration _configuration;
 
     public DashboardControllerTests()
     {
         _mediatorMock = new Mock<IMediator>();
-        _controller = new DashboardController(_mediatorMock.Object);
+
+        // Use real ConfigurationBuilder instead of mocking
+        _configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Auth:Disable"] = "false",
+                ["Auth:DevUserId"] = ""
+            })
+            .Build();
+
+        _controller = new DashboardController(_mediatorMock.Object, _configuration);
     }
 
     #region Helper Methods

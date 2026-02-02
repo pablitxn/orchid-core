@@ -8,40 +8,99 @@ namespace Application.Tests.UseCases.Subscription;
 public class GetSubscriptionHandlerTests
 {
     private readonly GetSubscriptionHandler _handler;
-    private readonly Mock<ISubscriptionRepository> _repo = new();
+    private readonly Mock<ISubscriptionRepository> _subscriptionRepo = new();
+    private readonly Mock<IUserCreditsRepository> _userCreditsRepo = new();
 
     public GetSubscriptionHandlerTests()
     {
-        _handler = new GetSubscriptionHandler(_repo.Object);
+        _handler = new GetSubscriptionHandler(_subscriptionRepo.Object, _userCreditsRepo.Object);
     }
 
     [Fact]
-    public async Task Handle_ReturnsSubscription()
+    public async Task Handle_ReturnsSubscriptionWithCredits()
     {
-        var sub = new SubscriptionEntity { Id = Guid.NewGuid(), UserId = Guid.NewGuid(), Credits = 20 };
-        _repo.Setup(r => r.GetByUserIdAsync(sub.UserId, It.IsAny<CancellationToken>())).ReturnsAsync(sub);
+        var userId = Guid.NewGuid();
+        var sub = new SubscriptionEntity { Id = Guid.NewGuid(), UserId = userId };
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 20,
+            TotalCreditsGranted = 20,
+            TotalCreditsConsumed = 0
+        };
 
-        var result = await _handler.Handle(new GetSubscriptionQuery(sub.UserId), CancellationToken.None);
-        // Verify repository was called with expected user ID
-        _repo.Verify(r => r.GetByUserIdAsync(sub.UserId, It.IsAny<CancellationToken>()), Times.Once);
-        // Assert all relevant properties are returned correctly
+        _subscriptionRepo.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(sub);
+        _userCreditsRepo.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(userCredits);
+
+        var result = await _handler.Handle(new GetSubscriptionQuery(userId), CancellationToken.None);
+
+        _subscriptionRepo.Verify(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
+        _userCreditsRepo.Verify(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
         Assert.NotNull(result);
         Assert.Equal(sub.Id, result.Id);
-        Assert.Equal(sub.UserId, result.UserId);
-        Assert.Equal(sub.Credits, result.Credits);
+        Assert.Equal(userId, result.UserId);
+        Assert.Equal(20, result.Credits);
         Assert.Null(result.ExpiresAt);
     }
 
     [Fact]
-    public async Task Handle_ReturnsNull_WhenSubscriptionNotFound()
+    public async Task Handle_ReturnsNull_WhenNoSubscriptionAndNoCredits()
     {
         var userId = Guid.NewGuid();
-        _repo.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+        _subscriptionRepo.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((SubscriptionEntity?)null);
+        _userCreditsRepo.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity?)null);
 
         var result = await _handler.Handle(new GetSubscriptionQuery(userId), CancellationToken.None);
 
         Assert.Null(result);
-        _repo.Verify(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
+        _subscriptionRepo.Verify(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
+        _userCreditsRepo.Verify(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_ReturnsCreditsOnly_WhenNoSubscriptionButHasCredits()
+    {
+        var userId = Guid.NewGuid();
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 50,
+            TotalCreditsGranted = 50,
+            TotalCreditsConsumed = 0
+        };
+
+        _subscriptionRepo.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((SubscriptionEntity?)null);
+        _userCreditsRepo.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
+
+        var result = await _handler.Handle(new GetSubscriptionQuery(userId), CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(Guid.Empty, result.Id); // No subscription ID
+        Assert.Equal(userId, result.UserId);
+        Assert.Equal(50, result.Credits);
+    }
+
+    [Fact]
+    public async Task Handle_ReturnsZeroCredits_WhenSubscriptionExistsButNoCreditsEntity()
+    {
+        var userId = Guid.NewGuid();
+        var sub = new SubscriptionEntity { Id = Guid.NewGuid(), UserId = userId };
+
+        _subscriptionRepo.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(sub);
+        _userCreditsRepo.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity?)null);
+
+        var result = await _handler.Handle(new GetSubscriptionQuery(userId), CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(sub.Id, result.Id);
+        Assert.Equal(userId, result.UserId);
+        Assert.Equal(0, result.Credits); // Falls back to 0 when no UserCreditsEntity
     }
 }

@@ -10,7 +10,8 @@ namespace Application.Tests.UseCases.AdminBilling;
 
 public class AdjustCreditsHandlerTests
 {
-    private readonly Mock<ISubscriptionRepository> _repo = new();
+    private readonly Mock<IUserCreditsRepository> _userCreditsRepo = new();
+    private readonly Mock<ISubscriptionRepository> _subscriptionRepo = new();
     private readonly Mock<IAuditService> _auditService = new();
     private readonly Mock<IEventPublisher> _eventPublisher = new();
     private readonly Mock<ILogger<AdjustCreditsHandler>> _logger = new();
@@ -19,7 +20,8 @@ public class AdjustCreditsHandlerTests
     public AdjustCreditsHandlerTests()
     {
         _handler = new AdjustCreditsHandler(
-            _repo.Object,
+            _userCreditsRepo.Object,
+            _subscriptionRepo.Object,
             _auditService.Object,
             _eventPublisher.Object,
             _logger.Object);
@@ -30,21 +32,23 @@ public class AdjustCreditsHandlerTests
     {
         var userId = Guid.NewGuid();
         var adminId = Guid.NewGuid();
-        var subscription = new SubscriptionEntity
+        var userCredits = new UserCreditsEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 100
+            AvailableCredits = 100,
+            TotalCreditsGranted = 100,
+            TotalCreditsConsumed = 0
         };
 
-        _repo.Setup(r => r.GetByUserIdWithPlanAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(subscription);
+        _userCreditsRepo.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
 
         var cmd = new AdjustCreditsCommand(userId, 50, "Bonus credits", adminId);
         var result = await _handler.Handle(cmd, CancellationToken.None);
 
-        Assert.Equal(150, subscription.Credits);
-        _repo.Verify(r => r.UpdateAsync(It.IsAny<SubscriptionEntity>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal(150, userCredits.AvailableCredits);
+        _userCreditsRepo.Verify(r => r.UpdateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()), Times.Once);
         _eventPublisher.Verify(e => e.PublishAsync(It.IsAny<CreditsAddedEvent>()), Times.Once);
         _auditService.Verify(a => a.LogSuccessAsync(
             AuditActionTypes.AdminCreditAdjust,
@@ -61,20 +65,22 @@ public class AdjustCreditsHandlerTests
     {
         var userId = Guid.NewGuid();
         var adminId = Guid.NewGuid();
-        var subscription = new SubscriptionEntity
+        var userCredits = new UserCreditsEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 100
+            AvailableCredits = 100,
+            TotalCreditsGranted = 100,
+            TotalCreditsConsumed = 0
         };
 
-        _repo.Setup(r => r.GetByUserIdWithPlanAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(subscription);
+        _userCreditsRepo.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
 
         var cmd = new AdjustCreditsCommand(userId, -30, "Credit adjustment", adminId);
         var result = await _handler.Handle(cmd, CancellationToken.None);
 
-        Assert.Equal(70, subscription.Credits);
+        Assert.Equal(70, userCredits.AvailableCredits);
         _eventPublisher.Verify(e => e.PublishAsync(It.IsAny<CreditsConsumedEvent>()), Times.Once);
     }
 
@@ -100,15 +106,17 @@ public class AdjustCreditsHandlerTests
     public async Task Handle_ThrowsInsufficientCreditsException_WhenRemovingMoreThanAvailable()
     {
         var userId = Guid.NewGuid();
-        var subscription = new SubscriptionEntity
+        var userCredits = new UserCreditsEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 50
+            AvailableCredits = 50,
+            TotalCreditsGranted = 50,
+            TotalCreditsConsumed = 0
         };
 
-        _repo.Setup(r => r.GetByUserIdWithPlanAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(subscription);
+        _userCreditsRepo.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
 
         var cmd = new AdjustCreditsCommand(userId, -100, "Remove credits", Guid.NewGuid());
 
@@ -117,15 +125,24 @@ public class AdjustCreditsHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ThrowsSubscriptionNotFoundException_WhenNotFound()
+    public async Task Handle_CreatesUserCredits_WhenNotFound()
     {
         var userId = Guid.NewGuid();
-        _repo.Setup(r => r.GetByUserIdWithPlanAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SubscriptionEntity?)null);
+        var adminId = Guid.NewGuid();
 
-        var cmd = new AdjustCreditsCommand(userId, 50, "Add credits", Guid.NewGuid());
+        _userCreditsRepo.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity?)null);
 
-        await Assert.ThrowsAsync<SubscriptionNotFoundException>(
-            () => _handler.Handle(cmd, CancellationToken.None));
+        UserCreditsEntity? createdCredits = null;
+        _userCreditsRepo.Setup(r => r.CreateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()))
+            .Callback<UserCreditsEntity, CancellationToken>((uc, _) => createdCredits = uc)
+            .ReturnsAsync((UserCreditsEntity uc, CancellationToken _) => uc);
+
+        var cmd = new AdjustCreditsCommand(userId, 50, "Add credits", adminId);
+        await _handler.Handle(cmd, CancellationToken.None);
+
+        _userCreditsRepo.Verify(r => r.CreateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.NotNull(createdCredits);
+        Assert.Equal(userId, createdCredits.UserId);
     }
 }

@@ -16,6 +16,7 @@ namespace Infrastructure.Tests.Services;
 
 public class CreditValidationServiceTests
 {
+    private readonly Mock<IUserCreditsRepository> _userCreditsRepositoryMock;
     private readonly Mock<ISubscriptionRepository> _subscriptionRepositoryMock;
     private readonly Mock<IPluginRepository> _pluginRepositoryMock;
     private readonly Mock<IWorkflowRepository> _workflowRepositoryMock;
@@ -26,6 +27,7 @@ public class CreditValidationServiceTests
 
     public CreditValidationServiceTests()
     {
+        _userCreditsRepositoryMock = new Mock<IUserCreditsRepository>();
         _subscriptionRepositoryMock = new Mock<ISubscriptionRepository>();
         _pluginRepositoryMock = new Mock<IPluginRepository>();
         _workflowRepositoryMock = new Mock<IWorkflowRepository>();
@@ -34,6 +36,7 @@ public class CreditValidationServiceTests
         _loggerMock = new Mock<ILogger<CreditValidationService>>();
 
         _service = new CreditValidationService(
+            _userCreditsRepositoryMock.Object,
             _subscriptionRepositoryMock.Object,
             _costRegistryMock.Object,
             _pluginRepositoryMock.Object,
@@ -50,18 +53,28 @@ public class CreditValidationServiceTests
         var userId = Guid.NewGuid();
         var messageContent = "Test message";
         var pluginIds = new List<Guid> { Guid.NewGuid() };
-        
+
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 100,
             SubscriptionPlan = new SubscriptionPlanEntity { PlanEnum = SubscriptionPlanEnum.Monthly100, Price = 10, Credits = 100 }
+        };
+
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 100
         };
 
         _subscriptionRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
 
         _costRegistryMock
             .Setup(x => x.GetMessageFixedCostAsync(It.IsAny<CancellationToken>()))
@@ -70,7 +83,7 @@ public class CreditValidationServiceTests
         _costRegistryMock
             .Setup(x => x.GetPluginUsageCostsBatchAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, int> { { pluginIds.First(), 10 } });
-            
+
         _pluginRepositoryMock
             .Setup(x => x.GetByIdAsync(pluginIds.First(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PluginEntity { Id = pluginIds.First(), Name = "Test Plugin" });
@@ -127,18 +140,28 @@ public class CreditValidationServiceTests
         var userId = Guid.NewGuid();
         var messageContent = "Test message";
         var pluginIds = new List<Guid> { Guid.NewGuid(), Guid.NewGuid() };
-        
+
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 10,
             SubscriptionPlan = new SubscriptionPlanEntity { PlanEnum = SubscriptionPlanEnum.Package10, Price = 5, Credits = 10 }
+        };
+
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 10
         };
 
         _subscriptionRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
 
         _costRegistryMock
             .Setup(x => x.GetMessageFixedCostAsync(It.IsAny<CancellationToken>()))
@@ -152,7 +175,7 @@ public class CreditValidationServiceTests
                 .Setup(x => x.GetByIdAsync(pluginId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new PluginEntity { Id = pluginId, Name = $"Plugin {pluginId}" });
         }
-        
+
         _costRegistryMock
             .Setup(x => x.GetPluginUsageCostsBatchAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(pluginCosts);
@@ -174,13 +197,19 @@ public class CreditValidationServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var messageContent = "This is a longer message that will use token-based pricing";
-        
+
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 100,
             SubscriptionPlan = new SubscriptionPlanEntity { PlanEnum = SubscriptionPlanEnum.Monthly100, Price = 10, Credits = 100 }
+        };
+
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 100
         };
 
         var billingPreference = new UserBillingPreferenceEntity
@@ -192,6 +221,10 @@ public class CreditValidationServiceTests
         _subscriptionRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
 
         _billingPreferenceRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
@@ -217,13 +250,19 @@ public class CreditValidationServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var pluginId = Guid.NewGuid();
-        
+
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 100,
             SubscriptionPlan = new SubscriptionPlanEntity { PlanEnum = SubscriptionPlanEnum.Monthly100, Price = 10, Credits = 100 }
+        };
+
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 100
         };
 
         var plugin = new PluginEntity
@@ -237,6 +276,10 @@ public class CreditValidationServiceTests
         _subscriptionRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
 
         _pluginRepositoryMock
             .Setup(x => x.GetByIdAsync(pluginId, It.IsAny<CancellationToken>()))
@@ -261,18 +304,28 @@ public class CreditValidationServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var pluginId = Guid.NewGuid();
-        
+
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 100,
             SubscriptionPlan = new SubscriptionPlanEntity { PlanEnum = SubscriptionPlanEnum.Monthly100, Price = 10, Credits = 100 }
+        };
+
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 100
         };
 
         _subscriptionRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
 
         _pluginRepositoryMock
             .Setup(x => x.GetByIdAsync(pluginId, It.IsAny<CancellationToken>()))
@@ -292,13 +345,19 @@ public class CreditValidationServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var workflowId = Guid.NewGuid();
-        
+
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 200,
             SubscriptionPlan = new SubscriptionPlanEntity { PlanEnum = SubscriptionPlanEnum.Monthly100, Price = 10, Credits = 100 }
+        };
+
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 200
         };
 
         var workflow = new WorkflowEntity
@@ -312,10 +371,14 @@ public class CreditValidationServiceTests
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
 
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
+
         _workflowRepositoryMock
             .Setup(x => x.GetByIdAsync(workflowId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(workflow);
-            
+
         _costRegistryMock
             .Setup(x => x.GetWorkflowPurchaseCostAsync(workflowId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(100);
@@ -336,18 +399,28 @@ public class CreditValidationServiceTests
         var userId = Guid.NewGuid();
         var requiredCredits = 25;
         var operationType = "custom_operation";
-        
+
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 50,
             SubscriptionPlan = new SubscriptionPlanEntity { PlanEnum = SubscriptionPlanEnum.Package25, Price = 8, Credits = 25 }
+        };
+
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 50
         };
 
         _subscriptionRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
 
         // Act
         var result = await _service.ValidateOperationAsync(
@@ -360,14 +433,18 @@ public class CreditValidationServiceTests
     }
 
     [Fact]
-    public async Task ValidateOperation_Should_ReturnInvalid_When_NoSubscription()
+    public async Task ValidateOperation_Should_ReturnInvalid_When_NoCredits()
     {
         // Arrange
         var userId = Guid.NewGuid();
-        
+
         _subscriptionRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((SubscriptionEntity?)null);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity?)null);
 
         // Act
         var result = await _service.ValidateOperationAsync(
@@ -375,7 +452,7 @@ public class CreditValidationServiceTests
 
         // Assert
         result.IsValid.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("No active subscription");
+        result.ErrorMessage.Should().Contain("Insufficient credits");
         result.AvailableCredits.Should().Be(0);
     }
 
@@ -386,18 +463,28 @@ public class CreditValidationServiceTests
         var userId = Guid.NewGuid();
         var messageContent = "Test";
         var workflowIds = new List<Guid> { Guid.NewGuid(), Guid.NewGuid() };
-        
+
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 100,
             SubscriptionPlan = new SubscriptionPlanEntity { PlanEnum = SubscriptionPlanEnum.Monthly100, Price = 10, Credits = 100 }
+        };
+
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 100
         };
 
         _subscriptionRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
 
         _costRegistryMock
             .Setup(x => x.GetMessageFixedCostAsync(It.IsAny<CancellationToken>()))
@@ -411,7 +498,7 @@ public class CreditValidationServiceTests
                 .Setup(x => x.GetByIdAsync(workflowId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new WorkflowEntity { Id = workflowId, Name = $"Workflow {workflowId}" });
         }
-        
+
         _costRegistryMock
             .Setup(x => x.GetWorkflowUsageCostsBatchAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(workflowCosts);

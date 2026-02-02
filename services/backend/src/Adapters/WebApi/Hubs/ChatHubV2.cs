@@ -42,6 +42,7 @@ public sealed class ChatHubV2(
     ICreditTrackingService creditTrackingService,
     IModelResolver modelResolver,
     ISubscriptionRepository subscriptionRepository,
+    IUserCreditsRepository userCreditsRepository,
     IUserRepository userRepository) : Hub
 {
     private readonly ICacheStore _cache =
@@ -82,6 +83,9 @@ public sealed class ChatHubV2(
 
     private readonly ISubscriptionRepository _subscriptionRepository =
         subscriptionRepository ?? throw new ArgumentNullException(nameof(subscriptionRepository));
+
+    private readonly IUserCreditsRepository _userCreditsRepository =
+        userCreditsRepository ?? throw new ArgumentNullException(nameof(userCreditsRepository));
 
     private readonly IUserRepository _userRepository =
         userRepository ?? throw new ArgumentNullException(nameof(userRepository));
@@ -177,18 +181,21 @@ public sealed class ChatHubV2(
             return;
         }
 
-        // Get user's subscription and preferences for credit-aware model resolution
+        // Get user's subscription and credits for credit-aware model resolution
         var subscription = await _subscriptionRepository.GetByUserIdAsync(userId, Context.ConnectionAborted);
-        if (subscription == null)
+        var userCredits = await _userCreditsRepository.GetByUserIdAsync(userId, Context.ConnectionAborted);
+
+        // Allow users without subscription but with credits to proceed
+        if (subscription == null && userCredits == null)
         {
-            RecordMetrics("subscription_not_found");
-            await SendErrorAsync("SubscriptionNotFound", _localizer["SubscriptionNotFound"]);
+            RecordMetrics("no_credits_available");
+            await SendErrorAsync("NoCreditsAvailable", _localizer["NoCreditsAvailable"]);
             return;
         }
 
         var user = await _userRepository.GetByIdAsync(userId, Context.ConnectionAborted);
         var allowDegradation = user?.AllowAutoDegradation ?? true;
-        var availableCredits = subscription.Credits;
+        var availableCredits = userCredits?.AvailableCredits ?? 0;
         var tokens = _tokenCounter.CountTokens(request.Content);
 
         // Pre-resolve the model considering available credits

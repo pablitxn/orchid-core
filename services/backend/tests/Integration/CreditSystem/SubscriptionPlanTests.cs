@@ -188,25 +188,37 @@ public class SubscriptionPlanTests : CreditSystemTestBase
     {
         // Arrange
         await using var context = CreateTestContext();
-        
+
         var userId = Guid.NewGuid();
         await SeedUser(context, userId);
         await SeedSubscriptionPlans(context);
-        
+
         var plan = await context.SubscriptionPlans.FirstAsync(p => p.PlanEnum == SubscriptionPlanEnum.Monthly100);
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 75,
             SubscriptionPlanId = plan.Id,
             SubscriptionPlan = plan,
             ExpiresAt = DateTime.UtcNow.AddDays(15),
             AutoRenew = true
         };
         await context.Subscriptions.AddAsync(subscription);
+
+        // Create UserCreditsEntity (credits are now decoupled from subscriptions)
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 75,
+            TotalCreditsGranted = 100,
+            TotalCreditsConsumed = 25,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        await context.UserCredits.AddAsync(userCredits);
         await context.SaveChangesAsync();
-        
+
         await SetAuthHeader(userId);
 
         // Act

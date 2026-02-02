@@ -5,6 +5,7 @@ namespace Infrastructure.Services;
 
 public class CreditValidationService : ICreditValidationService
 {
+    private readonly IUserCreditsRepository _userCreditsRepository;
     private readonly ISubscriptionRepository _subscriptionRepository;
     private readonly ICostRegistry _costRegistry;
     private readonly IPluginRepository _pluginRepository;
@@ -13,6 +14,7 @@ public class CreditValidationService : ICreditValidationService
     private readonly ILogger<CreditValidationService> _logger;
 
     public CreditValidationService(
+        IUserCreditsRepository userCreditsRepository,
         ISubscriptionRepository subscriptionRepository,
         ICostRegistry costRegistry,
         IPluginRepository pluginRepository,
@@ -20,6 +22,7 @@ public class CreditValidationService : ICreditValidationService
         IUserBillingPreferenceRepository billingPreferenceRepository,
         ILogger<CreditValidationService> logger)
     {
+        _userCreditsRepository = userCreditsRepository;
         _subscriptionRepository = subscriptionRepository;
         _costRegistry = costRegistry;
         _pluginRepository = pluginRepository;
@@ -37,21 +40,25 @@ public class CreditValidationService : ICreditValidationService
     {
         try
         {
+            // Check if user has unlimited subscription
             var subscription = await _subscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
-            if (subscription == null)
-            {
-                return new CreditValidationResult(false, 0, 0, false, "No active subscription found");
-            }
-
-            // Check if user has unlimited credits
-            if (subscription.HasUnlimitedCredits())
+            if (subscription?.HasUnlimitedCredits() == true)
             {
                 return new CreditValidationResult(true, 0, int.MaxValue, true);
             }
 
+            // Get user credits
+            var userCredits = await _userCreditsRepository.GetByUserIdAsync(userId, cancellationToken);
+            var availableCredits = userCredits?.AvailableCredits ?? 0;
+
+            if (userCredits == null && subscription == null)
+            {
+                return new CreditValidationResult(false, 0, 0, false, "No credits available");
+            }
+
             // Get billing preferences
             var billingPreference = await _billingPreferenceRepository.GetByUserIdAsync(userId, cancellationToken);
-            
+
             // Calculate base message cost
             int baseCost = 0;
             if (billingPreference?.MessageBillingMethod == "tokens")
@@ -98,18 +105,18 @@ public class CreditValidationService : ICreditValidationService
             var totalCost = baseCost + pluginCosts.Values.Sum() + workflowCosts.Values.Sum();
             var costBreakdown = new CostBreakdown(baseCost, pluginCosts, workflowCosts, totalCost);
 
-            if (subscription.Credits < totalCost)
+            if (availableCredits < totalCost)
             {
                 return new CreditValidationResult(
-                    false, 
-                    totalCost, 
-                    subscription.Credits, 
                     false,
-                    $"Insufficient credits. Required: {totalCost}, Available: {subscription.Credits}",
+                    totalCost,
+                    availableCredits,
+                    false,
+                    $"Insufficient credits. Required: {totalCost}, Available: {availableCredits}",
                     costBreakdown);
             }
 
-            return new CreditValidationResult(true, totalCost, subscription.Credits, false, null, costBreakdown);
+            return new CreditValidationResult(true, totalCost, availableCredits, false, null, costBreakdown);
         }
         catch (Exception ex)
         {
@@ -125,42 +132,41 @@ public class CreditValidationService : ICreditValidationService
     {
         try
         {
+            // Check if user has unlimited subscription
             var subscription = await _subscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
-            if (subscription == null)
-            {
-                return new CreditValidationResult(false, 0, 0, false, "No active subscription found");
-            }
-
-            if (subscription.HasUnlimitedCredits())
+            if (subscription?.HasUnlimitedCredits() == true)
             {
                 return new CreditValidationResult(true, 0, int.MaxValue, true);
             }
 
+            // Get user credits
+            var userCredits = await _userCreditsRepository.GetByUserIdAsync(userId, cancellationToken);
+            var availableCredits = userCredits?.AvailableCredits ?? 0;
+
             var plugin = await _pluginRepository.GetByIdAsync(pluginId, cancellationToken);
             if (plugin == null)
             {
-                return new CreditValidationResult(false, 0, subscription.Credits, false, "Plugin not found");
+                return new CreditValidationResult(false, 0, availableCredits, false, "Plugin not found");
             }
 
             if (plugin.IsSubscriptionBased)
             {
-                // Subscription-based plugins don't require credits
-                return new CreditValidationResult(true, 0, subscription.Credits, false);
+                return new CreditValidationResult(true, 0, availableCredits, false);
             }
 
             var cost = await _costRegistry.GetPluginPurchaseCostAsync(pluginId, cancellationToken);
-            
-            if (subscription.Credits < cost)
+
+            if (availableCredits < cost)
             {
                 return new CreditValidationResult(
-                    false, 
-                    cost, 
-                    subscription.Credits, 
                     false,
-                    $"Insufficient credits. Required: {cost}, Available: {subscription.Credits}");
+                    cost,
+                    availableCredits,
+                    false,
+                    $"Insufficient credits. Required: {cost}, Available: {availableCredits}");
             }
 
-            return new CreditValidationResult(true, cost, subscription.Credits, false);
+            return new CreditValidationResult(true, cost, availableCredits, false);
         }
         catch (Exception ex)
         {
@@ -176,36 +182,36 @@ public class CreditValidationService : ICreditValidationService
     {
         try
         {
+            // Check if user has unlimited subscription
             var subscription = await _subscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
-            if (subscription == null)
-            {
-                return new CreditValidationResult(false, 0, 0, false, "No active subscription found");
-            }
-
-            if (subscription.HasUnlimitedCredits())
+            if (subscription?.HasUnlimitedCredits() == true)
             {
                 return new CreditValidationResult(true, 0, int.MaxValue, true);
             }
 
+            // Get user credits
+            var userCredits = await _userCreditsRepository.GetByUserIdAsync(userId, cancellationToken);
+            var availableCredits = userCredits?.AvailableCredits ?? 0;
+
             var workflow = await _workflowRepository.GetByIdAsync(workflowId, cancellationToken);
             if (workflow == null)
             {
-                return new CreditValidationResult(false, 0, subscription.Credits, false, "Workflow not found");
+                return new CreditValidationResult(false, 0, availableCredits, false, "Workflow not found");
             }
 
             var cost = await _costRegistry.GetWorkflowPurchaseCostAsync(workflowId, cancellationToken);
-            
-            if (subscription.Credits < cost)
+
+            if (availableCredits < cost)
             {
                 return new CreditValidationResult(
-                    false, 
-                    cost, 
-                    subscription.Credits, 
                     false,
-                    $"Insufficient credits. Required: {cost}, Available: {subscription.Credits}");
+                    cost,
+                    availableCredits,
+                    false,
+                    $"Insufficient credits. Required: {cost}, Available: {availableCredits}");
             }
 
-            return new CreditValidationResult(true, cost, subscription.Credits, false);
+            return new CreditValidationResult(true, cost, availableCredits, false);
         }
         catch (Exception ex)
         {
@@ -222,34 +228,34 @@ public class CreditValidationService : ICreditValidationService
     {
         try
         {
+            // Check if user has unlimited subscription
             var subscription = await _subscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
-            if (subscription == null)
-            {
-                return new CreditValidationResult(false, requiredCredits, 0, false, "No active subscription found");
-            }
-
-            // Check if subscription has expired
-            if (subscription.ExpiresAt.HasValue && subscription.ExpiresAt.Value < DateTime.UtcNow)
-            {
-                return new CreditValidationResult(false, requiredCredits, subscription.Credits, false, "Subscription has expired");
-            }
-
-            if (subscription.HasUnlimitedCredits())
+            if (subscription?.HasUnlimitedCredits() == true)
             {
                 return new CreditValidationResult(true, requiredCredits, int.MaxValue, true);
             }
 
-            if (subscription.Credits < requiredCredits)
+            // Get user credits
+            var userCredits = await _userCreditsRepository.GetByUserIdAsync(userId, cancellationToken);
+            var availableCredits = userCredits?.AvailableCredits ?? 0;
+
+            // Check if subscription has expired (still relevant for plan features)
+            if (subscription?.ExpiresAt.HasValue == true && subscription.ExpiresAt.Value < DateTime.UtcNow)
+            {
+                return new CreditValidationResult(false, requiredCredits, availableCredits, false, "Subscription has expired");
+            }
+
+            if (availableCredits < requiredCredits)
             {
                 return new CreditValidationResult(
                     false,
                     requiredCredits,
-                    subscription.Credits,
+                    availableCredits,
                     false,
-                    $"Insufficient credits for {operationType}. Required: {requiredCredits}, Available: {subscription.Credits}");
+                    $"Insufficient credits for {operationType}. Required: {requiredCredits}, Available: {availableCredits}");
             }
 
-            return new CreditValidationResult(true, requiredCredits, subscription.Credits, false);
+            return new CreditValidationResult(true, requiredCredits, availableCredits, false);
         }
         catch (Exception ex)
         {
@@ -260,7 +266,6 @@ public class CreditValidationService : ICreditValidationService
 
     private int EstimateTokenCount(string content)
     {
-        // Simple estimation: ~4 characters per token (rough approximation)
         return Math.Max(1, content.Length / 4);
     }
 }
