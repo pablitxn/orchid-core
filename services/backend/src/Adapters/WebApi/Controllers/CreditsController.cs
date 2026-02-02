@@ -5,6 +5,7 @@ using Application.UseCases.Credits.GetCreditPackages;
 using Application.UseCases.Credits.GetCreditTransactions;
 using Application.UseCases.Credits.GetCreditUsage;
 using Application.UseCases.Credits.PurchaseCredits;
+using Application.UseCases.User.GetUser;
 using Domain.Exceptions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -19,7 +20,10 @@ namespace WebApi.Controllers;
 [ApiController]
 [Route("api/credits")]
 [Authorize]
-public class CreditsController(IMediator mediator, ILogger<CreditsController> logger) : ControllerBase
+public class CreditsController(
+    IMediator mediator,
+    ILogger<CreditsController> logger,
+    IConfiguration configuration) : ControllerBase
 {
     /// <summary>
     /// Get current credit balance for the authenticated user.
@@ -27,7 +31,7 @@ public class CreditsController(IMediator mediator, ILogger<CreditsController> lo
     [HttpGet("balance")]
     public async Task<IActionResult> GetBalance()
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         if (userId is null)
             return Unauthorized();
 
@@ -52,7 +56,7 @@ public class CreditsController(IMediator mediator, ILogger<CreditsController> lo
     [HttpPost("purchase")]
     public async Task<IActionResult> PurchaseCredits([FromBody] PurchaseCreditsRequest request)
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         if (userId is null)
             return Unauthorized();
 
@@ -87,7 +91,7 @@ public class CreditsController(IMediator mediator, ILogger<CreditsController> lo
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         if (userId is null)
             return Unauthorized();
 
@@ -110,7 +114,7 @@ public class CreditsController(IMediator mediator, ILogger<CreditsController> lo
     [HttpGet("usage")]
     public async Task<IActionResult> GetUsage([FromQuery] string period = "month")
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         if (userId is null)
             return Unauthorized();
 
@@ -127,12 +131,28 @@ public class CreditsController(IMediator mediator, ILogger<CreditsController> lo
         }
     }
 
-    private Guid? GetUserId()
+    private async Task<Guid?> ResolveUserIdAsync()
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        if (!string.IsNullOrWhiteSpace(userIdClaim) && Guid.TryParse(userIdClaim, out var userGuid))
+        {
+            var authDisabled = configuration.GetValue<bool>("Auth:Disable");
+            var devUserIdValue = configuration["Auth:DevUserId"];
+            if (!authDisabled ||
+                string.IsNullOrWhiteSpace(devUserIdValue) ||
+                !Guid.TryParse(devUserIdValue, out var devUserId) ||
+                userGuid != devUserId)
+            {
+                return userGuid;
+            }
+        }
+
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        if (string.IsNullOrWhiteSpace(email))
             return null;
-        return userId;
+
+        var user = await mediator.Send(new GetUserQuery(email));
+        return user?.Id;
     }
 }
 

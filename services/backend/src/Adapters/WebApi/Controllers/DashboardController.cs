@@ -1,5 +1,4 @@
-using System;
-using System.Threading.Tasks;
+using Application.UseCases.User.GetUser;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
@@ -17,20 +16,43 @@ namespace WebApi.Controllers;
 public class DashboardController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IConfiguration _configuration;
 
-    public DashboardController(IMediator mediator)
+    public DashboardController(IMediator mediator, IConfiguration configuration)
     {
         _mediator = mediator;
+        _configuration = configuration;
     }
 
-    private Guid GetUserId()
+    private async Task<Guid> ResolveUserIdAsync()
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        if (!string.IsNullOrWhiteSpace(userIdClaim) && Guid.TryParse(userIdClaim, out var userGuid))
         {
-            throw new UnauthorizedAccessException("User ID not found in claims");
+            var authDisabled = _configuration.GetValue<bool>("Auth:Disable");
+            var devUserIdValue = _configuration["Auth:DevUserId"];
+            if (!authDisabled ||
+                string.IsNullOrWhiteSpace(devUserIdValue) ||
+                !Guid.TryParse(devUserIdValue, out var devUserId) ||
+                userGuid != devUserId)
+            {
+                return userGuid;
+            }
         }
-        return userId;
+
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new UnauthorizedAccessException("User identity not found in claims");
+        }
+
+        var user = await _mediator.Send(new GetUserQuery(email));
+        if (user is null)
+        {
+            throw new UnauthorizedAccessException("User not found for provided identity");
+        }
+
+        return user.Id;
     }
 
     /// <summary>
@@ -39,7 +61,7 @@ public class DashboardController : ControllerBase
     [HttpGet("overview")]
     public async Task<IActionResult> GetDashboardOverview()
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         var query = new GetDashboardOverviewQuery(userId);
         var result = await _mediator.Send(query);
         return Ok(result);
@@ -56,7 +78,7 @@ public class DashboardController : ControllerBase
         [FromQuery] DateTime? endDate = null,
         [FromQuery] string? consumptionType = null)
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         var query = new GetCreditHistoryQuery(userId, pageNumber, pageSize, startDate, endDate, consumptionType);
         var result = await _mediator.Send(query);
         return Ok(result);
@@ -70,7 +92,7 @@ public class DashboardController : ControllerBase
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         // TODO: Implement GetCreditStatisticsQuery
         return Ok(new { message = "Credit statistics endpoint - implementation pending" });
     }
@@ -88,7 +110,7 @@ public class DashboardController : ControllerBase
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         var query = new GetSessionDetailsQuery(userId, pageNumber, pageSize, isArchived, agentId, teamId, startDate, endDate);
         var result = await _mediator.Send(query);
         return Ok(result);
@@ -102,7 +124,7 @@ public class DashboardController : ControllerBase
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         // TODO: Implement GetSessionActivityHeatmapQuery
         return Ok(new { message = "Session activity heatmap endpoint - implementation pending" });
     }
@@ -115,7 +137,7 @@ public class DashboardController : ControllerBase
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         // TODO: Implement GetAgentPerformanceQuery
         return Ok(new { message = "Agent performance endpoint - implementation pending" });
     }
@@ -126,7 +148,7 @@ public class DashboardController : ControllerBase
     [HttpGet("plugins/analytics")]
     public async Task<IActionResult> GetPluginAnalytics()
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         // TODO: Implement GetPluginAnalyticsQuery
         return Ok(new { message = "Plugin analytics endpoint - implementation pending" });
     }
@@ -137,7 +159,7 @@ public class DashboardController : ControllerBase
     [HttpGet("workflows/analytics")]
     public async Task<IActionResult> GetWorkflowAnalytics()
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         // TODO: Implement GetWorkflowAnalyticsQuery
         return Ok(new { message = "Workflow analytics endpoint - implementation pending" });
     }
@@ -148,7 +170,7 @@ public class DashboardController : ControllerBase
     [HttpGet("knowledge-base/statistics")]
     public async Task<IActionResult> GetKnowledgeBaseStatistics()
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         // TODO: Implement GetKnowledgeBaseStatisticsQuery
         return Ok(new { message = "Knowledge base statistics endpoint - implementation pending" });
     }
@@ -159,7 +181,7 @@ public class DashboardController : ControllerBase
     [HttpGet("media-center/statistics")]
     public async Task<IActionResult> GetMediaCenterStatistics()
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         // TODO: Implement GetMediaCenterStatisticsQuery
         return Ok(new { message = "Media center statistics endpoint - implementation pending" });
     }
@@ -170,7 +192,7 @@ public class DashboardController : ControllerBase
     [HttpGet("security")]
     public async Task<IActionResult> GetSecurityMetrics()
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         var query = new GetSecurityMetricsQuery(userId);
         var result = await _mediator.Send(query);
         return Ok(result);
@@ -184,7 +206,7 @@ public class DashboardController : ControllerBase
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 20)
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         // TODO: Implement GetBillingHistoryQuery
         return Ok(new { message = "Billing history endpoint - implementation pending" });
     }
@@ -195,7 +217,7 @@ public class DashboardController : ControllerBase
     [HttpGet("forecast")]
     public async Task<IActionResult> GetUsageForecast()
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         // TODO: Implement GetUsageForecastQuery
         return Ok(new { message = "Usage forecast endpoint - implementation pending" });
     }
@@ -209,7 +231,7 @@ public class DashboardController : ControllerBase
         [FromQuery] DateTime? startDate = null,
         [FromQuery] DateTime? endDate = null)
     {
-        var userId = GetUserId();
+        var userId = await ResolveUserIdAsync();
         // TODO: Implement ExportDashboardDataQuery
         return Ok(new { message = "Export dashboard data endpoint - implementation pending" });
     }

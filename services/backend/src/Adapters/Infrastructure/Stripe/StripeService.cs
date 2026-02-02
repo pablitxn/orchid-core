@@ -305,7 +305,8 @@ public class StripeService : IStripeService
             var stripeEvent = EventUtility.ConstructEvent(
                 payload,
                 signature,
-                _settings.WebhookSecret);
+                _settings.WebhookSecret,
+                throwOnApiVersionMismatch: false);
 
             _logger.LogInformation(
                 "Validated webhook event {EventId} of type {EventType}",
