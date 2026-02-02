@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Application.Interfaces;
 using Domain.Events;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -13,16 +14,16 @@ namespace Orchid.Infrastructure.Ai.AgentFramework.Services;
 public sealed class ModelCircuitBreakerService : IModelCircuitBreaker
 {
     private readonly ConcurrentDictionary<string, CircuitState> _circuits = new(StringComparer.OrdinalIgnoreCase);
-    private readonly IEventPublisher _eventPublisher;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ModelCircuitBreakerService> _logger;
     private readonly ModelCircuitBreakerSettings _settings;
 
     public ModelCircuitBreakerService(
-        IEventPublisher eventPublisher,
+        IServiceScopeFactory scopeFactory,
         IOptions<ModelCircuitBreakerSettings> settings,
         ILogger<ModelCircuitBreakerService> logger)
     {
-        _eventPublisher = eventPublisher;
+        _scopeFactory = scopeFactory;
         _settings = settings.Value;
         _logger = logger;
     }
@@ -71,7 +72,9 @@ public sealed class ModelCircuitBreakerService : IModelCircuitBreaker
                     "Circuit breaker for model {ModelId} closed after successful recovery",
                     modelId);
 
-                await _eventPublisher.PublishAsync(
+                using var scope = _scopeFactory.CreateScope();
+                var eventPublisher = scope.ServiceProvider.GetRequiredService<IEventPublisher>();
+                await eventPublisher.PublishAsync(
                     new ModelCircuitClosedEvent(modelId, DateTime.UtcNow),
                     ct);
             }
@@ -128,7 +131,9 @@ public sealed class ModelCircuitBreakerService : IModelCircuitBreaker
                 "Circuit breaker OPENED for model {ModelId} after {FailureCount} failures. Cooldown until {CooldownEndsAt}",
                 modelId, failureCount, state.CooldownEndsAt);
 
-            await _eventPublisher.PublishAsync(
+            using var scope = _scopeFactory.CreateScope();
+            var eventPublisher = scope.ServiceProvider.GetRequiredService<IEventPublisher>();
+            await eventPublisher.PublishAsync(
                 new ModelCircuitOpenedEvent(
                     modelId,
                     failureCount,
