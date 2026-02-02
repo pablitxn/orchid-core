@@ -31,6 +31,9 @@ public class AuthorizationMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
+        _logger.LogWarning("AuthorizationMiddleware invoked for {Path} on port {Port}",
+            context.Request.Path, context.Connection.LocalPort);
+
         // Bypass CORS preflight requests (OPTIONS) - these don't carry auth tokens
         if (HttpMethods.IsOptions(context.Request.Method))
         {
@@ -110,10 +113,14 @@ public class AuthorizationMiddleware
 
         if (string.IsNullOrEmpty(token))
         {
+            _logger.LogWarning("No token found for {Path}. Cookie present: {HasCookie}",
+                context.Request.Path, context.Request.Cookies.ContainsKey("token"));
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             await context.Response.WriteAsync("Authentication token missing");
             return;
         }
+
+        _logger.LogWarning("Token found for {Path}, length: {Length}", context.Request.Path, token.Length);
 
         var configuration = context.RequestServices.GetRequiredService<IConfiguration>();
         var handler = new JwtSecurityTokenHandler();
@@ -213,6 +220,8 @@ public class AuthorizationMiddleware
             }
 
             context.User = principal;
+            _logger.LogWarning("Set context.User with {ClaimCount} claims for {Path}",
+                principal.Claims.Count(), context.Request.Path);
         }
         catch (SecurityTokenExpiredException ex)
         {
@@ -236,6 +245,18 @@ public class AuthorizationMiddleware
             await context.Response.WriteAsync("Invalid token");
             return;
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during token validation for {Path}", context.Request.Path);
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsync("Token validation failed");
+            return;
+        }
+
+        _logger.LogWarning("Token validated successfully for {Path}. User authenticated: {IsAuth}, Claims: {Claims}",
+            context.Request.Path,
+            context.User?.Identity?.IsAuthenticated,
+            string.Join(", ", context.User?.Claims?.Select(c => $"{c.Type}={c.Value}") ?? Array.Empty<string>()));
 
         await _next(context);
     }

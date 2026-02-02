@@ -17,6 +17,8 @@ using Infrastructure.Telemetry;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using WebApi.Settings;
 
 namespace WebApi.Controllers;
 
@@ -31,7 +33,8 @@ public class AuthController(
     IRateLimitService rateLimitService,
     IPasswordValidator passwordValidator,
     IRefreshTokenRepository refreshTokenRepository,
-    IJwtBlacklistService jwtBlacklistService) : ControllerBase
+    IJwtBlacklistService jwtBlacklistService,
+    IOptions<RateLimitingSettings> rateLimitingSettings) : ControllerBase
 {
     private readonly IConfiguration _config = config;
     private readonly IMediator _mediator = mediator;
@@ -42,6 +45,7 @@ public class AuthController(
     private readonly IPasswordValidator _passwordValidator = passwordValidator;
     private readonly IRefreshTokenRepository _refreshTokenRepository = refreshTokenRepository;
     private readonly IJwtBlacklistService _jwtBlacklistService = jwtBlacklistService;
+    private readonly RateLimitingSettings _rateLimitingSettings = rateLimitingSettings.Value;
 
     private const int RefreshTokenExpirationDays = 7;
     private const int RememberMeRefreshTokenExpirationDays = 30;
@@ -60,22 +64,25 @@ public class AuthController(
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
-        // Rate limiting: 3 registrations per hour per IP
-        var rateLimitKey = $"register:{ipAddress}";
-        var rateCheck = await _rateLimitService.CheckAsync(
-            rateLimitKey,
-            limit: 3,
-            window: TimeSpan.FromHours(1),
-            HttpContext.RequestAborted);
-
-        if (!rateCheck.IsAllowed)
+        // Rate limiting: configurable registrations per window per IP
+        if (_rateLimitingSettings.Enabled)
         {
-            Response.Headers.Append("Retry-After", ((int)rateCheck.RetryAfter.TotalSeconds).ToString());
-            return StatusCode(429, new
+            var rateLimitKey = $"register:{ipAddress}";
+            var rateCheck = await _rateLimitService.CheckAsync(
+                rateLimitKey,
+                limit: _rateLimitingSettings.Register.Limit,
+                window: TimeSpan.FromMinutes(_rateLimitingSettings.Register.WindowMinutes),
+                HttpContext.RequestAborted);
+
+            if (!rateCheck.IsAllowed)
             {
-                error = "Too many registration attempts. Please try again later.",
-                retryAfter = (int)rateCheck.RetryAfter.TotalSeconds
-            });
+                Response.Headers.Append("Retry-After", ((int)rateCheck.RetryAfter.TotalSeconds).ToString());
+                return StatusCode(429, new
+                {
+                    error = "Too many registration attempts. Please try again later.",
+                    retryAfter = (int)rateCheck.RetryAfter.TotalSeconds
+                });
+            }
         }
 
         // Validate email format
@@ -115,42 +122,45 @@ public class AuthController(
         var emailNormalized = request.Email?.ToLowerInvariant() ?? "unknown";
 
         // Rate limiting: Combined IP + account-based limiting for defense in depth
-        // IP-based: 10 attempts per 15 minutes (allows for shared IPs)
-        var ipRateLimitKey = $"login:ip:{ipAddress}";
-        var ipRateCheck = await _rateLimitService.CheckAsync(
-            ipRateLimitKey,
-            limit: 10,
-            window: TimeSpan.FromMinutes(15),
-            HttpContext.RequestAborted);
-
-        if (!ipRateCheck.IsAllowed)
+        if (_rateLimitingSettings.Enabled)
         {
-            _logger.LogWarning("IP rate limit exceeded for {IpAddress}", ipAddress);
-            Response.Headers.Append("Retry-After", ((int)ipRateCheck.RetryAfter.TotalSeconds).ToString());
-            return StatusCode(429, new
-            {
-                error = "Too many login attempts. Please try again later.",
-                retryAfter = (int)ipRateCheck.RetryAfter.TotalSeconds
-            });
-        }
+            // IP-based: configurable attempts per window (allows for shared IPs)
+            var ipRateLimitKey = $"login:ip:{ipAddress}";
+            var ipRateCheck = await _rateLimitService.CheckAsync(
+                ipRateLimitKey,
+                limit: _rateLimitingSettings.Login.IpLimit,
+                window: TimeSpan.FromMinutes(_rateLimitingSettings.Login.IpWindowMinutes),
+                HttpContext.RequestAborted);
 
-        // Account-based: 5 attempts per 15 minutes per email (stricter per-account limit)
-        var accountRateLimitKey = $"login:account:{emailNormalized}";
-        var accountRateCheck = await _rateLimitService.CheckAsync(
-            accountRateLimitKey,
-            limit: 5,
-            window: TimeSpan.FromMinutes(15),
-            HttpContext.RequestAborted);
-
-        if (!accountRateCheck.IsAllowed)
-        {
-            _logger.LogWarning("Account rate limit exceeded for email hash (not logging email for privacy)");
-            Response.Headers.Append("Retry-After", ((int)accountRateCheck.RetryAfter.TotalSeconds).ToString());
-            return StatusCode(429, new
+            if (!ipRateCheck.IsAllowed)
             {
-                error = "Too many login attempts for this account. Please try again later.",
-                retryAfter = (int)accountRateCheck.RetryAfter.TotalSeconds
-            });
+                _logger.LogWarning("IP rate limit exceeded for {IpAddress}", ipAddress);
+                Response.Headers.Append("Retry-After", ((int)ipRateCheck.RetryAfter.TotalSeconds).ToString());
+                return StatusCode(429, new
+                {
+                    error = "Too many login attempts. Please try again later.",
+                    retryAfter = (int)ipRateCheck.RetryAfter.TotalSeconds
+                });
+            }
+
+            // Account-based: configurable attempts per window per email (stricter per-account limit)
+            var accountRateLimitKey = $"login:account:{emailNormalized}";
+            var accountRateCheck = await _rateLimitService.CheckAsync(
+                accountRateLimitKey,
+                limit: _rateLimitingSettings.Login.AccountLimit,
+                window: TimeSpan.FromMinutes(_rateLimitingSettings.Login.AccountWindowMinutes),
+                HttpContext.RequestAborted);
+
+            if (!accountRateCheck.IsAllowed)
+            {
+                _logger.LogWarning("Account rate limit exceeded for email hash (not logging email for privacy)");
+                Response.Headers.Append("Retry-After", ((int)accountRateCheck.RetryAfter.TotalSeconds).ToString());
+                return StatusCode(429, new
+                {
+                    error = "Too many login attempts for this account. Please try again later.",
+                    retryAfter = (int)accountRateCheck.RetryAfter.TotalSeconds
+                });
+            }
         }
 
         var userAgent = Request.Headers.UserAgent.FirstOrDefault();
@@ -313,22 +323,25 @@ public class AuthController(
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
-        // Rate limiting: 3 password reset requests per hour per IP
-        var rateLimitKey = $"forgot-password:{ipAddress}";
-        var rateCheck = await _rateLimitService.CheckAsync(
-            rateLimitKey,
-            limit: 3,
-            window: TimeSpan.FromHours(1),
-            HttpContext.RequestAborted);
-
-        if (!rateCheck.IsAllowed)
+        // Rate limiting: configurable password reset requests per window per IP
+        if (_rateLimitingSettings.Enabled)
         {
-            Response.Headers.Append("Retry-After", ((int)rateCheck.RetryAfter.TotalSeconds).ToString());
-            return StatusCode(429, new
+            var rateLimitKey = $"forgot-password:{ipAddress}";
+            var rateCheck = await _rateLimitService.CheckAsync(
+                rateLimitKey,
+                limit: _rateLimitingSettings.ForgotPassword.Limit,
+                window: TimeSpan.FromMinutes(_rateLimitingSettings.ForgotPassword.WindowMinutes),
+                HttpContext.RequestAborted);
+
+            if (!rateCheck.IsAllowed)
             {
-                error = "Too many password reset requests. Please try again later.",
-                retryAfter = (int)rateCheck.RetryAfter.TotalSeconds
-            });
+                Response.Headers.Append("Retry-After", ((int)rateCheck.RetryAfter.TotalSeconds).ToString());
+                return StatusCode(429, new
+                {
+                    error = "Too many password reset requests. Please try again later.",
+                    retryAfter = (int)rateCheck.RetryAfter.TotalSeconds
+                });
+            }
         }
 
         // Always process the request, but don't reveal if email exists
@@ -361,22 +374,25 @@ public class AuthController(
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
-        // Rate limiting: 10 attempts per minute per IP for service accounts
-        var rateLimitKey = $"service-token:{ipAddress}";
-        var rateCheck = await _rateLimitService.CheckAsync(
-            rateLimitKey,
-            limit: 10,
-            window: TimeSpan.FromMinutes(1),
-            HttpContext.RequestAborted);
-
-        if (!rateCheck.IsAllowed)
+        // Rate limiting: configurable attempts per window per IP for service accounts
+        if (_rateLimitingSettings.Enabled)
         {
-            Response.Headers.Append("Retry-After", ((int)rateCheck.RetryAfter.TotalSeconds).ToString());
-            return StatusCode(429, new
+            var rateLimitKey = $"service-token:{ipAddress}";
+            var rateCheck = await _rateLimitService.CheckAsync(
+                rateLimitKey,
+                limit: _rateLimitingSettings.ServiceToken.Limit,
+                window: TimeSpan.FromMinutes(_rateLimitingSettings.ServiceToken.WindowMinutes),
+                HttpContext.RequestAborted);
+
+            if (!rateCheck.IsAllowed)
             {
-                error = "Too many authentication attempts. Please try again later.",
-                retryAfter = (int)rateCheck.RetryAfter.TotalSeconds
-            });
+                Response.Headers.Append("Retry-After", ((int)rateCheck.RetryAfter.TotalSeconds).ToString());
+                return StatusCode(429, new
+                {
+                    error = "Too many authentication attempts. Please try again later.",
+                    retryAfter = (int)rateCheck.RetryAfter.TotalSeconds
+                });
+            }
         }
 
         var result = await _mediator.Send(new ServiceTokenCommand(
@@ -503,6 +519,7 @@ public class AuthController(
             HttpOnly = true,
             Secure = !_env.IsDevelopment(),
             SameSite = _env.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.Strict,
+            Path = "/",
             Expires = DateTimeOffset.UtcNow.AddHours(expireHours)
         });
 
@@ -544,6 +561,7 @@ public class AuthController(
             HttpOnly = true,
             Secure = !_env.IsDevelopment(),
             SameSite = _env.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.Strict,
+            Path = "/",
             Expires = DateTimeOffset.UtcNow.AddHours(expireHours)
         });
     }
@@ -558,6 +576,7 @@ public class AuthController(
             HttpOnly = true,
             Secure = !_env.IsDevelopment(),
             SameSite = _env.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.Strict,
+            Path = "/",
             Expires = DateTimeOffset.UtcNow.AddDays(expirationDays)
         });
     }

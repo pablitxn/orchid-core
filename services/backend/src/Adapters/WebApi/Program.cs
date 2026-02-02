@@ -10,6 +10,7 @@ using Infrastructure.Messaging;
 using Infrastructure.Persistence;
 using MassTransit;
 using System.IdentityModel.Tokens.Jwt;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -530,8 +531,18 @@ builder.Services.AddStackExchangeRedisCache(options =>
 
 #region Environment-Specific Services
 
-// ─── Authentication (test-double vs. JWT Bearer) ────────────────────────
-if (!env.IsEnvironment("Testing"))
+// ─── Authentication (dev bypass vs. test-double vs. JWT Bearer) ──────────
+var authDisabled = builder.Configuration.GetValue<bool>("Auth:Disable");
+if (authDisabled)
+{
+    builder.Services.AddAuthentication("DevAuth")
+        .AddScheme<AuthenticationSchemeOptions, WebApi.Authentication.DevAuthenticationHandler>(
+            "DevAuth",
+            _ => { });
+
+    builder.Services.AddAuthorization();
+}
+else if (!env.IsEnvironment("Testing"))
 {
     // Security: Validate JWT key configuration
     var jwtKey = builder.Configuration["Jwt:Key"];
@@ -737,6 +748,10 @@ builder.Services.AddSingleton<IActivityPublisher, ActivityPublisher>();
 builder.Services.Configure<WebApi.Configuration.CreditSystemConfiguration>(
     builder.Configuration.GetSection("CreditSystem"));
 
+// Register RateLimiting configuration
+builder.Services.Configure<WebApi.Settings.RateLimitingSettings>(
+    builder.Configuration.GetSection(WebApi.Settings.RateLimitingSettings.SectionName));
+
 #endregion
 
 // ─── Build the pipeline ───────────────────────────────────────────────────────
@@ -811,20 +826,26 @@ app.UseRequestLocalization(localizationOptions);
 
 // ─── CORS, Auth & Custom Middleware ───────────────────────────────────────────
 app.UseCors("MyPolicy");
+
+// Custom AuthorizationMiddleware must run BEFORE UseAuthentication/UseAuthorization
+// because it extracts JWT from cookies and sets context.User, which the built-in
+// authorization then uses to check [Authorize] attributes
+var mainPort = app.Configuration.GetValue<int>("Ports:Main", 8080);
+var authBypassEnabled = app.Configuration.GetValue<bool>("Auth:Disable");
+if (!authBypassEnabled)
+{
+    app.UseWhen(
+        context => context.Connection.LocalPort == mainPort,
+        appBuilder =>
+        {
+            appBuilder.UseMiddleware<AuthorizationMiddleware>();
+            appBuilder.UseMiddleware<MfaEnforcementMiddleware>();
+        }
+    );
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
-
-// Only apply AuthorizationMiddleware and MfaEnforcementMiddleware on the main API port (8080)
-// Management port (9090) is for internal observability tools (Prometheus, k8s probes)
-var mainPort = app.Configuration.GetValue<int>("Ports:Main", 8080);
-app.UseWhen(
-    context => context.Connection.LocalPort == mainPort,
-    appBuilder =>
-    {
-        appBuilder.UseMiddleware<AuthorizationMiddleware>();
-        appBuilder.UseMiddleware<MfaEnforcementMiddleware>();
-    }
-);
 
 #endregion
 

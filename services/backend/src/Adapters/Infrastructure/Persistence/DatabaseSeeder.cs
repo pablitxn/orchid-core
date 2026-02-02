@@ -3,6 +3,7 @@ using Domain.Entities;
 using Domain.Enums;
 using Infrastructure.Persistence.Seeders;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -33,11 +34,23 @@ public static class DatabaseSeeder
         IFileStorageService? fileStorage = null,
         IServiceProvider? serviceProvider = null)
     {
+        Guid? devAdminId = null;
+        if (serviceProvider != null)
+        {
+            var configuration = serviceProvider.GetService<IConfiguration>();
+            var devUserIdValue = configuration?["Auth:DevUserId"];
+            if (!string.IsNullOrWhiteSpace(devUserIdValue) &&
+                Guid.TryParse(devUserIdValue, out var parsedId))
+            {
+                devAdminId = parsedId;
+            }
+        }
+
         // Note: Migrations are handled separately via --migrate-only flag (init container)
         // or EnsureCreated for development. Do not call MigrateAsync() here.
 
         // Seed core entities (roles, users, subscriptions) - consolidated saves
-        await SeedCoreEntitiesAsync(db);
+        await SeedCoreEntitiesAsync(db, devAdminId);
 
         // Seed reference data (plans, costs, plugins) - consolidated saves
         await SeedReferenceDataAsync(db);
@@ -46,7 +59,7 @@ public static class DatabaseSeeder
         await SeedContentAsync(db, serviceProvider);
     }
 
-    private static async Task SeedCoreEntitiesAsync(ApplicationDbContext db)
+    private static async Task SeedCoreEntitiesAsync(ApplicationDbContext db, Guid? devAdminId)
     {
         if (await db.Roles.AnyAsync())
             return;
@@ -87,7 +100,7 @@ public static class DatabaseSeeder
             },
             new UserEntity
             {
-                Id = Guid.NewGuid(),
+                Id = devAdminId ?? Guid.NewGuid(),
                 Email = "admin@example.com",
                 Name = "admin",
                 PasswordHash = SeedPasswordHashes.Admin
