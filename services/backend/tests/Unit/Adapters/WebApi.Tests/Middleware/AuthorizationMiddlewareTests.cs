@@ -103,7 +103,7 @@ public class AuthorizationMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_ThrowsSecurityTokenMalformedException_WhenTokenMalformed()
+    public async Task InvokeAsync_Returns401_WhenTokenMalformed()
     {
         // Arrange
         const string jwtKey = "ThisIsASecretKeyForTestingPurposesOnly1234567890";
@@ -116,11 +116,15 @@ public class AuthorizationMiddlewareTests
 
         var middleware = new AuthorizationMiddleware(_ => Task.CompletedTask, _loggerMock.Object);
 
-        // Act & Assert
-        // Note: SecurityTokenMalformedException inherits from ArgumentException, not SecurityTokenException
-        // so it is not caught by the middleware's existing exception handlers
-        await Assert.ThrowsAsync<Microsoft.IdentityModel.Tokens.SecurityTokenMalformedException>(
-            () => middleware.InvokeAsync(context));
+        // Act
+        await middleware.InvokeAsync(context);
+
+        // Assert
+        Assert.Equal(StatusCodes.Status401Unauthorized, context.Response.StatusCode);
+        context.Response.Body.Seek(0, SeekOrigin.Begin);
+        using var reader = new StreamReader(context.Response.Body);
+        var body = await reader.ReadToEndAsync();
+        Assert.Equal("Token validation failed", body);
     }
 
     [Fact]

@@ -15,8 +15,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using WebApi.Controllers;
+using WebApi.Settings;
 
 namespace WebApi.Tests.Controllers;
 
@@ -32,6 +34,7 @@ public class AuthControllerTests
     private readonly Mock<IPasswordValidator> _passwordValidatorMock;
     private readonly Mock<IRefreshTokenRepository> _refreshTokenRepositoryMock;
     private readonly Mock<IJwtBlacklistService> _jwtBlacklistServiceMock;
+    private readonly IOptions<RateLimitingSettings> _rateLimitingSettings;
     private readonly DefaultHttpContext _httpContext;
 
     public AuthControllerTests()
@@ -45,6 +48,7 @@ public class AuthControllerTests
         _passwordValidatorMock = new Mock<IPasswordValidator>();
         _refreshTokenRepositoryMock = new Mock<IRefreshTokenRepository>();
         _jwtBlacklistServiceMock = new Mock<IJwtBlacklistService>();
+        _rateLimitingSettings = Options.Create(new RateLimitingSettings());
 
         _httpContext = new DefaultHttpContext();
         _httpContext.Connection.RemoteIpAddress = IPAddress.Parse("127.0.0.1");
@@ -58,7 +62,8 @@ public class AuthControllerTests
             _rateLimitServiceMock.Object,
             _passwordValidatorMock.Object,
             _refreshTokenRepositoryMock.Object,
-            _jwtBlacklistServiceMock.Object
+            _jwtBlacklistServiceMock.Object,
+            _rateLimitingSettings
         )
         {
             ControllerContext = new ControllerContext
