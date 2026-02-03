@@ -8,6 +8,7 @@ namespace Infrastructure.Persistence.Repositories;
 public class UserCreditsRepository(ApplicationDbContext db) : IUserCreditsRepository
 {
     private readonly ApplicationDbContext _db = db;
+    private const int DefaultWelcomeCredits = 10;
 
     public async Task<UserCreditsEntity?> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
@@ -83,12 +84,24 @@ public class UserCreditsRepository(ApplicationDbContext db) : IUserCreditsReposi
         if (userCredits != null)
             return userCredits;
 
+        var userExists = await _db.Users.AnyAsync(u => u.Id == userId, cancellationToken);
+        if (!userExists)
+        {
+            _db.Users.Add(new UserEntity
+            {
+                Id = userId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+
         userCredits = new UserCreditsEntity
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            AvailableCredits = 0,
-            TotalCreditsGranted = 0,
+            // Keep in sync with UserCreatedEventHandler.WELCOME_CREDITS for backfilled users.
+            AvailableCredits = DefaultWelcomeCredits,
+            TotalCreditsGranted = DefaultWelcomeCredits,
             TotalCreditsConsumed = 0,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow

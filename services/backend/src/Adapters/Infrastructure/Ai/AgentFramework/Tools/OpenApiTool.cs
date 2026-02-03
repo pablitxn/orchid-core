@@ -104,7 +104,6 @@ public sealed class OpenApiTool : ITool
         CancellationToken cancellationToken)
     {
         string specContent;
-
         // Use cached spec if available and not too old (1 hour)
         if (!string.IsNullOrEmpty(plugin.OpenApiSpecCache) &&
             plugin.SpecCachedAt.HasValue &&
@@ -259,6 +258,48 @@ public sealed class OpenApiTool : ITool
             };
 
             using var request = new HttpRequestMessage(httpMethod, url);
+
+            // Add custom headers if provided
+            if (paramsObj.TryGetPropertyValue("headers", out var headersNode)
+                && headersNode is JsonObject headersObj)
+            {
+                foreach (var header in headersObj)
+                {
+                    var value = header.Value?.ToString();
+                    if (!string.IsNullOrWhiteSpace(header.Key) &&
+                        !string.IsNullOrWhiteSpace(value))
+                    {
+                        request.Headers.TryAddWithoutValidation(header.Key, value);
+                    }
+                }
+            }
+
+            // Add header parameters defined in the OpenAPI spec
+            foreach (var paramDef in operation.Parameters)
+            {
+                if (paramDef.In != ParameterLocation.Header)
+                {
+                    continue;
+                }
+
+                var headerName = paramDef.Name;
+                if (string.IsNullOrWhiteSpace(headerName))
+                {
+                    continue;
+                }
+
+                if (!paramsObj.TryGetPropertyValue(headerName, out var valueNode) ||
+                    valueNode == null)
+                {
+                    continue;
+                }
+
+                var value = valueNode.ToString();
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    request.Headers.TryAddWithoutValidation(headerName, value);
+                }
+            }
 
             // Add request body if present
             if (operation.RequestBody != null && paramsObj.ContainsKey("requestBody"))

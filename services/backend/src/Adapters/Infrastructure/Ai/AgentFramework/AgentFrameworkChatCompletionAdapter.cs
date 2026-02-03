@@ -246,8 +246,8 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
                     cancellationToken: cancellationToken);
             }
 
-            // Get the chat client configured for this model
-            var chatClient = _agentFactory.GetChatClient(modelId);
+            // Get the chat client configured for this model (with function invocation support)
+            var chatClient = CreateInvokingChatClient(modelId);
 
             // Configure chat options with tools
             var chatOptions = new ChatOptions
@@ -528,8 +528,8 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
                     cancellationToken: cancellationToken);
             }
 
-            // Get the chat client configured for this model
-            var chatClient = _agentFactory.GetChatClient(modelId);
+            // Get the chat client configured for this model (with function invocation support)
+            var chatClient = CreateInvokingChatClient(modelId);
 
             // Configure chat options with tools
             var chatOptions = new ChatOptions
@@ -692,5 +692,13 @@ public sealed class AgentFrameworkChatCompletionAdapter : IChatCompletionPort
         }
 
         return ModelFailureType.ApiError;
+    }
+
+    private FunctionInvokingChatClient CreateInvokingChatClient(string modelId)
+    {
+        var chatClient = _agentFactory.GetChatClient(modelId);
+        var loggerFactory = _serviceProvider.GetRequiredService<ILoggerFactory>();
+
+        return new FunctionInvokingChatClient(chatClient, loggerFactory, _serviceProvider);
     }
 }

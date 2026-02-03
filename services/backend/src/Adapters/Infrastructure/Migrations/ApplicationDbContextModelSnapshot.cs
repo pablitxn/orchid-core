@@ -2395,6 +2395,47 @@ namespace Infrastructure.Migrations
                     b.ToTable("UserCreditLimits", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.UserCreditsEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AvailableCredits")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastConsumedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("TotalCreditsConsumed")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TotalCreditsGranted")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserCredits", (string)null);
+                });
+
             modelBuilder.Entity("Domain.Entities.UserEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3418,6 +3459,17 @@ namespace Infrastructure.Migrations
                     b.HasOne("Domain.Entities.UserEntity", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Domain.Entities.UserCreditsEntity", b =>
+                {
+                    b.HasOne("Domain.Entities.UserEntity", "User")
+                        .WithOne()
+                        .HasForeignKey("Domain.Entities.UserCreditsEntity", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
