@@ -9,6 +9,7 @@ namespace Application.UseCases.Subscription.CancelSubscription;
 
 public class CancelSubscriptionHandler(
     ISubscriptionRepository subscriptionRepository,
+    IUserCreditsRepository userCreditsRepository,
     IStripeService stripeService,
     ILogger<CancelSubscriptionHandler> logger)
     : IRequestHandler<CancelSubscriptionCommand, SubscriptionDto>
@@ -51,7 +52,17 @@ public class CancelSubscriptionHandler(
 
         // Reload with plan details
         subscription = await subscriptionRepository.GetByUserIdAsync(request.UserId, cancellationToken);
-        return SubscriptionDto.FromEntity(subscription!);
+        var userCredits = await userCreditsRepository.GetByUserIdAsync(request.UserId, cancellationToken)
+            ?? new Domain.Entities.UserCreditsEntity
+            {
+                Id = Guid.Empty,
+                UserId = request.UserId,
+                AvailableCredits = 0,
+                TotalCreditsGranted = 0,
+                TotalCreditsConsumed = 0
+            };
+
+        return SubscriptionDto.FromEntityWithCredits(subscription!, userCredits);
     }
 
     private static SubscriptionStatus MapStripeStatus(string status) => status switch

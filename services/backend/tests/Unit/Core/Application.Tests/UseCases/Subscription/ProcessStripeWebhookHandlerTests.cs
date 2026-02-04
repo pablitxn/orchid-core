@@ -15,6 +15,7 @@ public class ProcessStripeWebhookHandlerTests
     private readonly Mock<IStripeWebhookEventRepository> _webhookRepo = new();
     private readonly Mock<ISubscriptionRepository> _subscriptionRepo = new();
     private readonly Mock<ISubscriptionPlanRepository> _planRepo = new();
+    private readonly Mock<IUserCreditsRepository> _userCreditsRepo = new();
     private readonly Mock<IEventPublisher> _eventPublisher = new();
     private readonly Mock<INotificationService> _notificationService = new();
     private readonly Mock<ICreditPurchaseRepository> _creditPurchaseRepo = new();
@@ -27,10 +28,23 @@ public class ProcessStripeWebhookHandlerTests
             _webhookRepo.Object,
             _subscriptionRepo.Object,
             _planRepo.Object,
+            _userCreditsRepo.Object,
             _creditPurchaseRepo.Object,
             _eventPublisher.Object,
             _notificationService.Object,
             _logger.Object);
+
+        _userCreditsRepo
+            .Setup(r => r.GetByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity?)null);
+
+        _userCreditsRepo
+            .Setup(r => r.CreateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity uc, CancellationToken _) => uc);
+
+        _userCreditsRepo
+            .Setup(r => r.UpdateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
     }
 
     [Fact]
@@ -180,7 +194,6 @@ public class ProcessStripeWebhookHandlerTests
             Id = Guid.NewGuid(),
             UserId = Guid.NewGuid(),
             StripeSubscriptionId = stripeSubId,
-            Credits = 10,
             SubscriptionPlan = plan
         };
 
@@ -196,7 +209,10 @@ public class ProcessStripeWebhookHandlerTests
 
         Assert.True(result.Success);
         _subscriptionRepo.Verify(r => r.UpdateAsync(
-            It.Is<SubscriptionEntity>(s => s.Credits == 100),
+            It.IsAny<SubscriptionEntity>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _userCreditsRepo.Verify(r => r.CreateAsync(
+            It.Is<UserCreditsEntity>(uc => uc.UserId == subscription.UserId && uc.AvailableCredits == 100),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

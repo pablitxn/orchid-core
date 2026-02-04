@@ -45,9 +45,9 @@ public class PurchaseWorkflowHandler(
                     _logger.LogWarning("User subscription not found: {UserId}", request.UserId);
                     throw new ActiveSubscriptionRequiredException("purchase workflows");
                 }
-                
-                // Store the version before modification
-                var expectedVersion = subscription.Version;
+
+                var userCredits = await _unitOfWork.UserCredits.GetOrCreateAsync(request.UserId, cancellationToken);
+                var expectedVersion = userCredits.Version;
 
                 // Check if already purchased
                 if (await _unitOfWork.Workflows.UserHasWorkflowAsync(request.UserId, request.WorkflowId, cancellationToken))
@@ -75,19 +75,22 @@ public class PurchaseWorkflowHandler(
                             $"Limit: {limitCheck.Violations?.FirstOrDefault()?.MaxCredits}");
                     }
                     
-                    if (subscription.Credits < purchaseCost)
+                    if (userCredits.AvailableCredits < purchaseCost)
                     {
                         _logger.LogWarning("Insufficient credits. User {UserId} has {Credits} but needs {Required}", 
-                            request.UserId, subscription.Credits, purchaseCost);
-                        throw new InsufficientCreditsException(subscription.Credits, purchaseCost);
+                            request.UserId, userCredits.AvailableCredits, purchaseCost);
+                        throw new InsufficientCreditsException(userCredits.AvailableCredits, purchaseCost);
                     }
                 }
 
-                // Deduct credits
-                subscription.ConsumeCredits(purchaseCost);
-                
-                // Update with version check
-                await _unitOfWork.Subscriptions.UpdateWithVersionCheckAsync(subscription, expectedVersion, cancellationToken);
+                if (!subscription.HasUnlimitedCredits())
+                {
+                    // Deduct credits
+                    userCredits.ConsumeCredits(purchaseCost);
+
+                    // Update with version check
+                    await _unitOfWork.UserCredits.UpdateWithVersionCheckAsync(userCredits, expectedVersion, cancellationToken);
+                }
                 
                 // Record purchase
                 await _unitOfWork.Workflows.AddUserWorkflowAsync(new UserWorkflowEntity

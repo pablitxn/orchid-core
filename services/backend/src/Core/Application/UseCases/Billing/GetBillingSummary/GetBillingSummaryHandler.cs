@@ -9,6 +9,7 @@ namespace Application.UseCases.Billing.GetBillingSummary;
 
 public sealed class GetBillingSummaryHandler(
     ISubscriptionRepository subscriptionRepository,
+    IUserCreditsRepository userCreditsRepository,
     ICreditConsumptionRepository creditConsumptionRepository,
     IStripeService stripeService,
     ILogger<GetBillingSummaryHandler> logger)
@@ -19,9 +20,23 @@ public sealed class GetBillingSummaryHandler(
         CancellationToken cancellationToken)
     {
         var subscription = await subscriptionRepository.GetByUserIdAsync(request.UserId, cancellationToken);
-        SubscriptionDto? subscriptionDto = subscription is null ? null : SubscriptionDto.FromEntity(subscription);
+        var userCredits = await userCreditsRepository.GetByUserIdAsync(request.UserId, cancellationToken);
 
-        var creditBalance = subscription?.Credits ?? 0;
+        SubscriptionDto? subscriptionDto = null;
+        if (subscription is not null)
+        {
+            var creditsForDto = userCredits ?? new Domain.Entities.UserCreditsEntity
+            {
+                Id = Guid.Empty,
+                UserId = request.UserId,
+                AvailableCredits = 0,
+                TotalCreditsGranted = 0,
+                TotalCreditsConsumed = 0
+            };
+            subscriptionDto = SubscriptionDto.FromEntityWithCredits(subscription, creditsForDto);
+        }
+
+        var creditBalance = userCredits?.AvailableCredits ?? 0;
         var isUnlimited = subscription?.SubscriptionPlan?.PlanEnum == SubscriptionPlanEnum.Unlimited;
 
         // Calculate credits consumed this month

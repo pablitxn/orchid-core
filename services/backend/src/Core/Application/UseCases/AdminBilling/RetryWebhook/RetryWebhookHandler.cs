@@ -14,6 +14,7 @@ public class RetryWebhookHandler(
     IStripeService stripeService,
     ISubscriptionRepository subscriptionRepository,
     ISubscriptionPlanRepository planRepository,
+    IUserCreditsRepository userCreditsRepository,
     ICreditPurchaseRepository creditPurchaseRepository,
     IEventPublisher eventPublisher,
     INotificationService notificationService,
@@ -186,7 +187,7 @@ public class RetryWebhookHandler(
             if (plan is not null)
             {
                 subscription.SubscriptionPlanId = plan.Id;
-                subscription.Credits = plan.Credits;
+                await ApplyPlanCreditsAsync(subscription.UserId, plan, cancellationToken);
             }
         }
 
@@ -219,17 +220,31 @@ public class RetryWebhookHandler(
         purchase.MarkCompleted(data.PaymentIntentId ?? string.Empty);
         await creditPurchaseRepository.UpdateAsync(purchase, cancellationToken);
 
-        var subscription = await subscriptionRepository.GetByUserIdAsync(purchase.UserId, cancellationToken);
-        if (subscription is not null)
+        var userCredits = await userCreditsRepository.GetByUserIdAsync(purchase.UserId, cancellationToken);
+        if (userCredits == null)
         {
-            subscription.AddCredits(purchase.CreditsGranted);
-            await subscriptionRepository.UpdateAsync(subscription, cancellationToken);
-
-            await eventPublisher.PublishAsync(new CreditsAddedEvent(
-                subscription.Id,
-                purchase.UserId,
-                purchase.CreditsGranted));
+            userCredits = new UserCreditsEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = purchase.UserId,
+                AvailableCredits = purchase.CreditsGranted,
+                TotalCreditsGranted = purchase.CreditsGranted,
+                TotalCreditsConsumed = 0,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await userCreditsRepository.CreateAsync(userCredits, cancellationToken);
         }
+        else
+        {
+            userCredits.GrantCredits(purchase.CreditsGranted);
+            await userCreditsRepository.UpdateAsync(userCredits, cancellationToken);
+        }
+
+        await eventPublisher.PublishAsync(new CreditsAddedEvent(
+            userCredits.Id,
+            purchase.UserId,
+            purchase.CreditsGranted));
 
         await eventPublisher.PublishAsync(new CreditsPurchasedEvent(
             purchase.Id,
@@ -264,7 +279,7 @@ public class RetryWebhookHandler(
             if (plan is not null && subscription.SubscriptionPlanId != plan.Id)
             {
                 subscription.SubscriptionPlanId = plan.Id;
-                subscription.Credits = plan.Credits;
+                await ApplyPlanCreditsAsync(subscription.UserId, plan, cancellationToken);
             }
         }
 
@@ -305,7 +320,7 @@ public class RetryWebhookHandler(
 
         if (subscription.SubscriptionPlan is not null)
         {
-            subscription.Credits = subscription.SubscriptionPlan.Credits;
+            await ApplyPlanCreditsAsync(subscription.UserId, subscription.SubscriptionPlan, cancellationToken);
             await subscriptionRepository.UpdateAsync(subscription, cancellationToken);
         }
     }
@@ -358,6 +373,36 @@ public class RetryWebhookHandler(
                     cancellationToken);
             }
         }
+    }
+
+    private async Task ApplyPlanCreditsAsync(Guid userId, SubscriptionPlanEntity plan, CancellationToken cancellationToken)
+    {
+        if (plan.PlanEnum == SubscriptionPlanEnum.Unlimited || plan.Credits <= 0)
+            return;
+
+        var userCredits = await userCreditsRepository.GetByUserIdAsync(userId, cancellationToken);
+        if (userCredits == null)
+        {
+            userCredits = new UserCreditsEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                AvailableCredits = plan.Credits,
+                TotalCreditsGranted = plan.Credits,
+                TotalCreditsConsumed = 0,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await userCreditsRepository.CreateAsync(userCredits, cancellationToken);
+            return;
+        }
+
+        var creditsToGrant = Math.Max(0, plan.Credits - userCredits.AvailableCredits);
+        if (creditsToGrant == 0)
+            return;
+
+        userCredits.GrantCredits(creditsToGrant);
+        await userCreditsRepository.UpdateAsync(userCredits, cancellationToken);
     }
 
     private static SubscriptionStatus MapStripeStatus(string status) => status switch

@@ -13,6 +13,7 @@ public class PurchasePlanHandlerTests
 {
     private readonly Mock<ISubscriptionRepository> _subscriptionRepositoryMock;
     private readonly Mock<ISubscriptionPlanRepository> _subscriptionPlanRepositoryMock;
+    private readonly Mock<IUserCreditsRepository> _userCreditsRepositoryMock;
     private readonly Mock<IEventPublisher> _eventPublisherMock;
     private readonly PurchasePlanHandler _handler;
 
@@ -20,10 +21,12 @@ public class PurchasePlanHandlerTests
     {
         _subscriptionRepositoryMock = new Mock<ISubscriptionRepository>();
         _subscriptionPlanRepositoryMock = new Mock<ISubscriptionPlanRepository>();
+        _userCreditsRepositoryMock = new Mock<IUserCreditsRepository>();
         _eventPublisherMock = new Mock<IEventPublisher>();
         _handler = new PurchasePlanHandler(
             _subscriptionRepositoryMock.Object,
             _subscriptionPlanRepositoryMock.Object,
+            _userCreditsRepositoryMock.Object,
             _eventPublisherMock.Object);
     }
 
@@ -59,6 +62,14 @@ public class PurchasePlanHandlerTests
             .Callback<SubscriptionEntity, CancellationToken>((s, _) => createdSubscription = s)
             .ReturnsAsync((SubscriptionEntity s, CancellationToken _) => s);
 
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity?)null);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.CreateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity uc, CancellationToken _) => uc);
+
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
 
@@ -69,6 +80,9 @@ public class PurchasePlanHandlerTests
             Times.Once);
         _eventPublisherMock.Verify(
             x => x.PublishAsync(It.IsAny<SubscriptionCreatedEvent>()),
+            Times.Once);
+        _eventPublisherMock.Verify(
+            x => x.PublishAsync(It.Is<CreditsAddedEvent>(e => e.Amount == 100)),
             Times.Once);
     }
 
@@ -92,8 +106,16 @@ public class PurchasePlanHandlerTests
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 50,
             SubscriptionPlanId = planId
+        };
+
+        var existingCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 50,
+            TotalCreditsGranted = 50,
+            TotalCreditsConsumed = 0
         };
 
         _subscriptionRepositoryMock
@@ -104,12 +126,20 @@ public class PurchasePlanHandlerTests
             .Setup(x => x.GetByPlanAsync(SubscriptionPlanEnum.Package25, It.IsAny<CancellationToken>()))
             .ReturnsAsync(plan);
 
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingCredits);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.UpdateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
 
         // Assert
-        _subscriptionRepositoryMock.Verify(
-            x => x.UpdateAsync(It.Is<SubscriptionEntity>(s => s.Credits == 75), It.IsAny<CancellationToken>()),
+        _userCreditsRepositoryMock.Verify(
+            x => x.UpdateAsync(It.Is<UserCreditsEntity>(c => c.AvailableCredits == 75), It.IsAny<CancellationToken>()),
             Times.Once);
         _eventPublisherMock.Verify(
             x => x.PublishAsync(It.Is<CreditsAddedEvent>(e => e.Amount == 25)),
@@ -165,6 +195,14 @@ public class PurchasePlanHandlerTests
             .Setup(x => x.GetByPlanAsync(SubscriptionPlanEnum.Monthly100, It.IsAny<CancellationToken>()))
             .ReturnsAsync(plan);
 
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity?)null);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.CreateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity uc, CancellationToken _) => uc);
+
         _subscriptionRepositoryMock
             .Setup(x => x.CreateAsync(It.IsAny<SubscriptionEntity>(), It.IsAny<CancellationToken>()))
             .Callback<SubscriptionEntity, CancellationToken>((s, _) => createdSubscription = s)
@@ -199,7 +237,6 @@ public class PurchasePlanHandlerTests
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 50,
             SubscriptionPlanId = planId
         };
 
@@ -215,9 +252,12 @@ public class PurchasePlanHandlerTests
         await _handler.Handle(command, CancellationToken.None);
 
         // Assert
-        _subscriptionRepositoryMock.Verify(
-            x => x.UpdateAsync(It.Is<SubscriptionEntity>(s => s.Credits == 50), It.IsAny<CancellationToken>()),
-            Times.Once);
+        _userCreditsRepositoryMock.Verify(
+            x => x.CreateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _userCreditsRepositoryMock.Verify(
+            x => x.UpdateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()),
+            Times.Never);
         _eventPublisherMock.Verify(
             x => x.PublishAsync(It.IsAny<CreditsAddedEvent>()),
             Times.Never);
@@ -243,8 +283,16 @@ public class PurchasePlanHandlerTests
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 5,
             SubscriptionPlanId = planId
+        };
+
+        var existingCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 5,
+            TotalCreditsGranted = 5,
+            TotalCreditsConsumed = 0
         };
 
         _subscriptionRepositoryMock
@@ -254,6 +302,14 @@ public class PurchasePlanHandlerTests
         _subscriptionPlanRepositoryMock
             .Setup(x => x.GetByPlanAsync(SubscriptionPlanEnum.Package10, It.IsAny<CancellationToken>()))
             .ReturnsAsync(plan);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingCredits);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.UpdateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
         // Act
         await _handler.Handle(command, CancellationToken.None);

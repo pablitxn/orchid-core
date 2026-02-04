@@ -55,7 +55,7 @@ public class CreditTrackingServiceTests
         capturedEntity.ResourceId.Should().Be(pluginId);
         capturedEntity.ResourceName.Should().Be("Test Plugin");
         capturedEntity.CreditsConsumed.Should().Be(50);
-        capturedEntity.BalanceAfter.Should().Be(950);
+        capturedEntity.BalanceAfter.Should().Be(1000);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public class CreditTrackingServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        capturedEntity!.BalanceAfter.Should().Be(-50); // 0 - 50 = -50
+        capturedEntity!.BalanceAfter.Should().Be(0);
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public class CreditTrackingServiceTests
         capturedEntity.ResourceId.Should().Be(workflowId);
         capturedEntity.ResourceName.Should().Be("Data Pipeline");
         capturedEntity.CreditsConsumed.Should().Be(100);
-        capturedEntity.BalanceAfter.Should().Be(400);
+        capturedEntity.BalanceAfter.Should().Be(500);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public class CreditTrackingServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        capturedEntity!.BalanceAfter.Should().Be(-100);
+        capturedEntity!.BalanceAfter.Should().Be(0);
     }
 
     [Fact]
@@ -227,7 +227,7 @@ public class CreditTrackingServiceTests
         capturedEntity.ResourceId.Should().Be(messageId);
         capturedEntity.ResourceName.Should().Be("Chat message");
         capturedEntity.CreditsConsumed.Should().Be(10);
-        capturedEntity.BalanceAfter.Should().Be(190);
+        capturedEntity.BalanceAfter.Should().Be(200);
     }
 
     [Fact]
@@ -252,7 +252,7 @@ public class CreditTrackingServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        capturedEntity!.BalanceAfter.Should().Be(-10);
+        capturedEntity!.BalanceAfter.Should().Be(0);
     }
 
     [Fact]

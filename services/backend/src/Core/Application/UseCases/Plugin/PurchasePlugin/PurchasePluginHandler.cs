@@ -65,9 +65,9 @@ public sealed class PurchasePluginHandler(
                     await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                     return new PurchasePluginDto(false, "No active subscription found");
                 }
-                
-                // Store the version before modification
-                var expectedVersion = subscription.Version;
+
+                var userCredits = await _unitOfWork.UserCredits.GetOrCreateAsync(command.UserId, cancellationToken);
+                var expectedVersion = userCredits.Version;
 
                 // Check if plugin requires subscription
                 if (plugin.IsSubscriptionBased)
@@ -99,20 +99,23 @@ public sealed class PurchasePluginHandler(
                             return new PurchasePluginDto(false, "Credit limit exceeded");
                         }
 
-                        if (subscription.Credits < purchaseCost)
+                        if (userCredits.AvailableCredits < purchaseCost)
                         {
                             await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                             return new PurchasePluginDto(false,
-                                $"Insufficient credits. You need {purchaseCost} credits but only have {subscription.Credits}");
+                                $"Insufficient credits. You need {purchaseCost} credits but only have {userCredits.AvailableCredits}");
                         }
                     }
 
-                    // Consume credits
-                    subscription.ConsumeCredits(purchaseCost);
-                    
-                    // Update with version check
-                    await _unitOfWork.Subscriptions.UpdateWithVersionCheckAsync(
-                        subscription, expectedVersion, cancellationToken);
+                    if (!subscription.HasUnlimitedCredits())
+                    {
+                        // Consume credits
+                        userCredits.ConsumeCredits(purchaseCost);
+
+                        // Update with version check
+                        await _unitOfWork.UserCredits.UpdateWithVersionCheckAsync(
+                            userCredits, expectedVersion, cancellationToken);
+                    }
 
                     // Update credit limits INSIDE the transaction
                     if (!subscription.HasUnlimitedCredits())

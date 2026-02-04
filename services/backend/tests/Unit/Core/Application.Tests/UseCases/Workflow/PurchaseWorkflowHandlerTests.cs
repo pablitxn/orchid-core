@@ -18,6 +18,7 @@ public class PurchaseWorkflowHandlerTests
     private readonly Mock<ILogger<PurchaseWorkflowHandler>> _loggerMock;
     private readonly Mock<IWorkflowRepository> _workflowRepositoryMock;
     private readonly Mock<ISubscriptionRepository> _subscriptionRepositoryMock;
+    private readonly Mock<IUserCreditsRepository> _userCreditsRepositoryMock;
     private readonly PurchaseWorkflowHandler _handler;
 
     public PurchaseWorkflowHandlerTests()
@@ -29,9 +30,15 @@ public class PurchaseWorkflowHandlerTests
         _loggerMock = new Mock<ILogger<PurchaseWorkflowHandler>>();
         _workflowRepositoryMock = new Mock<IWorkflowRepository>();
         _subscriptionRepositoryMock = new Mock<ISubscriptionRepository>();
+        _userCreditsRepositoryMock = new Mock<IUserCreditsRepository>();
 
         _unitOfWorkMock.Setup(x => x.Workflows).Returns(_workflowRepositoryMock.Object);
         _unitOfWorkMock.Setup(x => x.Subscriptions).Returns(_subscriptionRepositoryMock.Object);
+        _unitOfWorkMock.Setup(x => x.UserCredits).Returns(_userCreditsRepositoryMock.Object);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.UpdateWithVersionCheckAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
         _handler = new PurchaseWorkflowHandler(
             _unitOfWorkMock.Object,
@@ -60,7 +67,6 @@ public class PurchaseWorkflowHandlerTests
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = 100,
             Version = 1,
             SubscriptionPlan = new SubscriptionPlanEntity
             {
@@ -73,6 +79,20 @@ public class PurchaseWorkflowHandlerTests
         _workflowRepositoryMock
             .Setup(x => x.GetByIdAsync(workflowId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(workflow);
+
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 100,
+            TotalCreditsGranted = 100,
+            TotalCreditsConsumed = 0,
+            Version = 1
+        };
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetOrCreateAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
 
         _subscriptionRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
@@ -158,7 +178,6 @@ public class PurchaseWorkflowHandlerTests
         var subscription = new SubscriptionEntity
         {
             UserId = userId,
-            Credits = 100,
             SubscriptionPlan = new SubscriptionPlanEntity { PlanEnum = SubscriptionPlanEnum.Monthly100, Price = 29.99m, Credits = 100 }
         };
 
@@ -169,6 +188,18 @@ public class PurchaseWorkflowHandlerTests
         _subscriptionRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetOrCreateAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserCreditsEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                AvailableCredits = 100,
+                TotalCreditsGranted = 100,
+                TotalCreditsConsumed = 0,
+                Version = 1
+            });
 
         _workflowRepositoryMock
             .Setup(x => x.UserHasWorkflowAsync(userId, workflowId, It.IsAny<CancellationToken>()))
@@ -193,7 +224,6 @@ public class PurchaseWorkflowHandlerTests
         var subscription = new SubscriptionEntity
         {
             UserId = userId,
-            Credits = 20, // Not enough
             SubscriptionPlan = new SubscriptionPlanEntity { PlanEnum = SubscriptionPlanEnum.Monthly100, Price = 29.99m, Credits = 100 }
         };
 
@@ -204,6 +234,18 @@ public class PurchaseWorkflowHandlerTests
         _subscriptionRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetOrCreateAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserCreditsEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                AvailableCredits = 20,
+                TotalCreditsGranted = 20,
+                TotalCreditsConsumed = 0,
+                Version = 1
+            });
 
         _workflowRepositoryMock
             .Setup(x => x.UserHasWorkflowAsync(userId, workflowId, It.IsAny<CancellationToken>()))
@@ -236,7 +278,6 @@ public class PurchaseWorkflowHandlerTests
         var subscription = new SubscriptionEntity
         {
             UserId = userId,
-            Credits = 100,
             SubscriptionPlan = new SubscriptionPlanEntity { PlanEnum = SubscriptionPlanEnum.Monthly100, Price = 29.99m, Credits = 100 }
         };
 
@@ -247,6 +288,18 @@ public class PurchaseWorkflowHandlerTests
         _subscriptionRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetOrCreateAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserCreditsEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                AvailableCredits = 100,
+                TotalCreditsGranted = 100,
+                TotalCreditsConsumed = 0,
+                Version = 1
+            });
 
         _workflowRepositoryMock
             .Setup(x => x.UserHasWorkflowAsync(userId, workflowId, It.IsAny<CancellationToken>()))
@@ -284,7 +337,6 @@ public class PurchaseWorkflowHandlerTests
         var subscription = new SubscriptionEntity
         {
             UserId = userId,
-            Credits = 0,
             Version = 1,
             SubscriptionPlan = new SubscriptionPlanEntity { PlanEnum = SubscriptionPlanEnum.Unlimited, Price = 99.99m, Credits = 0 }
         };
@@ -296,6 +348,18 @@ public class PurchaseWorkflowHandlerTests
         _subscriptionRepositoryMock
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+
+        _userCreditsRepositoryMock
+            .Setup(x => x.GetOrCreateAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserCreditsEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                AvailableCredits = 0,
+                TotalCreditsGranted = 0,
+                TotalCreditsConsumed = 0,
+                Version = 1
+            });
 
         _workflowRepositoryMock
             .Setup(x => x.UserHasWorkflowAsync(userId, workflowId, It.IsAny<CancellationToken>()))

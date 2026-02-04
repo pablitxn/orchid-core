@@ -16,6 +16,7 @@ public class CreditHistoryControllerTests
     private readonly Mock<ICreditConsumptionRepository> _creditConsumptionRepositoryMock;
     private readonly Mock<IMessageCostRepository> _messageCostRepositoryMock;
     private readonly Mock<ISubscriptionRepository> _subscriptionRepositoryMock;
+    private readonly Mock<IUserCreditsRepository> _userCreditsRepositoryMock;
     private readonly Mock<ILogger<CreditHistoryController>> _loggerMock;
 
     public CreditHistoryControllerTests()
@@ -23,12 +24,18 @@ public class CreditHistoryControllerTests
         _creditConsumptionRepositoryMock = new Mock<ICreditConsumptionRepository>();
         _messageCostRepositoryMock = new Mock<IMessageCostRepository>();
         _subscriptionRepositoryMock = new Mock<ISubscriptionRepository>();
+        _userCreditsRepositoryMock = new Mock<IUserCreditsRepository>();
         _loggerMock = new Mock<ILogger<CreditHistoryController>>();
         _controller = new CreditHistoryController(
             _creditConsumptionRepositoryMock.Object,
             _messageCostRepositoryMock.Object,
             _subscriptionRepositoryMock.Object,
+            _userCreditsRepositoryMock.Object,
             _loggerMock.Object);
+
+        _userCreditsRepositoryMock
+            .Setup(r => r.GetByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity?)null);
     }
 
     #region Helper Methods
@@ -110,7 +117,6 @@ public class CreditHistoryControllerTests
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Credits = credits,
             AutoRenew = true,
             ExpiresAt = DateTime.UtcNow.AddMonths(1)
         };
@@ -155,7 +161,7 @@ public class CreditHistoryControllerTests
             CreateMockConsumption(userId)
         };
 
-        _creditConsumptionRepositoryMock.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+        _creditConsumptionRepositoryMock.Setup(r => r.GetByDateRangeAsync(userId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(consumptions);
 
         // Act
@@ -311,11 +317,21 @@ public class CreditHistoryControllerTests
         var userId = Guid.NewGuid();
         SetupAuthenticatedUser(userId);
         var subscription = CreateMockSubscription(userId);
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 100,
+            TotalCreditsGranted = 100,
+            TotalCreditsConsumed = 0
+        };
 
         _messageCostRepositoryMock.Setup(r => r.GetTotalCostByUserIdAsync(userId, It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(50);
         _subscriptionRepositoryMock.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+        _userCreditsRepositoryMock.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
 
         // Act
         var result = await _controller.GetConsumptionSummary();
@@ -335,11 +351,21 @@ public class CreditHistoryControllerTests
         var userId = Guid.NewGuid();
         SetupAuthenticatedUser(userId);
         var subscription = CreateMockSubscription(userId);
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 100,
+            TotalCreditsGranted = 100,
+            TotalCreditsConsumed = 0
+        };
 
         _messageCostRepositoryMock.Setup(r => r.GetTotalCostByUserIdAsync(userId, It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(50);
         _subscriptionRepositoryMock.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+        _userCreditsRepositoryMock.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
 
         // Act
         var result = await _controller.GetConsumptionSummary(period);
@@ -359,6 +385,8 @@ public class CreditHistoryControllerTests
             .ReturnsAsync(0);
         _subscriptionRepositoryMock.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((SubscriptionEntity?)null);
+        _userCreditsRepositoryMock.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity?)null);
 
         // Act
         var result = await _controller.GetConsumptionSummary();
@@ -421,10 +449,20 @@ public class CreditHistoryControllerTests
         // Arrange
         var userId = Guid.NewGuid();
         SetupAuthenticatedUser(userId);
-        var subscription = CreateMockSubscription(userId, 500);
+        var subscription = CreateMockSubscription(userId);
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 500,
+            TotalCreditsGranted = 500,
+            TotalCreditsConsumed = 0
+        };
 
         _subscriptionRepositoryMock.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+        _userCreditsRepositoryMock.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
 
         // Act
         var result = await _controller.GetCreditBalance();
@@ -442,6 +480,8 @@ public class CreditHistoryControllerTests
 
         _subscriptionRepositoryMock.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((SubscriptionEntity?)null);
+        _userCreditsRepositoryMock.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity?)null);
 
         // Act
         var result = await _controller.GetCreditBalance();
@@ -485,6 +525,8 @@ public class CreditHistoryControllerTests
 
         _subscriptionRepositoryMock.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("Database error"));
+        _userCreditsRepositoryMock.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity?)null);
 
         // Act
         var result = await _controller.GetCreditBalance();

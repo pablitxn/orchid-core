@@ -5,7 +5,8 @@ using MediatR;
 namespace Application.UseCases.Billing.GetBillingSubscription;
 
 public sealed class GetBillingSubscriptionHandler(
-    ISubscriptionRepository subscriptionRepository)
+    ISubscriptionRepository subscriptionRepository,
+    IUserCreditsRepository userCreditsRepository)
     : IRequestHandler<GetBillingSubscriptionQuery, SubscriptionDto?>
 {
     public async Task<SubscriptionDto?> Handle(
@@ -13,6 +14,19 @@ public sealed class GetBillingSubscriptionHandler(
         CancellationToken cancellationToken)
     {
         var subscription = await subscriptionRepository.GetByUserIdAsync(request.UserId, cancellationToken);
-        return subscription is null ? null : SubscriptionDto.FromEntity(subscription);
+        if (subscription is null)
+            return null;
+
+        var userCredits = await userCreditsRepository.GetByUserIdAsync(request.UserId, cancellationToken)
+            ?? new Domain.Entities.UserCreditsEntity
+            {
+                Id = Guid.Empty,
+                UserId = request.UserId,
+                AvailableCredits = 0,
+                TotalCreditsGranted = 0,
+                TotalCreditsConsumed = 0
+            };
+
+        return SubscriptionDto.FromEntityWithCredits(subscription, userCredits);
     }
 }

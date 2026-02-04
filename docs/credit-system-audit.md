@@ -1,0 +1,275 @@
+# Auditoria de creditos, suscripciones y consumos (orchid-core)
+
+Fecha: 2026-02-04
+Scope: backend (services/backend)
+
+## Resumen ejecutivo
+
+- Hay dos fuentes de verdad para el balance: `UserCredits.AvailableCredits` y `Subscription.Credits` (este ultimo esta marcado como *deprecated*), y ambos se usan en endpoints y flujos distintos.
+- Los dashboards y algunos endpoints leen `Subscription.Credits`, mientras que el chat, validacion de credito y notificaciones usan `UserCredits`. Esto explica diferencias entre UI, dashboards y saldo real.
+- Varias rutas de carga/consumo actualizan solo una de las dos tablas, por lo que el saldo puede divergir con facilidad.
+- El tracking de consumo (`CreditConsumptionEntity`) y los costos de mensajes (`MessageCostEntity`) no estan alineados: hay tracking parcial y un bug de balance despues de consumo.
+
+## Donde viven los creditos (modelo de datos)
+
+### Entidades clave
+
+- `services/backend/src/Core/Domain/Entities/UserCreditsEntity.cs`
+  - **Fuente de verdad nueva** para el saldo del usuario.
+  - Campos: `AvailableCredits`, `TotalCreditsGranted`, `TotalCreditsConsumed`, `LastConsumedAt`.
+- `services/backend/src/Core/Domain/Entities/SubscriptionEntity.cs`
+  - Campo `Credits` **deprecated**, pero aun usado por varios flujos.
+  - Contiene informacion de Stripe y plan (`SubscriptionPlanId`).
+- `services/backend/src/Core/Domain/Entities/CreditConsumptionEntity.cs`
+  - Registro de consumos (tipo, recurso, monto, balance despues).
+- `services/backend/src/Core/Domain/Entities/CreditPurchaseEntity.cs`
+  - Compra de paquetes de creditos (Stripe).
+- `services/backend/src/Core/Domain/Entities/CreditPackageEntity.cs`
+  - Paquetes disponibles para compra.
+- `services/backend/src/Core/Domain/Entities/UserBillingPreferenceEntity.cs`
+  - Preferencias de facturacion (tokens vs fixed, thresholds).
+- `services/backend/src/Core/Domain/Entities/UserCreditLimitEntity.cs`
+  - Limites diarios/semanales/mensuales.
+
+### Nota importante
+
+`SubscriptionEntity.Credits` tiene comentario deprecado:
+
+```
+// DEPRECATED: Credits are now stored in UserCreditsEntity.
+```
+
+Sin embargo, en varias partes del codigo sigue siendo la fuente utilizada para balance, compra y dashboard.
+
+## Flujos de alta de creditos (add/refresh)
+
+### UserCredits (nuevo)
+
+- **Welcome credits**
+  - `UserCreatedEventHandler` crea `UserCreditsEntity` con 10 creditos y publica `CreditsAddedEvent`.
+  - Archivo: `services/backend/src/Core/Application/UseCases/KnowledgeBase/SeedDefaultFiles/UserCreatedEventHandler.cs`
+- **AddCredits (API)**
+  - `AddCreditsHandler` modifica `UserCreditsEntity`.
+  - Archivo: `services/backend/src/Core/Application/UseCases/Subscription/AddCredits/AddCreditsHandler.cs`
+- **Admin AdjustCredits**
+  - `AdjustCreditsHandler` modifica `UserCreditsEntity`.
+  - Archivo: `services/backend/src/Core/Application/UseCases/AdminBilling/AdjustCredits/AdjustCreditsHandler.cs`
+- **Auto-create en consumo**
+  - `UserCreditsRepository.GetOrCreateAsync` crea registros con 10 creditos si no existen.
+  - Archivo: `services/backend/src/Adapters/Infrastructure/Persistence/Repositories/UserCreditsRepository.cs`
+
+### Subscription.Credits (legacy)
+
+- **Stripe checkout session completed (paquetes de creditos)**
+  - `ProcessStripeWebhookHandler` llama `subscription.AddCredits(...)`.
+  - Archivo: `services/backend/src/Core/Application/UseCases/Subscription/ProcessWebhook/ProcessStripeWebhookHandler.cs`
+- **Stripe subscription updated / invoice.paid**
+  - `ProcessStripeWebhookHandler` setea `subscription.Credits = plan.Credits`.
+- **PurchasePlan (legacy)**
+  - `PurchasePlanHandler` suma creditos al campo `Subscription.Credits`.
+  - Archivo: `services/backend/src/Core/Application/UseCases/Subscription/PurchasePlan/PurchasePlanHandler.cs`
+- **ChangePlan**
+  - `ChangePlanHandler` setea `subscription.Credits = newPlan.Credits`.
+  - Archivo: `services/backend/src/Core/Application/UseCases/Subscription/ChangePlan/ChangePlanHandler.cs`
+
+## Flujos de consumo (deduccion)
+
+### ConsumeCredits (UserCredits)
+
+- `ConsumeCreditsHandler` descuenta de `UserCreditsEntity` y aplica limites.
+- Usado por:
+  - ChatHub (`ChatHub.cs`)
+  - ChatHubV2 (`ChatHubV2.cs`)
+  - Matrix (`SendMatrixMessageHandler.cs`)
+  - API `/api/subscription/consume`
+- Archivo: `services/backend/src/Core/Application/UseCases/Subscription/ConsumeCredits/ConsumeCreditsHandler.cs`
+
+### PurchasePlugin / PurchaseWorkflow (Subscription.Credits)
+
+- `PurchasePluginHandler` y `PurchaseWorkflowHandler` consumen `subscription.Credits`.
+- No actualizan `UserCreditsEntity`.
+- Archivos:
+  - `services/backend/src/Core/Application/UseCases/Plugin/PurchasePlugin/PurchasePluginHandler.cs`
+  - `services/backend/src/Core/Application/UseCases/Workflow/PurchaseWorkflow/PurchaseWorkflowHandler.cs`
+
+### Matrix (mixto)
+
+- Pre-check usa `subscription.Credits`.
+- El consumo real usa `ConsumeCreditsHandler` (UserCredits).
+- Archivo: `services/backend/src/Core/Application/UseCases/Matrix/SendMessage/SendMatrixMessageHandler.cs`
+
+## Tracking y analytics
+
+### CreditConsumptionEntity
+
+- Se crea desde `CreditTrackingService`.
+- Usado para dashboards / transacciones.
+- Archivo: `services/backend/src/Adapters/Infrastructure/Services/CreditTrackingService.cs`
+
+**Problema detectado**: `CreditTrackingService` calcula `BalanceAfter = AvailableCredits - credits`, pero se invoca *despues* de `ConsumeCredits`. Eso puede restar dos veces el consumo.
+
+### MessageCostEntity
+
+- Existe la entidad y repository, pero **no hay ningun writer** en el codigo.
+- `CreditHistoryController` expone `/api/credithistory/messages` pero probablemente siempre devuelve vacio.
+
+### Prometheus
+
+- `ApplicationMetrics.CreditsConsumedTotal` incrementa en `CreditTrackingService`.
+- `ApplicationMetrics.CreditBalanceGauge` solo se inicializa, no se actualiza.
+
+Archivos:
+- `services/backend/src/Adapters/Infrastructure/Telemetry/ApplicationMetrics.cs`
+- `services/backend/src/Adapters/Infrastructure/Telemetry/MetricsInitializerService.cs`
+
+## Validacion de costos (pre-check)
+
+- `CreditValidationService` usa `UserCredits` + `CostRegistry` + `UserBillingPreference`.
+- ChatHub/ChatHubV2 calculan costos con `CreditSystemConfiguration` (tokens por credito) y/o costo minimo.
+
+Esto puede generar que:
+- `/api/credit-validation/*` diga un costo, pero el chat consuma otro.
+- Para usuarios con plan ilimitado, la validacion y el chat no siempre coinciden.
+
+Archivos:
+- `services/backend/src/Adapters/Infrastructure/Services/CreditValidationService.cs`
+- `services/backend/src/Adapters/WebApi/Hubs/ChatHub.cs`
+- `services/backend/src/Adapters/WebApi/Hubs/ChatHubV2.cs`
+- `services/backend/src/Adapters/WebApi/Configuration/CreditSystemConfiguration.cs`
+
+## Endpoints y fuente de balance
+
+| Endpoint | Balance usado | Fuente de verdad |
+| --- | --- | --- |
+| `GET /api/credits/balance` | `CreditBalanceDto.Balance` | `UserCredits.AvailableCredits` (y free-tier) |
+| `GET /api/credits/usage` | `CurrentBalance` | `Subscription.Credits` |
+| `GET /api/credits/transactions` | `CreditConsumptionEntity` | Tracking parcial |
+| `GET /api/credithistory/balance` | `credits` | `Subscription.Credits` |
+| `GET /api/credithistory/summary` | `currentBalance` | `Subscription.Credits` |
+| `GET /api/dashboard/overview` | `CreditMetrics.CurrentBalance` | `Subscription.Credits` |
+| `GET /api/billing/subscription` | `SubscriptionDto.Credits` | `Subscription.Credits` |
+| `GET /api/billing/summary` | `CreditBalance` | `Subscription.Credits` |
+| `GET /api/subscription` / `current` | `SubscriptionDto.Credits` | `UserCredits.AvailableCredits` |
+
+Archivos clave:
+- `services/backend/src/Adapters/WebApi/Controllers/CreditsController.cs`
+- `services/backend/src/Adapters/WebApi/Controllers/CreditHistoryController.cs`
+- `services/backend/src/Adapters/WebApi/Controllers/DashboardController.cs`
+- `services/backend/src/Core/Application/UseCases/Dashboard/GetDashboardOverview/GetDashboardOverviewHandler.cs`
+- `services/backend/src/Core/Application/UseCases/Credits/GetCreditUsage/GetCreditUsageHandler.cs`
+- `services/backend/src/Core/Application/UseCases/Billing/GetBillingSummary/GetBillingSummaryHandler.cs`
+
+## Mermaid: flujo de datos (fuentes paralelas)
+
+```mermaid
+flowchart LR
+  subgraph A[UserCredits (nuevo)]
+    UC1[UserCreatedEvent -> UserCredits]
+    UC2[AddCreditsHandler]
+    UC3[AdjustCreditsHandler]
+    UC4[ConsumeCreditsHandler]
+  end
+
+  subgraph B[Subscription.Credits (legacy)]
+    SC1[PurchasePlanHandler]
+    SC2[ChangePlanHandler]
+    SC3[Stripe Webhook -> ProcessStripeWebhook]
+  end
+
+  subgraph C[Lecturas]
+    L1[/api/credits/balance -> UserCredits/]
+    L2[/api/dashboard/overview -> Subscription.Credits/]
+    L3[/api/credits/usage -> Subscription.Credits/]
+    L4[/api/subscription -> UserCredits/]
+  end
+
+  UC1 --> L1
+  UC2 --> L1
+  UC3 --> L1
+  UC4 --> L1
+
+  SC1 --> L2
+  SC2 --> L2
+  SC3 --> L2
+
+  SC1 --> L3
+  SC2 --> L3
+  SC3 --> L3
+
+  UC1 --> L4
+  UC2 --> L4
+  UC3 --> L4
+  UC4 --> L4
+```
+
+## Mermaid: consumo de mensajes (ChatHubV2)
+
+```mermaid
+sequenceDiagram
+  participant UI as Client
+  participant Hub as ChatHubV2
+  participant UC as ConsumeCreditsHandler
+  participant UCR as UserCreditsRepository
+  participant CT as CreditTrackingService
+  participant CC as CreditConsumptionRepository
+
+  UI->>Hub: SendMessage(content)
+  Hub->>UCR: GetByUserIdAsync
+  Hub->>UC: ConsumeCreditsCommand
+  UC->>UCR: GetOrCreate + UpdateWithVersionCheck
+  UC-->>Hub: SubscriptionDto (Credits = UserCredits.AvailableCredits)
+  Hub->>CT: TrackMessageCostAsync
+  CT->>UCR: GetByUserIdAsync
+  CT->>CC: Create CreditConsumptionEntity
+```
+
+## Inconsistencias detectadas (probables causas de tu problema)
+
+1. **Doble fuente de verdad**: `Subscription.Credits` (legacy) vs `UserCredits.AvailableCredits` (nuevo). Muchos endpoints leen una u otra.
+2. **Stripe credit purchase** suma `Subscription.Credits` pero no actualiza `UserCredits`. Resultado: `/api/credits/balance` no refleja compras.
+3. **PurchasePlugin/PurchaseWorkflow** consumen `Subscription.Credits` pero no `UserCredits`. Resultado: balance en `/api/credits/balance` no baja.
+4. **ChatHub / ChatHubV2** consumen `UserCredits` pero dashboards y usage leen `Subscription.Credits`. Resultado: dashboards muestran saldo viejo.
+5. **CreditTrackingService** calcula `BalanceAfter` restando otra vez despues de consumir; el historial puede mostrar un balance incorrecto.
+6. **CreditValidationService** usa `CostRegistry` + preferencias; ChatHub usa `CreditSystemConfiguration`. Resultado: validacion != consumo real.
+7. **Free tier**: `GetCreditBalance` muestra free-tier, pero `ConsumeCredits` no lo descuenta. No hay integracion directa con consumo real.
+8. **Credit notifications** (SignalR) dependen de `UserCredits`; si solo se actualiza `Subscription.Credits`, la UI en tiempo real no se mueve.
+9. **CreditsAddedEvent** a veces usa `subscription.Id` en el campo `UserCreditsId` (ej: PurchasePlanHandler y ProcessStripeWebhook). El payload es inconsistente.
+10. **ChatHubV2 model resolution** usa `availableCredits` sin considerar `HasUnlimitedCredits`; puede degradar modelos aunque el plan sea ilimitado.
+11. **MessageCostEntity** no se escribe en ningun flujo; endpoint `/api/credithistory/messages` puede estar vacio.
+12. **CreditHistoryController** ignora `startDate`/`endDate` en `GetConsumptionHistory` (no filtra).
+13. **Low credit threshold** hard-coded en 100 (`CreditNotificationHandler`) y no usa `UserBillingPreference.LowCreditThreshold`.
+
+## Checklist para reconducir inconsistencias (sugerencia)
+
+1. Definir un **single source of truth** (ideal: `UserCredits`).
+2. Migrar TODOS los writers y readers a esa fuente.
+3. Ajustar Stripe webhook para actualizar `UserCredits` (y no `Subscription.Credits`).
+4. Ajustar PurchaseWorkflow/Plugin para consumir `UserCredits`.
+5. Alinear `CreditValidationService` y ChatHub para usar la misma politica de costos.
+6. Corregir `CreditTrackingService` para usar el balance post-consumo real.
+7. Integrar free-tier en `ConsumeCredits` o eliminarlo del balance si no aplica.
+8. Deprecar endpoints que leen `Subscription.Credits` o re-implementarlos.
+
+## Archivos clave (mapa rapido)
+
+- Entidades:
+  - `services/backend/src/Core/Domain/Entities/UserCreditsEntity.cs`
+  - `services/backend/src/Core/Domain/Entities/SubscriptionEntity.cs`
+  - `services/backend/src/Core/Domain/Entities/CreditConsumptionEntity.cs`
+- Consumir creditos:
+  - `services/backend/src/Core/Application/UseCases/Subscription/ConsumeCredits/ConsumeCreditsHandler.cs`
+  - `services/backend/src/Adapters/WebApi/Hubs/ChatHub.cs`
+  - `services/backend/src/Adapters/WebApi/Hubs/ChatHubV2.cs`
+- Stripe:
+  - `services/backend/src/Core/Application/UseCases/Subscription/ProcessWebhook/ProcessStripeWebhookHandler.cs`
+  - `services/backend/src/Adapters/Infrastructure/Stripe/StripeService.cs`
+- Tracking:
+  - `services/backend/src/Adapters/Infrastructure/Services/CreditTrackingService.cs`
+  - `services/backend/src/Adapters/Infrastructure/Persistence/Repositories/CreditConsumptionRepository.cs`
+- Dashboard / endpoints:
+  - `services/backend/src/Core/Application/UseCases/Dashboard/GetDashboardOverview/GetDashboardOverviewHandler.cs`
+  - `services/backend/src/Core/Application/UseCases/Credits/GetCreditUsage/GetCreditUsageHandler.cs`
+  - `services/backend/src/Adapters/WebApi/Controllers/CreditsController.cs`
+  - `services/backend/src/Adapters/WebApi/Controllers/CreditHistoryController.cs`
+  - `services/backend/src/Adapters/WebApi/Controllers/BillingController.cs`
+

@@ -16,6 +16,7 @@ public class SendMatrixMessageHandlerTests
     private readonly SendMatrixMessageHandler _handler;
     private readonly Mock<IMatrixUserLinkRepository> _userLinkRepo = new();
     private readonly Mock<ISubscriptionRepository> _subscriptionRepo = new();
+    private readonly Mock<IUserCreditsRepository> _userCreditsRepo = new();
     private readonly Mock<IRateLimitService> _rateLimitService = new();
     private readonly Mock<IAgentThreadManager> _threadManager = new();
     private readonly Mock<IChatCompletionPort> _chatCompletion = new();
@@ -30,9 +31,14 @@ public class SendMatrixMessageHandlerTests
 
     public SendMatrixMessageHandlerTests()
     {
+        _userCreditsRepo
+            .Setup(r => r.GetByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity?)null);
+
         _handler = new SendMatrixMessageHandler(
             _userLinkRepo.Object,
             _subscriptionRepo.Object,
+            _userCreditsRepo.Object,
             _rateLimitService.Object,
             _threadManager.Object,
             _chatCompletion.Object,
@@ -124,11 +130,19 @@ public class SendMatrixMessageHandlerTests
         {
             Id = Guid.NewGuid(),
             UserId = _testUserId,
-            Credits = 0
         };
 
         _subscriptionRepo.Setup(r => r.GetByUserIdAsync(_testUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+        _userCreditsRepo.Setup(r => r.GetByUserIdAsync(_testUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserCreditsEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = _testUserId,
+                AvailableCredits = 0,
+                TotalCreditsGranted = 0,
+                TotalCreditsConsumed = 0
+            });
 
         var result = await _handler.Handle(command, CancellationToken.None);
 
@@ -362,12 +376,20 @@ public class SendMatrixMessageHandlerTests
         var subscription = new SubscriptionEntity
         {
             Id = Guid.NewGuid(),
-            UserId = _testUserId,
-            Credits = credits
+            UserId = _testUserId
         };
 
         _subscriptionRepo.Setup(r => r.GetByUserIdAsync(_testUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+        _userCreditsRepo.Setup(r => r.GetByUserIdAsync(_testUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserCreditsEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = _testUserId,
+                AvailableCredits = credits,
+                TotalCreditsGranted = credits,
+                TotalCreditsConsumed = 0
+            });
     }
 
     private void SetupAgentAccessAllowed()

@@ -10,6 +10,7 @@ namespace Application.UseCases.Matrix.SendMessage;
 public sealed class SendMatrixMessageHandler(
     IMatrixUserLinkRepository matrixUserLinkRepository,
     ISubscriptionRepository subscriptionRepository,
+    IUserCreditsRepository userCreditsRepository,
     IRateLimitService rateLimitService,
     IAgentThreadManager threadManager,
     IChatCompletionPort chatCompletion,
@@ -87,14 +88,16 @@ public sealed class SendMatrixMessageHandler(
             return SendMatrixMessageDto.InsufficientCredits(0);
         }
 
+        var userCredits = await userCreditsRepository.GetByUserIdAsync(userId, cancellationToken);
+        var availableCredits = userCredits?.AvailableCredits ?? 0;
         var hasUnlimitedCredits = subscription.HasUnlimitedCredits();
-        if (!hasUnlimitedCredits && subscription.Credits < DefaultCreditsPerMessage)
+        if (!hasUnlimitedCredits && availableCredits < DefaultCreditsPerMessage)
         {
             logger.LogInformation(
                 "Insufficient credits for user {UserId}. Available: {Credits}",
                 userId,
-                subscription.Credits);
-            return SendMatrixMessageDto.InsufficientCredits(subscription.Credits);
+                availableCredits);
+            return SendMatrixMessageDto.InsufficientCredits(availableCredits);
         }
 
         // 5. Verify access to the agent

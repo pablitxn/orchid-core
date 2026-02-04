@@ -42,7 +42,7 @@ public class CreditTrackingService : ICreditTrackingService
             CreditsConsumed = credits,
             Metadata = metadata,
             ConsumedAt = DateTime.UtcNow,
-            BalanceAfter = balanceAfter - credits
+            BalanceAfter = balanceAfter
         };
 
         await _creditConsumptionRepository.CreateAsync(consumption, cancellationToken);
@@ -76,7 +76,7 @@ public class CreditTrackingService : ICreditTrackingService
             CreditsConsumed = credits,
             Metadata = metadata,
             ConsumedAt = DateTime.UtcNow,
-            BalanceAfter = balanceAfter - credits
+            BalanceAfter = balanceAfter
         };
 
         await _creditConsumptionRepository.CreateAsync(consumption, cancellationToken);
@@ -108,7 +108,7 @@ public class CreditTrackingService : ICreditTrackingService
             ResourceName = messageDescription,
             CreditsConsumed = credits,
             ConsumedAt = DateTime.UtcNow,
-            BalanceAfter = balanceAfter - credits
+            BalanceAfter = balanceAfter
         };
 
         await _creditConsumptionRepository.CreateAsync(consumption, cancellationToken);

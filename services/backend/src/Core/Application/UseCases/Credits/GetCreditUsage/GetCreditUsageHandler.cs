@@ -6,6 +6,7 @@ namespace Application.UseCases.Credits.GetCreditUsage;
 
 public sealed class GetCreditUsageHandler(
     ISubscriptionRepository subscriptionRepository,
+    IUserCreditsRepository userCreditsRepository,
     ICreditConsumptionRepository creditConsumptionRepository)
     : IRequestHandler<GetCreditUsageQuery, CreditUsageDto>
 {
@@ -14,7 +15,8 @@ public sealed class GetCreditUsageHandler(
         CancellationToken cancellationToken)
     {
         var subscription = await subscriptionRepository.GetByUserIdAsync(request.UserId, cancellationToken);
-        var currentBalance = subscription?.Credits ?? 0;
+        var userCredits = await userCreditsRepository.GetByUserIdAsync(request.UserId, cancellationToken);
+        var currentBalance = userCredits?.AvailableCredits ?? 0;
 
         var now = DateTime.UtcNow;
         var todayStart = now.Date;

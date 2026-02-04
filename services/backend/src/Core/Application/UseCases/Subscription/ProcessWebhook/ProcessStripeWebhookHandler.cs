@@ -12,6 +12,7 @@ public class ProcessStripeWebhookHandler(
     IStripeWebhookEventRepository webhookEventRepository,
     ISubscriptionRepository subscriptionRepository,
     ISubscriptionPlanRepository planRepository,
+    IUserCreditsRepository userCreditsRepository,
     ICreditPurchaseRepository creditPurchaseRepository,
     IEventPublisher eventPublisher,
     INotificationService notificationService,
@@ -167,7 +168,7 @@ public class ProcessStripeWebhookHandler(
             if (plan is not null)
             {
                 subscription.SubscriptionPlanId = plan.Id;
-                subscription.Credits = plan.Credits;
+                await ApplyPlanCreditsAsync(subscription.UserId, plan, cancellationToken);
             }
         }
 
@@ -204,19 +205,33 @@ public class ProcessStripeWebhookHandler(
         purchase.MarkCompleted(data.PaymentIntentId ?? string.Empty);
         await creditPurchaseRepository.UpdateAsync(purchase, cancellationToken);
 
-        // Add credits to user's subscription
-        var subscription = await subscriptionRepository.GetByUserIdAsync(purchase.UserId, cancellationToken);
-        if (subscription is not null)
+        // Add credits to user's balance
+        var userCredits = await userCreditsRepository.GetByUserIdAsync(purchase.UserId, cancellationToken);
+        if (userCredits == null)
         {
-            subscription.AddCredits(purchase.CreditsGranted);
-            await subscriptionRepository.UpdateAsync(subscription, cancellationToken);
-
-            // Publish credits added event
-            await eventPublisher.PublishAsync(new CreditsAddedEvent(
-                subscription.Id,
-                purchase.UserId,
-                purchase.CreditsGranted));
+            userCredits = new UserCreditsEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = purchase.UserId,
+                AvailableCredits = purchase.CreditsGranted,
+                TotalCreditsGranted = purchase.CreditsGranted,
+                TotalCreditsConsumed = 0,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await userCreditsRepository.CreateAsync(userCredits, cancellationToken);
         }
+        else
+        {
+            userCredits.GrantCredits(purchase.CreditsGranted);
+            await userCreditsRepository.UpdateAsync(userCredits, cancellationToken);
+        }
+
+        // Publish credits added event
+        await eventPublisher.PublishAsync(new CreditsAddedEvent(
+            userCredits.Id,
+            purchase.UserId,
+            purchase.CreditsGranted));
 
         // Publish credits purchased event
         await eventPublisher.PublishAsync(new CreditsPurchasedEvent(
@@ -257,7 +272,7 @@ public class ProcessStripeWebhookHandler(
             if (plan is not null && subscription.SubscriptionPlanId != plan.Id)
             {
                 subscription.SubscriptionPlanId = plan.Id;
-                subscription.Credits = plan.Credits;
+                await ApplyPlanCreditsAsync(subscription.UserId, plan, cancellationToken);
             }
         }
 
@@ -301,7 +316,7 @@ public class ProcessStripeWebhookHandler(
         // Refresh credits on successful payment (for recurring subscriptions)
         if (subscription.SubscriptionPlan is not null)
         {
-            subscription.Credits = subscription.SubscriptionPlan.Credits;
+            await ApplyPlanCreditsAsync(subscription.UserId, subscription.SubscriptionPlan, cancellationToken);
             await subscriptionRepository.UpdateAsync(subscription, cancellationToken);
         }
 
@@ -395,4 +410,34 @@ public class ProcessStripeWebhookHandler(
         "paused" => SubscriptionStatus.Paused,
         _ => SubscriptionStatus.Incomplete
     };
+
+    private async Task ApplyPlanCreditsAsync(Guid userId, SubscriptionPlanEntity plan, CancellationToken cancellationToken)
+    {
+        if (plan.PlanEnum == SubscriptionPlanEnum.Unlimited || plan.Credits <= 0)
+            return;
+
+        var userCredits = await userCreditsRepository.GetByUserIdAsync(userId, cancellationToken);
+        if (userCredits == null)
+        {
+            userCredits = new UserCreditsEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                AvailableCredits = plan.Credits,
+                TotalCreditsGranted = plan.Credits,
+                TotalCreditsConsumed = 0,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await userCreditsRepository.CreateAsync(userCredits, cancellationToken);
+            return;
+        }
+
+        var creditsToGrant = Math.Max(0, plan.Credits - userCredits.AvailableCredits);
+        if (creditsToGrant == 0)
+            return;
+
+        userCredits.GrantCredits(creditsToGrant);
+        await userCreditsRepository.UpdateAsync(userCredits, cancellationToken);
+    }
 }

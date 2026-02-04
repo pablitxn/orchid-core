@@ -13,17 +13,20 @@ public class CreditHistoryController : ControllerBase
     private readonly ICreditConsumptionRepository _creditConsumptionRepository;
     private readonly IMessageCostRepository _messageCostRepository;
     private readonly ISubscriptionRepository _subscriptionRepository;
+    private readonly IUserCreditsRepository _userCreditsRepository;
     private readonly ILogger<CreditHistoryController> _logger;
 
     public CreditHistoryController(
         ICreditConsumptionRepository creditConsumptionRepository,
         IMessageCostRepository messageCostRepository,
         ISubscriptionRepository subscriptionRepository,
+        IUserCreditsRepository userCreditsRepository,
         ILogger<CreditHistoryController> logger)
     {
         _creditConsumptionRepository = creditConsumptionRepository;
         _messageCostRepository = messageCostRepository;
         _subscriptionRepository = subscriptionRepository;
+        _userCreditsRepository = userCreditsRepository;
         _logger = logger;
     }
 
@@ -47,10 +50,14 @@ public class CreditHistoryController : ControllerBase
         {
             IEnumerable<Domain.Entities.CreditConsumptionEntity> consumptions;
 
-            if (startDate.HasValue && endDate.HasValue)
+            if (startDate.HasValue || endDate.HasValue)
             {
-                consumptions = await _creditConsumptionRepository.GetByUserIdAsync(
-                    userId.Value, CancellationToken.None);
+                var from = startDate ?? DateTime.MinValue;
+                var to = endDate ?? DateTime.UtcNow;
+                consumptions = await _creditConsumptionRepository.GetByDateRangeAsync(
+                    userId.Value,
+                    from,
+                    to);
             }
             else
             {
@@ -143,7 +150,8 @@ public class CreditHistoryController : ControllerBase
             var messageCosts = await _messageCostRepository.GetTotalCostByUserIdAsync(userId.Value, since);
 
             var subscription = await _subscriptionRepository.GetByUserIdAsync(userId.Value);
-            var currentBalance = subscription?.Credits ?? 0;
+            var userCredits = await _userCreditsRepository.GetByUserIdAsync(userId.Value);
+            var currentBalance = userCredits?.AvailableCredits ?? 0;
 
             // Group consumption by type
             // var consumptions = await _creditConsumptionRepository.GetByUserIdAndDateRangeAsync(
@@ -190,9 +198,10 @@ public class CreditHistoryController : ControllerBase
         try
         {
             var subscription = await _subscriptionRepository.GetByUserIdAsync(userId.Value);
+            var userCredits = await _userCreditsRepository.GetByUserIdAsync(userId.Value);
             
             // Return a default response if no subscription exists yet
-            if (subscription == null)
+            if (subscription == null && userCredits == null)
             {
                 return Ok(new
                 {
@@ -206,11 +215,11 @@ public class CreditHistoryController : ControllerBase
 
             return Ok(new
             {
-                credits = subscription.Credits,
-                expiresAt = subscription.ExpiresAt,
-                autoRenew = subscription.AutoRenew,
-                updatedAt = subscription.UpdatedAt,
-                hasSubscription = true
+                credits = userCredits?.AvailableCredits ?? 0,
+                expiresAt = subscription?.ExpiresAt,
+                autoRenew = subscription?.AutoRenew ?? false,
+                updatedAt = userCredits?.UpdatedAt ?? subscription?.UpdatedAt ?? DateTime.UtcNow,
+                hasSubscription = subscription != null
             });
         }
         catch (Exception ex)

@@ -12,6 +12,7 @@ public class PurchasePluginHandlerTests
     private readonly Mock<IPluginRepository> _pluginRepo = new();
     private readonly Mock<IUserPluginRepository> _userPluginRepo = new();
     private readonly Mock<ISubscriptionRepository> _subscriptionRepo = new();
+    private readonly Mock<IUserCreditsRepository> _userCreditsRepo = new();
     private readonly Mock<ICreditTrackingService> _tracking = new();
     private readonly Mock<ICostRegistry> _costRegistry = new();
     private readonly Mock<ICreditLimitService> _limitService = new();
@@ -25,6 +26,11 @@ public class PurchasePluginHandlerTests
         _unitOfWork.Setup(uow => uow.Plugins).Returns(_pluginRepo.Object);
         _unitOfWork.Setup(uow => uow.UserPlugins).Returns(_userPluginRepo.Object);
         _unitOfWork.Setup(uow => uow.Subscriptions).Returns(_subscriptionRepo.Object);
+        _unitOfWork.Setup(uow => uow.UserCredits).Returns(_userCreditsRepo.Object);
+
+        _userCreditsRepo
+            .Setup(r => r.UpdateWithVersionCheckAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
         _handler = new PurchasePluginHandler(
             _unitOfWork.Object,
@@ -49,7 +55,16 @@ public class PurchasePluginHandlerTests
             IsActive = true,
             IsSubscriptionBased = false
         };
-        var subscription = new SubscriptionEntity { UserId = userId, Credits = 100 };
+        var subscription = new SubscriptionEntity { UserId = userId };
+        var userCredits = new UserCreditsEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AvailableCredits = 100,
+            TotalCreditsGranted = 100,
+            TotalCreditsConsumed = 0,
+            Version = 1
+        };
 
         _pluginRepo.Setup(r => r.GetByIdAsync(pluginId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(plugin);
@@ -57,6 +72,8 @@ public class PurchasePluginHandlerTests
             .ReturnsAsync((UserPluginEntity?)null);
         _subscriptionRepo.Setup(r => r.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subscription);
+        _userCreditsRepo.Setup(r => r.GetOrCreateAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(userCredits);
         _costRegistry.Setup(r => r.GetPluginPurchaseCostAsync(pluginId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(50);
         _limitService.Setup(x => x.CheckLimitsAsync(userId, 50, "plugin_purchase", It.IsAny<CancellationToken>()))

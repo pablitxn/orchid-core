@@ -1,5 +1,6 @@
 using Application.Interfaces;
 using Application.UseCases.Subscription.Common;
+using Domain.Entities;
 using Domain.Enums;
 using Domain.Exceptions;
 using MediatR;
@@ -10,6 +11,7 @@ namespace Application.UseCases.Subscription.ChangePlan;
 public class ChangePlanHandler(
     ISubscriptionRepository subscriptionRepository,
     ISubscriptionPlanRepository planRepository,
+    IUserCreditsRepository userCreditsRepository,
     IStripeService stripeService,
     ILogger<ChangePlanHandler> logger)
     : IRequestHandler<ChangePlanCommand, SubscriptionDto>
@@ -53,9 +55,6 @@ public class ChangePlanHandler(
             stripeInfo.CancelAtPeriodEnd,
             stripeInfo.CanceledAt);
 
-        // Update credits based on new plan
-        subscription.Credits = newPlan.Credits;
-
         await subscriptionRepository.UpdateAsync(subscription, cancellationToken);
 
         logger.LogInformation(
@@ -63,8 +62,19 @@ public class ChangePlanHandler(
             subscription.Id, request.UserId, request.NewPlanId);
 
         // Reload with plan details
+        await ApplyPlanCreditsAsync(request.UserId, newPlan, cancellationToken);
         subscription = await subscriptionRepository.GetByUserIdAsync(request.UserId, cancellationToken);
-        return SubscriptionDto.FromEntity(subscription!);
+        var userCredits = await userCreditsRepository.GetByUserIdAsync(request.UserId, cancellationToken)
+            ?? new Domain.Entities.UserCreditsEntity
+            {
+                Id = Guid.Empty,
+                UserId = request.UserId,
+                AvailableCredits = 0,
+                TotalCreditsGranted = 0,
+                TotalCreditsConsumed = 0
+            };
+
+        return SubscriptionDto.FromEntityWithCredits(subscription!, userCredits);
     }
 
     private static SubscriptionStatus MapStripeStatus(string status) => status switch
@@ -77,4 +87,34 @@ public class ChangePlanHandler(
         "paused" => SubscriptionStatus.Paused,
         _ => SubscriptionStatus.Incomplete
     };
+
+    private async Task ApplyPlanCreditsAsync(Guid userId, SubscriptionPlanEntity plan, CancellationToken cancellationToken)
+    {
+        if (plan.PlanEnum == SubscriptionPlanEnum.Unlimited || plan.Credits <= 0)
+            return;
+
+        var userCredits = await userCreditsRepository.GetByUserIdAsync(userId, cancellationToken);
+        if (userCredits == null)
+        {
+            userCredits = new Domain.Entities.UserCreditsEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                AvailableCredits = plan.Credits,
+                TotalCreditsGranted = plan.Credits,
+                TotalCreditsConsumed = 0,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await userCreditsRepository.CreateAsync(userCredits, cancellationToken);
+            return;
+        }
+
+        var creditsToGrant = Math.Max(0, plan.Credits - userCredits.AvailableCredits);
+        if (creditsToGrant == 0)
+            return;
+
+        userCredits.GrantCredits(creditsToGrant);
+        await userCreditsRepository.UpdateAsync(userCredits, cancellationToken);
+    }
 }

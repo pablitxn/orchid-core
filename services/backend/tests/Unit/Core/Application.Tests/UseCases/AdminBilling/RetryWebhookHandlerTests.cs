@@ -13,6 +13,7 @@ public class RetryWebhookHandlerTests
     private readonly Mock<IStripeService> _stripeService = new();
     private readonly Mock<ISubscriptionRepository> _subscriptionRepo = new();
     private readonly Mock<ISubscriptionPlanRepository> _planRepo = new();
+    private readonly Mock<IUserCreditsRepository> _userCreditsRepo = new();
     private readonly Mock<ICreditPurchaseRepository> _creditPurchaseRepo = new();
     private readonly Mock<IEventPublisher> _eventPublisher = new();
     private readonly Mock<INotificationService> _notificationService = new();
@@ -27,11 +28,24 @@ public class RetryWebhookHandlerTests
             _stripeService.Object,
             _subscriptionRepo.Object,
             _planRepo.Object,
+            _userCreditsRepo.Object,
             _creditPurchaseRepo.Object,
             _eventPublisher.Object,
             _notificationService.Object,
             _auditService.Object,
             _logger.Object);
+
+        _userCreditsRepo
+            .Setup(r => r.GetByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity?)null);
+
+        _userCreditsRepo
+            .Setup(r => r.CreateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity uc, CancellationToken _) => uc);
+
+        _userCreditsRepo
+            .Setup(r => r.UpdateAsync(It.IsAny<UserCreditsEntity>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
     }
 
     [Fact]

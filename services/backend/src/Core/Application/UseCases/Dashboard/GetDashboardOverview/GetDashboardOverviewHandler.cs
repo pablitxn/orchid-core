@@ -14,6 +14,7 @@ namespace Core.Application.UseCases.Dashboard.GetDashboardOverview;
 
 public sealed class GetDashboardOverviewHandler(
     ISubscriptionRepository subscriptionRepository,
+    IUserCreditsRepository userCreditsRepository,
     ICreditConsumptionRepository creditConsumptionRepository,
     ILogger<GetDashboardOverviewHandler> logger)
     : IRequestHandler<GetDashboardOverviewQuery, DashboardOverviewDto>
@@ -28,6 +29,7 @@ public sealed class GetDashboardOverviewHandler(
         {
             logger.LogDebug("Fetching subscription for user {UserId}", userId);
             var subscription = await subscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
+            var userCredits = await userCreditsRepository.GetByUserIdAsync(userId, cancellationToken);
 
             logger.LogDebug("Fetching credit history for user {UserId}", userId);
             var creditHistory = await creditConsumptionRepository.GetRecentByUserIdAsync(userId, 30, cancellationToken);
@@ -36,8 +38,8 @@ public sealed class GetDashboardOverviewHandler(
 
             return new DashboardOverviewDto
             {
-                Credits = await BuildCreditMetrics(subscription, creditHistory, cancellationToken),
-                Subscription = BuildSubscriptionMetrics(subscription),
+                Credits = await BuildCreditMetrics(userCredits, creditHistory, cancellationToken),
+                Subscription = BuildSubscriptionMetrics(subscription, userCredits?.AvailableCredits ?? 0),
             };
         }
         catch (Exception ex)
@@ -48,11 +50,11 @@ public sealed class GetDashboardOverviewHandler(
     }
 
     private static Task<CreditMetricsDto> BuildCreditMetrics(
-        SubscriptionEntity? subscription,
+        UserCreditsEntity? userCredits,
         List<CreditConsumptionEntity> creditHistory,
         CancellationToken cancellationToken)
     {
-        var currentBalance = subscription?.Credits ?? 0;
+        var currentBalance = userCredits?.AvailableCredits ?? 0;
         var now = DateTime.UtcNow;
         
         var consumedToday = creditHistory
@@ -123,7 +125,7 @@ public sealed class GetDashboardOverviewHandler(
         });
     }
 
-    private SubscriptionMetricsDto BuildSubscriptionMetrics(SubscriptionEntity? subscription)
+    private SubscriptionMetricsDto BuildSubscriptionMetrics(SubscriptionEntity? subscription, int currentBalance)
     {
         if (subscription == null)
         {
@@ -143,12 +145,12 @@ public sealed class GetDashboardOverviewHandler(
         // var daysUntilExpiration = (int)(subscription.ExpiresAt - DateTime.UtcNow).TotalDays;
         
         // TODO: Implement plan recommendation logic based on usage patterns
-        var recommendedPlan = subscription.Credits < 500 ? "Pro" : "Basic";
+        var recommendedPlan = currentBalance < 500 ? "Pro" : "Basic";
 
         return new SubscriptionMetricsDto
         {
             PlanName = "Basic", // TODO: Get from subscription plan
-            IncludedCredits = subscription.Credits,
+            IncludedCredits = subscription.SubscriptionPlan?.Credits ?? 0,
             // ExpiresAt = subscription.ExpiresAt,
             // DaysUntilExpiration = Math.Max(0, daysUntilExpiration),
             AutoRenew = subscription.AutoRenew,

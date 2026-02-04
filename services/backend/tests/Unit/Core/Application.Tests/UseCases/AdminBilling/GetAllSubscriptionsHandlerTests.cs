@@ -9,12 +9,17 @@ namespace Application.Tests.UseCases.AdminBilling;
 public class GetAllSubscriptionsHandlerTests
 {
     private readonly Mock<ISubscriptionRepository> _repo = new();
+    private readonly Mock<IUserCreditsRepository> _userCreditsRepo = new();
     private readonly Mock<ILogger<GetAllSubscriptionsHandler>> _logger = new();
     private readonly GetAllSubscriptionsHandler _handler;
 
     public GetAllSubscriptionsHandlerTests()
     {
-        _handler = new GetAllSubscriptionsHandler(_repo.Object, _logger.Object);
+        _userCreditsRepo
+            .Setup(r => r.GetByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserCreditsEntity?)null);
+
+        _handler = new GetAllSubscriptionsHandler(_repo.Object, _userCreditsRepo.Object, _logger.Object);
     }
 
     [Fact]
