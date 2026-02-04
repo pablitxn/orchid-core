@@ -396,23 +396,14 @@ public static class DatabaseSeeder
         if (!needsWorkflows && !needsPersonalities && !needsAgents && !needsServiceAccounts)
             return;
 
-        // Build list of seeding tasks to run in parallel
-        var seedingTasks = new List<Task>();
-
-        if (needsWorkflows)
-        {
-            var logger = serviceProvider?.GetService<ILogger<WorkflowSeeder>>()
-                ?? new Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkflowSeeder>();
-            var seeder = new WorkflowSeeder(db, logger);
-            seedingTasks.Add(seeder.SeedAsync());
-        }
-
+        // Run seeders sequentially - DbContext is not thread-safe
+        // Personality templates must run before agents since agents reference them
         if (needsPersonalities)
         {
             var logger = serviceProvider?.GetService<ILogger<PersonalityTemplateSeeder>>()
                 ?? new Microsoft.Extensions.Logging.Abstractions.NullLogger<PersonalityTemplateSeeder>();
             var seeder = new PersonalityTemplateSeeder(db, logger);
-            seedingTasks.Add(seeder.SeedAsync());
+            await seeder.SeedAsync();
         }
 
         if (needsAgents)
@@ -420,7 +411,15 @@ public static class DatabaseSeeder
             var logger = serviceProvider?.GetService<ILogger<AgentSeeder>>()
                 ?? new Microsoft.Extensions.Logging.Abstractions.NullLogger<AgentSeeder>();
             var seeder = new AgentSeeder(db, logger);
-            seedingTasks.Add(seeder.SeedAsync());
+            await seeder.SeedAsync();
+        }
+
+        if (needsWorkflows)
+        {
+            var logger = serviceProvider?.GetService<ILogger<WorkflowSeeder>>()
+                ?? new Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkflowSeeder>();
+            var seeder = new WorkflowSeeder(db, logger);
+            await seeder.SeedAsync();
         }
 
         if (needsServiceAccounts)
@@ -430,10 +429,7 @@ public static class DatabaseSeeder
             var hasher = serviceProvider?.GetRequiredService<IPasswordHasher>()
                 ?? throw new InvalidOperationException("IPasswordHasher is required for service account seeding");
             var seeder = new ServiceAccountSeeder(db, hasher, logger);
-            seedingTasks.Add(seeder.SeedAsync());
+            await seeder.SeedAsync();
         }
-
-        // Run all content seeders in parallel - they have no dependencies on each other
-        await Task.WhenAll(seedingTasks);
     }
 }
