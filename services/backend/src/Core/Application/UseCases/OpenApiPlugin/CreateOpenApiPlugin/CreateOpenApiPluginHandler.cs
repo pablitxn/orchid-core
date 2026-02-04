@@ -9,6 +9,7 @@ namespace Application.UseCases.OpenApiPlugin.CreateOpenApiPlugin;
 
 public sealed class CreateOpenApiPluginHandler(
     IPluginRepository pluginRepository,
+    IUserPluginRepository userPluginRepository,
     ILogger<CreateOpenApiPluginHandler> logger) : IRequestHandler<CreateOpenApiPluginCommand, OpenApiPluginDto>
 {
     public async Task<OpenApiPluginDto> Handle(
@@ -52,11 +53,23 @@ public sealed class CreateOpenApiPluginHandler(
 
         await pluginRepository.CreateAsync(plugin, cancellationToken);
 
+        // Auto-grant access to the creator
+        var userPlugin = new UserPluginEntity
+        {
+            Id = Guid.NewGuid(),
+            UserId = request.CreatorUserId,
+            PluginId = plugin.Id,
+            PurchasedAt = DateTime.UtcNow,
+            IsActive = true
+        };
+        await userPluginRepository.CreateAsync(userPlugin, cancellationToken);
+
         logger.LogInformation(
-            "Created OpenAPI plugin: {PluginName} (Id: {PluginId}, SystemName: {SystemName})",
+            "Created OpenAPI plugin: {PluginName} (Id: {PluginId}, SystemName: {SystemName}) and granted access to creator {CreatorUserId}",
             plugin.Name,
             plugin.Id,
-            plugin.SystemName);
+            plugin.SystemName,
+            request.CreatorUserId);
 
         return OpenApiPluginDto.FromEntity(plugin);
     }

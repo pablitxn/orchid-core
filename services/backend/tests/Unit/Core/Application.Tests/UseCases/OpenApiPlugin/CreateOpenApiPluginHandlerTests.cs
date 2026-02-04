@@ -11,17 +11,20 @@ public class CreateOpenApiPluginHandlerTests
 {
     private readonly CreateOpenApiPluginHandler _handler;
     private readonly Mock<IPluginRepository> _repo = new();
+    private readonly Mock<IUserPluginRepository> _userPluginRepo = new();
     private readonly Mock<ILogger<CreateOpenApiPluginHandler>> _logger = new();
+    private readonly Guid _creatorUserId = Guid.NewGuid();
 
     public CreateOpenApiPluginHandlerTests()
     {
-        _handler = new CreateOpenApiPluginHandler(_repo.Object, _logger.Object);
+        _handler = new CreateOpenApiPluginHandler(_repo.Object, _userPluginRepo.Object, _logger.Object);
     }
 
     [Fact]
     public async Task Handle_CreatesOpenApiPlugin()
     {
         var cmd = new CreateOpenApiPluginCommand(
+            _creatorUserId,
             "Test Plugin",
             "test_plugin",
             "https://api.example.com",
@@ -48,6 +51,28 @@ public class CreateOpenApiPluginHandlerTests
     }
 
     [Fact]
+    public async Task Handle_GrantsAccessToCreator()
+    {
+        var cmd = new CreateOpenApiPluginCommand(
+            _creatorUserId,
+            "Test Plugin",
+            "test_plugin",
+            "https://api.example.com");
+
+        _repo.Setup(r => r.GetBySystemNameAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((PluginEntity?)null);
+
+        await _handler.Handle(cmd, CancellationToken.None);
+
+        _userPluginRepo.Verify(r => r.CreateAsync(
+            It.Is<UserPluginEntity>(up =>
+                up.UserId == _creatorUserId &&
+                up.IsActive),
+            It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task Handle_ThrowsValidationException_WhenSystemNameExists()
     {
         var existingPlugin = new PluginEntity { SystemName = "test_plugin" };
@@ -55,6 +80,7 @@ public class CreateOpenApiPluginHandlerTests
             .ReturnsAsync(existingPlugin);
 
         var cmd = new CreateOpenApiPluginCommand(
+            _creatorUserId,
             "Test Plugin",
             "test_plugin",
             "https://api.example.com");
@@ -69,6 +95,7 @@ public class CreateOpenApiPluginHandlerTests
     public async Task Handle_ThrowsValidationException_WhenNameEmpty(string name)
     {
         var cmd = new CreateOpenApiPluginCommand(
+            _creatorUserId,
             name,
             "test_plugin",
             "https://api.example.com");
@@ -85,6 +112,7 @@ public class CreateOpenApiPluginHandlerTests
     public async Task Handle_ThrowsValidationException_WhenSystemNameInvalid(string systemName)
     {
         var cmd = new CreateOpenApiPluginCommand(
+            _creatorUserId,
             "Test Plugin",
             systemName,
             "https://api.example.com");
@@ -100,6 +128,7 @@ public class CreateOpenApiPluginHandlerTests
     public async Task Handle_ThrowsValidationException_WhenBaseUrlInvalid(string baseUrl)
     {
         var cmd = new CreateOpenApiPluginCommand(
+            _creatorUserId,
             "Test Plugin",
             "test_plugin",
             baseUrl);
@@ -112,6 +141,7 @@ public class CreateOpenApiPluginHandlerTests
     public async Task Handle_ThrowsValidationException_WhenOpenApiSpecUrlDoesNotStartWithSlash()
     {
         var cmd = new CreateOpenApiPluginCommand(
+            _creatorUserId,
             "Test Plugin",
             "test_plugin",
             "https://api.example.com",
@@ -129,6 +159,7 @@ public class CreateOpenApiPluginHandlerTests
     public async Task Handle_ThrowsValidationException_WhenTimeoutOutOfRange(int timeout)
     {
         var cmd = new CreateOpenApiPluginCommand(
+            _creatorUserId,
             "Test Plugin",
             "test_plugin",
             "https://api.example.com",
@@ -142,6 +173,7 @@ public class CreateOpenApiPluginHandlerTests
     public async Task Handle_SetsDefaultValues()
     {
         var cmd = new CreateOpenApiPluginCommand(
+            _creatorUserId,
             "Test Plugin",
             "test_plugin",
             "https://api.example.com");

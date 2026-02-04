@@ -10,6 +10,7 @@ using Domain.Exceptions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WebApi.Extensions;
 
 namespace WebApi.Controllers;
 
@@ -70,6 +71,7 @@ public class AdminOpenApiPluginsController(
 
     /// <summary>
     /// Create a new OpenAPI plugin.
+    /// The admin who creates the plugin is automatically granted access to it.
     /// </summary>
     [HttpPost]
     public async Task<IActionResult> CreatePlugin(
@@ -78,7 +80,9 @@ public class AdminOpenApiPluginsController(
     {
         try
         {
+            var creatorUserId = User.GetUserId();
             var command = new CreateOpenApiPluginCommand(
+                creatorUserId,
                 request.Name,
                 request.SystemName,
                 request.BaseUrl,
