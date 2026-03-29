@@ -1,0 +1,104 @@
+stages:
+  - validate
+  - build
+
+default:
+  interruptible: true
+
+variables:
+  REGISTRY_PUSH_HOST: gitlab-registry.gitlab.svc.cluster.local:32443
+  BUILD_CONFIGURATION: Release
+  DOCKERFILE_PATH: Dockerfile
+  GIT_DEPTH: "20"
+  DOTNET_NOLOGO: "true"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  NUGET_XMLDOC_MODE: skip
+  NUGET_PACKAGES: $CI_PROJECT_DIR/.nuget/packages
+  NUGET_HTTP_CACHE_PATH: $CI_PROJECT_DIR/.nuget/http-cache
+  TARGET_RUNTIME: linux-x64
+  KUBERNETES_CPU_REQUEST: "100m"
+  KUBERNETES_CPU_LIMIT: "500m"
+  KUBERNETES_HELPER_CPU_REQUEST: "50m"
+  KUBERNETES_HELPER_CPU_LIMIT: "100m"
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+.backend-changes: &backend-changes
+  - .gitlab-ci.yml
+  - .dockerignore
+  - Dockerfile
+  - services/backend/**/*
+
+.backend-rules: &backend-rules
+  - if: $CI_COMMIT_TAG
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    changes: *backend-changes
+  - if: $CI_COMMIT_BRANCH
+    changes: *backend-changes
+
+validate-backend:
+  stage: validate
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  cache:
+    key: dotnet-10-backend
+    paths:
+      - .nuget/packages
+      - .nuget/http-cache
+    policy: pull-push
+  rules: *backend-rules
+  script:
+    - dotnet restore services/backend/Backend.sln --packages "$NUGET_PACKAGES" --runtime "$TARGET_RUNTIME"
+    - dotnet build services/backend/Backend.sln --configuration "$BUILD_CONFIGURATION" --no-restore
+    - dotnet publish services/backend/src/Adapters/WebApi/WebApi.csproj --configuration "$BUILD_CONFIGURATION" --runtime "$TARGET_RUNTIME" --no-restore --output services/backend/publish -p:UseAppHost=false
+
+build-image:
+  stage: build
+  resource_group: orchid-core-image-build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
+  rules:
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH && $CI_PIPELINE_SOURCE != "merge_request_event"
+      changes: *backend-changes
+  script:
+    - mkdir -p /kaniko/.docker
+    - |
+      gitlab_auth="$(printf '%s:%s' "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')"
+      printf '{"auths":{"%s":{"auth":"%s"},"%s":{"auth":"%s"}}}\n' \
+        "${CI_REGISTRY}" "${gitlab_auth}" "${REGISTRY_PUSH_HOST}" "${gitlab_auth}" \
+        > /kaniko/.docker/config.json
+    - |
+      destination_base="${REGISTRY_PUSH_HOST}/${CI_PROJECT_PATH}"
+      cache_repo="${destination_base}/cache"
+      destinations="--destination=${destination_base}:sha-${CI_COMMIT_SHORT_SHA}"
+
+      if [ -n "${CI_COMMIT_BRANCH}" ]; then
+        destinations="${destinations} --destination=${destination_base}:${CI_COMMIT_REF_SLUG}"
+      fi
+
+      if [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+        destinations="${destinations} --destination=${destination_base}:prod"
+      fi
+
+      if [ -n "${CI_COMMIT_TAG}" ]; then
+        destinations="${destinations} --destination=${destination_base}:${CI_COMMIT_TAG}"
+      fi
+
+      /kaniko/executor \
+        --context "${CI_PROJECT_DIR}" \
+        --dockerfile "${CI_PROJECT_DIR}/${DOCKERFILE_PATH}" \
+        --cache=true \
+        --cache-repo "${cache_repo}" \
+        --cache-copy-layers \
+        --cache-run-layers \
+        --cache-ttl=168h \
+        --cleanup \
+        --snapshot-mode=redo \
+        --skip-tls-verify-registry="${REGISTRY_PUSH_HOST}" \
+        ${destinations}

@@ -6,5 +6,5 @@ kind: Component
 
 images:
 - digest: sha256:7baafdd958b96d78d201f6202ca64d1514bc27e0f654a30e082bcf54ccf7f229
-  name: ghcr.io/pablitxn/orchid-core:prod
-  newName: ghcr.io/pablitxn/orchid-core
+  name: registry.orchid-labs.xyz:32443/orchid-labs/agents-foundry/orchid-core:prod
+  newName: registry.orchid-labs.xyz:32443/orchid-labs/agents-foundry/orchid-core
