@@ -19,8 +19,12 @@ variables:
   TARGET_RUNTIME: linux-x64
   KUBERNETES_CPU_REQUEST: "100m"
   KUBERNETES_CPU_LIMIT: "500m"
+  KUBERNETES_MEMORY_REQUEST: "256Mi"
+  KUBERNETES_MEMORY_LIMIT: "1Gi"
   KUBERNETES_HELPER_CPU_REQUEST: "50m"
   KUBERNETES_HELPER_CPU_LIMIT: "100m"
+  KUBERNETES_HELPER_MEMORY_REQUEST: "64Mi"
+  KUBERNETES_HELPER_MEMORY_LIMIT: "128Mi"
 
 workflow:
   rules:
@@ -35,10 +39,7 @@ workflow:
   - services/backend/**/*
 
 .backend-rules: &backend-rules
-  - if: $CI_COMMIT_TAG
   - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    changes: *backend-changes
-  - if: $CI_COMMIT_BRANCH
     changes: *backend-changes
 
 validate-backend:
