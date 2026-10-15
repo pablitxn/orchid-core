@@ -300,6 +300,12 @@ public class StripeService : IStripeService
 
     public StripeWebhookEvent? ValidateAndParseWebhook(string payload, string signature)
     {
+        if (string.IsNullOrWhiteSpace(_settings.WebhookSecret))
+        {
+            _logger.LogWarning("Stripe webhook rejected because its signing secret is not configured");
+            return null;
+        }
+
         try
         {
             var stripeEvent = EventUtility.ConstructEvent(

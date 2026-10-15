@@ -81,6 +81,24 @@ dotnet build services/backend/Backend.sln
 dotnet run --project services/backend/src/Adapters/WebApi
 ```
 
+#### Stripe credentials
+
+The tracked settings intentionally leave `Stripe:SecretKey` and
+`Stripe:WebhookSecret` empty. Supply them privately with the existing .NET User
+Secrets configuration for the WebApi project during development, or with
+`Stripe__SecretKey` and `Stripe__WebhookSecret` environment variables at runtime.
+Do not store credentials in tracked `appsettings*.json` files, including
+`appsettings.local.json`, which contains behavior settings only.
+
+Stripe operations require the API key, and incoming webhooks require their
+endpoint's signing secret. Without a signing secret, webhook requests are
+rejected. Local billing views for users without a Stripe customer and parsing
+of already stored webhook events remain available without credentials.
+
+Credentials previously committed to Git must be revoked or rotated in Stripe.
+Removing them from current configuration does not invalidate historical copies
+or credentials embedded in previously built images.
+
 ### CLI Tools
 
 ```bash
